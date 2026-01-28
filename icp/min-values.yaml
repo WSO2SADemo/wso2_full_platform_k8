@@ -1,0 +1,136 @@
+# ------------------------------------------------------------------------------
+# WSO2 ICP - Fixed Path & Registry Configuration
+# ------------------------------------------------------------------------------
+provider: "kubernetes"
+
+# -- FIX 1: Move the 'wso2' namespace here so the pull URL works
+containerRegistry: "docker.io/wso2"
+
+wso2:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    hostname: "airbus.icp.wso2.com"
+    path: "/"
+    tls: [] 
+    ratelimit:
+      enabled: false
+      zoneName: ""
+      burstLimit: ""
+    metrics:
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+
+  config:
+    secureVault:
+      enabled: false
+    userstore:
+      file:
+        enabled: true
+    serviceAccount:
+      mi:
+        username: "admin"
+        password: "admin"
+      bi:
+        username: "bal_admin"
+        password: "bal_secret"
+      si:
+        username: "admin"
+        password: "admin"
+    sso:
+      enabled: false
+    
+    # -- FIX 2: Ensure filenames match your created Secret exactly
+    keyStore:
+      fileName: "dashboard.jks" 
+      alias: "wso2carbon"
+      password: "wso2carbon"
+      keyPassword: "wso2carbon"
+    trustStore:
+      # Note: Reference file had "trustore" (typo), ensure this matches your secret key
+      fileName: "client-truststore.jks"
+      password: "wso2carbon"
+    
+    heartbeatPoolSize: 15
+    serverPort: 9743
+
+  deployment:
+    hostname: "airbus.icp.wso2.com"
+    
+    # Secret containing your JKS files
+    JKSSecretName: "dashboard-secret"
+
+    # -- FIX 3: Version 1.2.0 matches the folder name
+    BuildVersion: "1.2.0"
+
+    image:
+      # -- FIX 4: Use only the product name here (no 'wso2/' prefix)
+      # This ensures the internal folder path is calculated correctly.
+      # The full image becomes: docker.io/wso2/wso2-integration-control-plane:1.2.0
+      repository: "wso2-integration-control-plane"
+      tag: "1.2.0" 
+      pullPolicy: IfNotPresent
+
+    extraVolumeMounts:
+      - name: keystores
+        mountPath: "/home/wso2carbon/wso2-integration-control-plane-1.2.0/conf/security/client-truststore.jks"
+        subPath: "client-truststore.jks"
+        readOnly: true
+    
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+      jvm:
+        memory:
+          xms: "512m"
+          xmx: "1024m"
+
+    probes:
+      startup:
+        initialDelaySeconds: 15
+        periodSeconds: 3
+        failureThreshold: 40
+      
+      liveness:
+        periodSeconds: 20
+        failureThreshold: 5
+      
+      readiness:
+        httpGet:
+            path: /dashboard/api/healthz
+            port: 9743
+            scheme: HTTPS
+        periodSeconds: 10
+        failureThreshold: 5
+        initialDelaySeconds: 60 
+
+    replicas: 1
+    minReplicas: 1
+    maxReplicas: 1
+    minAvailable: 1
+    strategy:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    
+    securityContext:
+      apparmor: false
+      seccompProfile:
+        enabled: true
+        type: RuntimeDefault
+      runAsUser: "10802"
+      seLinux:
+        enabled: false
+
+    configMaps:
+      entryPoint:
+        defaultMode: 0755
+
+    envs: []

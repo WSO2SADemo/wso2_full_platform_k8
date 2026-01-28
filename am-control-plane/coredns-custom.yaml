@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns
+data:
+  wso2.server: |
+    wso2.com:53 {
+        errors
+        cache 30
+        hosts {
+            10.43.87.241 cp.wso2.com gw.wso2.com kibana.wso2.com icp.wso2.com
+            fallthrough
+        }
+    }

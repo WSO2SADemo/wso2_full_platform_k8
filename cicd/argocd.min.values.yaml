@@ -1,0 +1,39 @@
+# cicd/argocd.min.values.yaml
+# Argo CD Helm Chart Values for AKS Ingress (TLS Termination Fix)
+
+server:
+  # --- 1. Service Port Configuration ---
+  # Ensures the Service ports map correctly to the application's internal listening port (8080).
+  service:
+    ports:
+      - name: http
+        port: 80
+        targetPort: 8080
+      - name: https
+        port: 443
+        targetPort: 8080
+
+  # --- 2. Ingress Configuration (Fixes Redirect Loop) ---
+  # We switch to TLS Termination at the NGINX Ingress Controller (using port 443 on the service).
+  ingress:
+    enabled: true
+    hostname: argocd.airbus.wso2.com
+    ingressClassName: nginx # Ensure this matches your Ingress Controller's class
+    
+    # CRITICAL ANNOTATIONS FOR TERMINATION MODE:
+    annotations:
+      # 1. Remove the problematic ssl-passthrough
+      # 2. Tell NGINX the backend (Argo CD) is expecting HTTPS (from a proxy's perspective)
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      # 3. Prevent the Ingress Controller from enforcing its own internal redirects, 
+      #    relying on the external redirect configured later.
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+
+    # NOTE: To use Ingress TLS termination, you MUST have a TLS certificate 
+    # for argocd.airbus.wso2.com loaded as a Kubernetes Secret.
+    # Replace 'your-tls-secret' with the actual name of your Secret.
+    # If you don't have this secret, you MUST create it first.
+    tls:
+      - hosts:
+          - argocd.airbus.wso2.com
+        secretName: your-tls-secret

@@ -1,0 +1,20 @@
+spec:
+  ports:
+  - name: servlet-http
+    port: 9763
+    protocol: TCP
+    targetPort: 9763
+  - name: servlet-https
+    port: 9443
+    protocol: TCP
+    targetPort: 9443
+  - name: amqp
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+  - name: dashboard
+    port: 9743
+    targetPort: 9743
+  - name: management
+    port: 9264
+    targetPort: 9264

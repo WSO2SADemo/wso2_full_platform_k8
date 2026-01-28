@@ -1,0 +1,17 @@
+# elk/kibana-values.yaml
+
+# Point Kibana to the SECURE Elasticsearch service
+elasticsearchHosts: "https://elasticsearch-master.elk.svc:9200"
+
+# We have REMOVED the 'elasticsearch.security' block.
+# The chart will auto-discover the CA and credentials
+# from the secrets created by the Elasticsearch chart.
+
+# We can keep your resource request settings
+resources:
+  requests:
+    cpu: "100m"
+    memory: "500Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"

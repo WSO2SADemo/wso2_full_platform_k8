@@ -1,0 +1,56 @@
+# elk/logstash-pipeline-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: elk
+data:
+  logstash.conf: |
+    input {
+        beats {
+            port => 5044
+        }
+    }
+    
+    filter {
+        grok {
+            match => ["message", "%{GREEDYDATA:UNWANTED}\ apimMetrics:%{GREEDYDATA:apimMetrics}\, %{GREEDYDATA:UNWANTED} \:%{GREEDYDATA:properties}"]
+        }
+        json {
+            source => "properties"
+        }
+    }
+    
+    output {
+        if [apimMetrics] == " apim:response" {
+            elasticsearch {
+                # --- THIS IS THE FIX ---
+                hosts => ["https://elasticsearch-master.elk.svc:9200"]
+                # --- END OF FIX ---
+                index => "apim_event_response"
+                user => "elastic"
+                password => "${password}"
+                cacert => "/usr/share/logstash/certs/ca.crt"
+            }
+        } else if [apimMetrics] == " apim:faulty" {
+            elasticsearch {
+                # --- THIS IS THE FIX ---
+                hosts => ["https://elasticsearch-master.elk.svc:9200"]
+                # --- END OF FIX ---
+                index => "apim_event_faulty"
+                user => "elastic"
+                password => "${password}"
+                cacert => "/usr/share/logstash/certs/ca.crt"
+            }
+        } else {
+            elasticsearch {
+                # --- THIS IS THE FIX ---
+                hosts => ["https://elasticsearch-master.elk.svc:9200"]
+                # --- END OF FIX ---
+                index => "filebeat-general-%{+yyyy.MM.dd}"
+                user => "elastic"
+                password => "${password}"
+                cacert => "/usr/share/logstash/certs/ca.crt"
+            }
+        }
+    }

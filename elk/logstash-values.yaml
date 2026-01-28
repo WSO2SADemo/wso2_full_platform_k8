@@ -1,0 +1,69 @@
+# elk/logstash-values.yaml
+replicas: 1
+
+livenessProbe:
+  enabled: false
+readinessProbe:
+  enabled: false
+# --- END OF BLOCK ---
+
+logstashConfig:
+  pipelines.yml: |
+    - pipeline.id: main
+      path.config: "/usr/share/logstash/pipeline/logstash.conf"
+  logstash.yml: |
+    xpack.monitoring.enabled: false
+    http.host: "0.0.0.0"
+
+extraVolumes:
+  - name: pipeline
+    configMap:
+      name: logstash-pipeline
+  - name: elastic-certs
+    secret:
+      secretName: elasticsearch-master-certs
+
+extraVolumeMounts:
+  - name: pipeline
+    mountPath: /usr/share/logstash/pipeline/logstash.conf
+    subPath: logstash.conf
+    readOnly: true
+  - name: elastic-certs
+    mountPath: /usr/share/logstash/certs/ca.crt
+    subPath: ca.crt
+    readOnly: true
+
+secretMounts:
+  - name: elastic-credentials
+    secretName: elasticsearch-master-credentials
+    path: /usr/share/logstash/secrets
+
+envFrom:
+- secretRef:
+    name: elasticsearch-master-credentials
+
+logstashJavaOpts: "-Xms1g -Xmx1g"
+
+# --- ADD THIS BLOCK ---
+monitoring:
+  enabled: false
+# --- END OF BLOCK ---
+
+service:
+  type: ClusterIP
+  ports:
+    - name: "beats"
+      port: 5044
+      protocol: TCP
+      targetPort: 5044
+      
+resources:
+  requests:
+    cpu: "100m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+    
+persistence:
+  enabled: false

@@ -9,3 +9,35 @@ Dependencies.toml
 Config.toml
 # the config files used for testing, Uncomment the following line if you want to commit the test config files
 #!**/tests/Config.toml
+
+# But not the packs folder
+
+packs/
+packs/**
+
+control-plane/mysql-connector-j-9.5.0.jar
+gateway/mysql-connector-j-9.5.0.jar
+
+control-plane/wso2am-acp-4.6.0-rc.tgz
+gateway/wso2am-gw-4.6.0-rc.tgz
+
+control-plane/wso2am-acp
+control-plane/wso2am-acp/**
+gateway/wso2am-gw
+gateway/wso2am-gw/**
+
+integration/ballerina-secrets.yaml
+integration/config-map.yaml
+
+security/cp/*
+security/gw/*
+
+# Don't ignore .gitignore itself
+!.gitignore
+.DS_Store
+
+selfhosted_github_runner/*
+selfhosted_github_runner/**
+selfhosted_github_runner/actions-runner-osx-arm64-2.331.0.tar.gz
+selfhosted_github_runner/env.sh
+selfhosted_github_runner/config.sh

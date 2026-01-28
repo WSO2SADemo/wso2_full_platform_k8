@@ -1,0 +1,21 @@
+# kibana-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+  namespace: elk # Must be in the same namespace as Kibana
+  # We remove the old annotations block
+spec:
+  ingressClassName: nginx # <--- This is the correct field to use
+  rules:
+  - host: "kibana.airline.wso2.com" # The hostname you want to use
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            # This is the default service name from the Kibana chart
+            name: kibana-kibana 
+            port:
+              number: 5601

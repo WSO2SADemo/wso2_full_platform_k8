@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# ========================================
+# TWO KEYSTORES APPROACH (WSO2 Standard) - PKCS12 Version
+# 1. dashboard.p12 - Private key + certificate
+# 2. client-truststore.p12 - Public certificates for mutual trust
+# ========================================
+
+echo "================================================"
+echo "Creating Ballerina-Integration Dashboard and Certificate (P12)"
+echo "================================================"
+
+# ------------------------------------------------------------------
+# Step 1: Generate Gateway KeyStore (PKCS12)
+# ------------------------------------------------------------------
+# Creates dashboard.p12 with the private key
+keytool -genkeypair \
+  -alias ballerina \
+  -keyalg RSA \
+  -keysize 2048 \
+  -dname "CN=airbus.ballarina-integration.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
+  -ext "SAN=DNS:airbus.ballarina-integration.wso2.com,DNS:localhost,DNS:*.ballarina-integration.svc.cluster.local" \
+  -keystore keystore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina \
+  -validity 365
+
+# ------------------------------------------------------------------
+# Step 2: Export Certificate
+# ------------------------------------------------------------------
+# Exports the public cert from the P12 keystore
+keytool -export \
+  -alias ballerina \
+  -file ballerina-integration.crt \
+  -keystore keystore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina
+
+keytool -importcert \
+  -alias actual-cp-ingress-cert \
+  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/security/cp/actual-cp-ingress-cert.crt \
+  -keystore truststore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina \
+  -noprompt
+
+keytool -importcert \
+  -alias control-cert \
+  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/security/cp/control-cert.crt \
+  -keystore truststore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina \
+  -noprompt
+
+keytool -importcert \
+  -alias wso2-cp \
+  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/integration/wso2-cp.crt \
+  -keystore truststore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina \
+  -noprompt
+
+# ------------------------------------------------------------------
+# Step 3: Create Client Truststore (PKCS12)
+# ------------------------------------------------------------------
+# Note: Keytool creates the file automatically on the first import. 
+# There is no explicit "create empty p12" command required.
+
+keytool -importcert \
+      -alias dashboard \
+      -file ../icp/dashboard.crt \
+      -keystore truststore.p12 \
+      -storetype PKCS12 \
+      -storepass ballerina \
+      -noprompt
+
+# Import local ballerina-integration cert
+keytool -importcert \
+  -alias ballerina-local \
+  -file ballerina-integration.crt \
+  -keystore truststore.p12 \
+  -storetype PKCS12 \
+  -storepass ballerina \
+  -noprompt
+
+echo "================================================"
+echo "Deploying to Kubernetes"
+echo "================================================"
+
+# Delete old secrets
+kubectl delete secret ballerina-integration-secret -n ballerina
+
+
+
+
+kubectl create secret generic ballerina-integration-secret \
+  --from-file=ballerinaKeystore.p12=keystore.p12 \
+  --from-file=ballerinaTruststore.p12=truststore.p12 \
+  -n ballerina

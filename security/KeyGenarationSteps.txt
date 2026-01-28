@@ -1,0 +1,141 @@
+#!/bin/bash
+
+# ========================================
+# TWO KEYSTORES APPROACH (WSO2 Standard)
+# 1. gateway-keystore.jks - Gateway's private key + certificate
+# 2. control-keystore.jks - Control Plane's private key + certificate
+#
+# Each product will have its own client-truststore.jks containing
+# the public certificates of the other component for mutual trust
+# ========================================
+
+# Delete old keystores (if they exist)
+rm -f gateway-keystore.jks control-keystore.jks gateway-cert.crt control-cert.crt
+
+echo "================================================"
+echo "Creating Gateway KeyStore and Certificate"
+echo "================================================"
+
+# Step 1: Generate Gateway KeyStore with private key
+keytool -genkeypair \
+ -alias wso2carbon \
+ -keyalg RSA \
+ -keysize 2048 \
+ -dname "CN=gw.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
+ -ext "SAN=DNS:gw.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-2-service.apim-cp.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
+ -keystore security/gw/gateway-keystore.jks \
+ -storepass wso2carbon \
+ -keypass wso2carbon \
+ -validity 365
+
+# Step 2: Export Gateway certificate
+keytool -export \
+ -alias wso2carbon \
+ -file security/gw/gateway-cert.crt \
+ -keystore security/gw/gateway-keystore.jks \
+ -storepass wso2carbon
+
+
+# Step 3: Generate Control Plane KeyStore with private key
+keytool -genkeypair \
+ -alias wso2carbon \
+ -keyalg RSA \
+ -keysize 2048 \
+ -dname "CN=cp.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
+ -ext "SAN=DNS:cp.wso2.com,DNS:cp.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-2-service.apim-cp.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
+ -keystore security/cp/control-keystore.jks \
+ -storepass wso2carbon \
+ -keypass wso2carbon \
+ -validity 365
+
+# Step 4: Export Control Plane certificate
+keytool -export \
+ -alias wso2carbon \
+ -file security/cp/control-cert.crt \
+ -keystore security/cp/control-keystore.jks \
+ -storepass wso2carbon
+
+
+# Step 5: Move cp cert to cp clinet-truststore.jks
+# Control Plane needs to trust BOTH Gateway AND itself for internal communication
+keytool -importcert \
+ -alias control-plane \
+ -file security/cp/control-cert.crt \
+ -keystore security/cp/client-truststore.jks \
+ -storepass wso2carbon \
+ -noprompt
+
+# Step 6: move GW cert to CP client-truststore.jks
+keytool -importcert \
+ -alias gateway \
+ -file security/gw/gateway-cert.crt \
+ -keystore security/cp/client-truststore.jks \
+ -storepass wso2carbon \
+ -noprompt
+
+# Step 7: Move CP cert to GW clinet-truststore.jks
+keytool -importcert \
+ -alias control-plane \
+ -file security/cp/control-cert.crt \
+ -keystore security/gw/client-truststore.jks \
+ -storepass wso2carbon \
+ -noprompt
+
+
+echo | openssl s_client -connect cp.wso2.com:443 -servername cp.wso2.com 2>/dev/null | openssl x509 -outform PEM > security/cp/actual-cp-ingress-cert.crt
+keytool -importcert -alias cp-ingress -file security/cp/actual-cp-ingress-cert.crt -keystore security/gw/client-truststore.jks -storepass wso2carbon -noprompt
+
+
+echo "================================================"
+echo "Deploying to Kubernetes"
+echo "================================================"
+
+# Delete old secrets
+kubectl delete secret apim-keystore-secret -n apim-cp --ignore-not-found=true
+kubectl delete secret apim-keystore-secret -n apim-gw --ignore-not-found=true
+
+
+# Create Gateway secret (keystore + truststore)
+echo "Creating secret in apim-gw namespace..."
+kubectl create secret generic apim-keystore-secret \
+ --from-file=gateway-keystore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/gw/gateway-keystore.jks \
+ --from-file=client-truststore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/gw/client-truststore.jks \
+ -n apim-gw
+
+# Create Control Plane secret (keystore + truststore)
+echo "Creating secret in apim-cp namespace..."
+kubectl create secret generic apim-keystore-secret \
+ --from-file=control-keystore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/cp/control-keystore.jks \
+ --from-file=client-truststore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/cp/client-truststore.jks \
+ -n apim-cp
+
+# Restart pods
+echo "Restarting deployments..."
+kubectl rollout restart deployment -n apim-cp
+kubectl rollout restart deployment -n apim-gw
+
+echo ""
+echo "================================================"
+echo "✓ All done! Created:"
+echo "  - gateway-keystore.jks (Gateway's keystore)"
+echo "  - control-keystore.jks (Control Plane's keystore)"
+echo "  - gateway-client-truststore.jks (Gateway trusts CP)"
+echo "  - control-client-truststore.jks (CP trusts Gateway)"
+echo "================================================"
+
+
+
+
+
+DEV
+openssl s_client -connect dev.gw.wso2.com:443 -servername dev.gw.wso2.com </dev/null 2>/dev/null | openssl x509 -outform PEM > dev-cp-ingress-fake.crt
+keytool -delete -alias cp-ingress -keystore dev/gw/client-truststore.jks -storepass wso2carbon -noprompt
+keytool -importcert -alias cp-ingress -file dev-cp-ingress-fake.crt -keystore dev/gw/client-truststore.jks -storepass wso2carbon -noprompt
+kubectl delete secret apim-keystore-secret -n dev-apim-gw
+kubectl create secret generic apim-keystore-secret --from-file=dev/gw/gateway-keystore.jks --from-file=gw/client-truststore.jks -n dev-apim-gw
+kubectl rollout restart deployment -n dev-apim-gw
+
+
+kubectl delete secret apim-keystore-secret -n dev-apim-cp
+kubectl create secret generic apim-keystore-secret --from-file=dev/cp/control-keystore.jks --from-file=dev/cp/client-truststore.jks -n dev-apim-cp
+kubectl rollout restart deployment -n dev-apim-cp

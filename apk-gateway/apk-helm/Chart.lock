@@ -1,0 +1,12 @@
+dependencies:
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.4.14
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 20.10.0
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.17.1
+digest: sha256:b6da791e4d4423e16c71a462e45b75696794bc95f84f0d47976596a230d216a9
+generated: "2025-03-02T08:20:52.760533+05:30"

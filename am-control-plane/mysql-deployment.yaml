@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  namespace: apim-db
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wso2-mysql
+  namespace: apim-db
+  labels:
+    app: wso2-mysql
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+      name: mysql
+  selector:
+    app: wso2-mysql
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wso2-mysql
+  namespace: apim-db
+  labels:
+    app: wso2-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wso2-mysql
+  template:
+    metadata:
+      labels:
+        app: wso2-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          resources:
+            requests:
+              cpu: "0.5"  # Guarantee 0.5 CPU to start
+            limits:
+              cpu: "1"    # NEVER allow more than 1 CPU
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root"
+            - name: MYSQL_DEFAULT_AUTHENTICATION_PLUGIN
+              value: "mysql_native_password"
+          ports:
+            - containerPort: 3306
+              name: mysql
+          args:
+            - "--character-set-server=latin1"
+            - "--collation-server=latin1_swedish_ci"
+          livenessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            timeoutSeconds: 1
+          
+          # --- 1. Mount the volume to the database data path ---
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+              
+      # --- 2. Define the volume using the PVC created above ---
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim

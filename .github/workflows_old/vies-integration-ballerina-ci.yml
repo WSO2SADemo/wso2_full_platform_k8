@@ -1,0 +1,151 @@
+name: Ballerina - Prod - vies Pipeline
+
+on:
+  push:
+    paths:
+      # 1. CORRECTED: Trigger on changes within the new source directory
+      - 'integration/vies-integration/**'
+      - '.github/workflows/vies-integration-ballerina-ci.yml'
+    branches:
+      - prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }} # Azure Resource Group where the AKS cluster is
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}     # Name of the AKS cluster
+      BALLERINA_NAMESPACE: ballerina 
+      # Define the base path for the Ballerina project
+      PROJECT_DIR: integration/vies-integration 
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Debug - Print Environment Variables
+        run: |
+          echo "Current Working Directory: $(pwd)"
+          echo "PROJECT_DIR: ${{ env.PROJECT_DIR }}"
+        
+      - name: Set up Ballerina
+        uses: ballerina-platform/setup-ballerina@v1
+        with:
+          version: 2201.13.1
+
+      - name: Cache Ballerina Dependencies
+        uses: actions/cache@v3
+        with:
+          # Use the project directory to hash the Ballerina.toml
+          path: ~/.ballerina
+          key: ballerina-deps-${{ hashFiles('${{ env.PROJECT_DIR }}/Ballerina.toml') }}
+          restore-keys: |
+            ballerina-deps-
+
+      - name: Run Tests 🧪
+        # 2. CORRECTED: Use 'working-directory' instead of the unsupported '--project' flag
+        working-directory: ${{ env.PROJECT_DIR }} 
+        run: bal test
+
+      - name: Build Ballerina Project (Generates K8s artifacts) 🏗️
+        # Use 'working-directory' for 'bal build' as well
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: bal build
+
+      # --- START DOCKER REGISTRY STEPS ---
+      
+      - name: 🔐 Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      - name: 📦 Push Docker Image to Registry
+        run: |
+          # Pushes the image tag defined in your Deployment manifest (vies-integratio-deployment)
+          IMAGE_NAME="ramilu90/vies_integration:latest"
+          echo "Pushing image: ${IMAGE_NAME}"
+          docker push ${IMAGE_NAME}
+
+      # --- END DOCKER REGISTRY STEPS ---
+
+      ## --- Azure Kubernetes Service (AKS) Deployment ---
+
+      - name: 🔐 Azure Login via Service Principal
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
+          
+      - name: 🚢 Set AKS Kubectl Context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      - name: 🚀 Ensure Namespace Exists
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl get namespace ${NAMESPACE}
+
+      - name: 🔍 Debug - Check K8s Artifacts Directory
+        run: |
+          # K8s artifacts path relative to repository root
+          K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/vies_integration"
+          
+          if [ -d "${K8S_ARTIFACTS_DIR}" ]; then
+            echo "${K8S_ARTIFACTS_DIR} directory exists. Contents:"
+            ls -la ${K8S_ARTIFACTS_DIR}
+          else
+            echo "Error: ${K8S_ARTIFACTS_DIR} directory does NOT exist after build."
+            exit 1
+          fi
+          
+      - name: Deploy Kubernetes Resources with kubectl
+        # 3. CORRECTED: Use the full relative path for kubectl delete/apply
+        run: |
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/vies_integration"
+          
+          echo "Deleting existing resources from ${K8S_DIR}..."
+          # Added --ignore-not-found to prevent pipeline failure if resources don't exist yet
+          kubectl delete -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found=true
+          
+          echo "Applying new resources from ${K8S_DIR}..."
+          kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
+
+      - name: 🔧 Patch Deployment with Volume Mounts
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          DEPLOYMENT="vies-integratio-deployment"
+          
+          echo "Waiting for deployment to be available..."
+          kubectl wait --for=condition=Available=False deployment/$DEPLOYMENT -n $NAMESPACE --timeout=10s || true
+
+          # 1. Dynamically find the container name (Prevents "image required" error)
+          CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
+          echo "Detected Container Name: $CONTAINER_NAME"
+
+          # 2. Apply the Patch
+          echo "Patching svc for ballerina service management api..."
+          kubectl patch svc vies-integratio -n ballerina --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "management", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
+          echo "Patching volume mounts..."
+          kubectl patch deployment $DEPLOYMENT -n $NAMESPACE --patch "
+          spec:
+            template:
+              spec:
+                volumes:
+                - name: keystore-vol
+                  secret:
+                    secretName: ballerina-integration-secret
+                containers:
+                - name: $CONTAINER_NAME
+                  volumeMounts:
+                  - name: keystore-vol
+                    mountPath: /home/ballerina/bre/security
+                    readOnly: true
+          "
+          
+          echo "Patch applied. Verifying..."
+          kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE

@@ -1,0 +1,21 @@
+# elk/es-values.yaml
+
+# For dev/test only. Single node.
+replicas: 1
+
+# Keep resource usage low for testing
+esJavaOpts: "-Xms1g -Xmx1g"
+resources:
+  requests:
+    cpu: "100m"
+    memory: "2Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+# Disables persistent storage for a quick test
+persistence:
+  enabled: false
+
+# We have REMOVED all xpack.security flags.
+# The chart will now create its own CA and passwords.

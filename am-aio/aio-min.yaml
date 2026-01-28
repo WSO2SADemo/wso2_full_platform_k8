@@ -1,0 +1,100 @@
+wso2:
+  deployment:
+    image:
+      registry: docker.io
+      repository: "ramilu90/wso2am-arm:4.6.0"
+      digest: "sha256:f27655222ff01db408f7c5a1cd47d6cbc131c7b9a6c6d5353ac21064e5f299f8"
+    resources:
+      requests:
+        cpu: "0.5"  # Guarantee 0.5 CPU to start
+        memory: "1Gi"
+      limits:
+        cpu: "1"    # NEVER allow more than 1 CPU
+        memory: "2Gi"
+    imagePullPolicy: IfNotPresent
+    replicas: 1
+    # DISABLE HA for Local Run (Prevents extra threads/logic for clustering)
+    highAvailability: false
+    livenessProbe:
+      initialDelaySeconds: 180   # Wait 3 minutes before checking for crashes
+      periodSeconds: 20
+      failureThreshold: 5
+      
+    readinessProbe:
+      initialDelaySeconds: 180   # Wait 3 minutes before sending traffic
+      periodSeconds: 20
+      failureThreshold: 5
+      
+    startupProbe:
+      initialDelaySeconds: 180   # Wait 3 minutes for the FIRST start
+      periodSeconds: 20
+      failureThreshold: 30
+  apim:
+    configurations:
+      userStore:
+        type: "database_unique_id"
+      adminUsername: "admin"
+      adminPassword: "admin"
+      security:
+        keystores:
+          tls:
+            name: "control-keystore.jks"
+            alias: "wso2carbon"
+            password: "wso2carbon"
+            keyPassword: "wso2carbon"
+        truststore:
+          password: "wso2carbon"
+      databases:
+        type: "mysql"
+        jdbc:
+          driver: "com.mysql.cj.jdbc.Driver"
+        apim_db:
+          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/apim_db?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
+          username: "apimadmin"
+          password: "T6pC37Gg"
+        shared_db:
+          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/shared_db?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
+          username: "apimadmin"
+          password: "T6pC37Gg"
+      gateway:
+        environments:
+        - name: "Default"
+          type: "hybrid"
+          gatewayType: "Regular"
+          provider: "wso2"
+          displayInApiConsole: true
+          description: "This is a hybrid gateway that handles both production and sandbox token traffic."
+          showAsTokenEndpointUrl: true
+          serviceName: "gw-wso2am-universal-gw-service"
+          servicePort: 9443
+          wsHostname: "websocket.wso2.com"
+          httpHostname: "gw.wso2.com"
+          websubHostname: "websub.wso2.com"
+        - name: "External-GW"
+          type: "hybrid"
+          gatewayType: "Regular"
+          provider: "wso2"
+          displayInApiConsole: true
+          description: "This is a hybrid gateway that handles both production and sandbox token traffic."
+          showAsTokenEndpointUrl: true
+          serviceName: "gw-wso2am-universal-gw-service"
+          servicePort: 9443
+          wsHostname: "websocket.wso2.com"
+          httpHostname: "ext-gw.wso2.com"
+          websubHostname: "websub.wso2.com"
+        - name: "APK-GW"
+          type: "hybrid"
+          provider: "wso2"
+          gatewayType: "APK"
+          displayInApiConsole: true
+          description: "This is a hybrid gateway that handles both production and sandbox token traffic."
+          showAsTokenEndpointUrl: true
+          serviceName: "kgw-wso2-apk-gateway-service.apim-kgw.svc.cluster.local"
+          servicePort: 9095
+          wsHostname: "websocket.wso2.com"
+          httpHostname: "kgw.wso2.com:9095"
+          websubHostname: "websub.wso2.com"
+kubernetes:
+  ingress:
+    controlPlane:
+      hostname: "cp.wso2.com"
