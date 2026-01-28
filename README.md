@@ -1,0 +1,1 @@
+# wso2_full_platform_k8
