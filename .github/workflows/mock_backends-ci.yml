@@ -1,3 +1,17 @@
+name: Integration - Mock Backends
+
+on:
+  # Trigger on push to specific paths
+  push:
+    paths:
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends/**'
+      - '.github/workflows/mock_backends-ci.yml'
+    branches:
+      - main
+  
+  # Allows you to run this manually from the Actions tab
+  workflow_dispatch:
+
 jobs:
   build-and-deploy:
     runs-on: self-hosted
@@ -5,6 +19,8 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
+      # Ensure this matches your Docker Hub repo and tag
+      IMAGE_TAG: "1.0.5" 
 
     steps:
       - name: Checkout Code
@@ -23,15 +39,21 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           
-      - name: Push Docker Image
+      - name: Retag and Push Docker Image
         run: |
           # 1. Find the image ID built by Ballerina (uses the most recent one)
+          # We use 'head -n 1' to grab the most recent build if multiple exist
           BUILT_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "ramilu90/mock_backend" | head -n 1)
+          
+          if [ -z "$BUILT_IMAGE" ]; then
+            echo "Error: No image found matching 'ramilu90/mock_backend'"
+            exit 1
+          fi
+          
           echo "Found built image: $BUILT_IMAGE"
           
-          # 2. Retag explicitly to match your deployment
-          # (Ensure this tag matches what is in your K8s YAML)
-          TARGET_IMAGE="ramilu90/mock_backend:1.0.5"
+          # 2. Retag explicitly to match your deployment requirements
+          TARGET_IMAGE="ramilu90/mock_backend:${{ env.IMAGE_TAG }}"
           docker tag "$BUILT_IMAGE" "$TARGET_IMAGE"
           
           # 3. Push
@@ -48,7 +70,6 @@ jobs:
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           
           # We use cat <<EOF to handle newlines correctly. 
-          # DO NOT use single quotes for the data block.
           cat <<EOF > configmap.yaml
           apiVersion: v1
           kind: ConfigMap
@@ -93,7 +114,6 @@ jobs:
           fi
 
           # 2. PATCH: Force add port 9264 if not present
-          # We check if port 9264 is already in the list to avoid duplicate errors
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "9264"; then
              echo "Port 9264 already exists. Skipping patch."
           else
