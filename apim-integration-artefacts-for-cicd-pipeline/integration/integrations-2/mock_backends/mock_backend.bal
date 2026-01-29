@@ -4,6 +4,7 @@ import ballerina/io;
 import ballerina/data.xmldata;
 import ballerina/file;
 import ballerinax/wso2.controlplane as _;
+import ballerinax/wso2.apim.catalog as _;
 
 // ============================================================================
 // OAS SERVICE (Master Database) - Port 9092

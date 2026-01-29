@@ -18,7 +18,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      IMAGE_TAG: "1.0.6" 
+      IMAGE_TAG: "1.0.7" 
 
     steps:
       - name: Checkout Code
@@ -81,6 +81,14 @@ jobs:
               groupId="cluster1"
               mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
               nodeId="mock_backends"
+
+              [ballerinax.wso2.apim.catalog]
+              serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
+              tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
+              username="admin"
+              password="admin"
+              clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
+              clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
           EOF
 
           echo "Applying Corrected ConfigMap..."

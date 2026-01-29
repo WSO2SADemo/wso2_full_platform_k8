@@ -75,6 +75,10 @@ keytool -importcert \
   -storepass ballerina \
   -noprompt
 
+keytool -export -alias ballerina -file integration/ballerina.crt -keystore integration/keystore.p12 -storepass ballerina
+
+keytool -import -trustcacerts -alias ballerina -file integration/ballerina.crt -keystore integration/truststore.p12 -storepass ballerina -noprompt
+
 echo "================================================"
 echo "Deploying to Kubernetes"
 echo "================================================"
