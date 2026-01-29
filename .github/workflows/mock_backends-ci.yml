@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive  # <--- ADD THIS LINE
+          fetch-depth: 0
 
       - name: Print Ballerina Version
         run: bal version
