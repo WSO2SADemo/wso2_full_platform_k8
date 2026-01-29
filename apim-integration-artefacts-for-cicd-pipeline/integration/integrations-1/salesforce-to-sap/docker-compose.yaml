@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  salesforce-to-sap:
+    image: ramilu90/salesforce-to-sap:1.0.0
+    container_name: salesforce-sap-sync
+    restart: always # Ensures the container restarts if it crashes
+
+    # 1. Volume Mount
+    volumes:
+      - /Users/ramindu/wso2/general_demo/customer/airbus/airline-productAPI-cicd/integration/salesforce-to-sap/Config.toml:/app/config/Config.toml
+
+    # 2. Environment Variables
+    environment:
+      # Sets the environment variable to point to the mounted file's location inside the container.
+      BAL_CONFIG_FILES: /app/config/Config.toml
+      # Add any other required environment variables here (e.g., API keys, passwords, etc.)
+      # EXAMPLE:
+      # SAP_USERNAME: your_sap_user
+      # SF_CLIENT_ID: your_sf_client_id

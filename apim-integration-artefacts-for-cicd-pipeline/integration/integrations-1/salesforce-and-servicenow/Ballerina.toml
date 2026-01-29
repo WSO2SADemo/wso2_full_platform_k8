@@ -1,0 +1,15 @@
+[package]
+org = "wso2"
+name = "sf_to_servicenow"
+version = "1.0.0"
+distribution = "2201.12.7"
+
+# [[dependency]]
+# org = "ballerina"
+# name = "http"
+# version = "2.15.0"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+sticky = true

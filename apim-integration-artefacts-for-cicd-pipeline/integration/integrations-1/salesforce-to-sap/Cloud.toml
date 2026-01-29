@@ -1,0 +1,55 @@
+[container.image]
+repository="ramilu90" # Docker hub repository name.
+name="salesforce-to-sap" # container name
+tag="latest"
+
+# [[cloud.config.envs]]
+# key_ref="MOCK_API_BASE_URL"
+# config_name="ballerina-values"
+
+# [settings]
+# buildImage=true
+
+[[cloud.secret.envs]]
+key_ref="s4hanaClientConfigUsername"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="s4hanaClientConfigPassword"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="sfListenerConfigPassword"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="sfListenerConfigUsername"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="sfClientConfigClientId"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="sfClientConfigClientSecret"
+secret_name="ballerina-secrets"
+
+[[cloud.secret.envs]]
+key_ref="sfClientConfigRefreshToken"
+secret_name="ballerina-secrets"
+
+[[cloud.config.envs]]
+key_ref="sfClientConfigRefreshUrl"
+config_name="ballerina-values"
+
+[[cloud.config.envs]]
+key_ref="sfClientConfigBaseUrl"
+config_name="ballerina-values"
+
+[[cloud.config.envs]]
+key_ref="s4hanaClientConfigHostname"
+config_name="ballerina-values"
+
+[[cloud.config.envs]]
+key_ref="BAL_CONFIG_DATA"
+config_name="ballerina-values-sf-to-sap"

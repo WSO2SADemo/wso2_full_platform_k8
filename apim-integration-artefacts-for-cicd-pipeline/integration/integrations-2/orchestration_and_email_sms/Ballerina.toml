@@ -1,0 +1,10 @@
+[package]
+org = "ramindu"
+name = "integration_orchestration_service"
+version = "0.1.0"
+title = "integration_orchestration_service"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+sticky = true

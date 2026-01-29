@@ -1,0 +1,10 @@
+[package]
+org = "ramindu"
+name = "airlineservice"
+version = "0.1.0"
+title = "AirlineService"
+
+[build-options]
+sticky = true
+cloud = "k8s"
+remoteManagement=true

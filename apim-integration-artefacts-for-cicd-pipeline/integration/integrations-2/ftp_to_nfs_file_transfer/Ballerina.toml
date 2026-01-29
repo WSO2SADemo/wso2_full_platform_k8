@@ -1,0 +1,8 @@
+[package]
+org = "ramindu"
+name = "fto_to_nfs_file_transfer"
+version = "0.1.0"
+title = "fto_to_nfs_file_transfer"
+
+[build-options]
+sticky = true

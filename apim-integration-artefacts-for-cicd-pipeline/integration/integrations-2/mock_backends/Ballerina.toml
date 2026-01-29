@@ -1,0 +1,10 @@
+[package]
+org = "ramindu"
+name = "mock_backends"
+version = "0.1.0"
+title = "mock_backends"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+sticky = true

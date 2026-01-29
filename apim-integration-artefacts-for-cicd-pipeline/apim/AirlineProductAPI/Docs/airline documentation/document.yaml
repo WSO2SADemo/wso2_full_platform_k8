@@ -1,0 +1,9 @@
+type: document
+version: v4.6.0
+data:
+  documentId: 459c3336-80cf-44b0-9f5d-dcf5a9419825
+  name: airline documentation
+  type: HOWTO
+  summary: This documents contains the information about the resources
+  sourceType: INLINE
+  visibility: API_LEVEL
