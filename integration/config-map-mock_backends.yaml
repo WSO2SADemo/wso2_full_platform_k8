@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # This is the name you will reference in your Deployment/Pod
+  name: ballerina-values-mock_backends
+data:
+  # The key-value pair that holds your URL
+  BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
+  BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-wso2-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
