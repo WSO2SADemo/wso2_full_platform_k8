@@ -159,21 +159,20 @@ jobs:
               path = "/home/ballerina/logs/app.log"
 
               # --- WSO2 Integration Control Plane ---
-              [ballerinax.wso2.controlplane.dashboard]
-              url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
-              heartbeatInterval=10
-              groupId="cluster1"
-              mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
-              nodeId="mock_backends"
+              # [ballerinax.wso2.controlplane.dashboard]
+              # url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
+              # heartbeatInterval=10
+              # groupId="cluster1"
+              # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
+              # nodeId="mock_backends"
 
-              # --- APIM Service Catalog ---
               [ballerinax.wso2.apim.catalog]
               serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
               tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
               username="admin"
               password="admin"
-              clientId="<clientId>"
-              clientSecret="<Client secret>"
+              clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
+              clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
           EOF
 
           echo "Applying Ballerina ConfigMap..."
