@@ -1,9 +1,32 @@
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   # This is the name you will reference in your Deployment/Pod
+#   name: ballerina-values-mock-backends
+# data:
+#   # The key-value pair that holds your URL
+#   BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
+#   BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
+
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   # This is the name you will reference in your Deployment/Pod
-  name: ballerina-values-mock_backends
+  name: ballerina-values-mock-backends
 data:
   # The key-value pair that holds your URL
-  BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
-  BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-wso2-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
+  BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock-backends"
+  BAL_CONFIG_DATA: '[ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://vies-integratio.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock-backends" '
+
+  # Note the double quotes " at the start and end
+
+  # BAL_CONFIG_DATA: |
+  #   [ballerinax.wso2.controlplane.dashboard]
+  #   url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
+  #   heartbeatInterval=10
+  #   groupId="cluster1"
+  #   mgtApiUrl="https://vies-integratio.ballerina.svc.cluster.local:9264/management/"
+  #   nodeId="vies"
+
+  # BAL_CONFIG_DATA: "[ballerinax.wso2.controlplane.dashboard]\nurl=\"https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api\"\nheartbeatInterval=10\ngroupId=\"cluster1\"\nmgtApiUrl=\"https://mock-backends.ballerina.svc.cluster.local:9264/management/\"\nnodeId=\"vies\""

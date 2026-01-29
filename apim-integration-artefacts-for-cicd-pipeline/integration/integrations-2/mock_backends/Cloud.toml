@@ -6,3 +6,7 @@ tag="1.0.2"
 [[cloud.config.envs]]
 key_ref="BAL_CONFIG_DATA"
 config_name="ballerina-values-mock-backends"
+
+[[cloud.config.envs]]
+key_ref="BAL_CONFIG_VAR_BALLERINA_HTTP_TRACELOGCONSOLE"
+config_name="ballerina-values-mock-backends"
