@@ -27,8 +27,6 @@ jobs:
       - name: Build Ballerina Project (Generates K8s artifacts)
         working-directory: ${{ env.PROJECT_DIR }}
         run: bal build
-
-      # --- START DOCKER REGISTRY STEPS ---
       
       - name: 🔐 Docker Login
         uses: docker/login-action@v3
