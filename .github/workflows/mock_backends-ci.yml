@@ -67,7 +67,7 @@ jobs:
       - name: Patch Deployment (Volume Mounts)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          DEPLOYMENT="mock_backends-deployment"
+          DEPLOYMENT="mock-backends-deployment"
           
           # Wait for deployment to be created before patching
           kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=60s || true
