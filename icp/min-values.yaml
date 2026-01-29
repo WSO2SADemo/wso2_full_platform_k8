@@ -13,7 +13,7 @@ wso2:
     annotations:
       nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    hostname: "airbus.icp.wso2.com"
+    hostname: "icp.wso2.com"
     path: "/"
     tls: [] 
     ratelimit:
@@ -58,7 +58,7 @@ wso2:
     serverPort: 9743
 
   deployment:
-    hostname: "airbus.icp.wso2.com"
+    hostname: "icp.wso2.com"
     
     # Secret containing your JKS files
     JKSSecretName: "dashboard-secret"

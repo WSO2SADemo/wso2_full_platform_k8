@@ -18,9 +18,9 @@ keytool -genkeypair \
   -alias ballerina \
   -keyalg RSA \
   -keysize 2048 \
-  -dname "CN=airbus.ballarina-integration.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
-  -ext "SAN=DNS:airbus.ballarina-integration.wso2.com,DNS:localhost,DNS:*.ballarina-integration.svc.cluster.local" \
-  -keystore keystore.p12 \
+  -dname "CN=ballarina-integration.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
+  -ext "SAN=DNS:ballarina-integration.wso2.com,DNS:localhost,DNS:*.ballarina-integration.svc.cluster.local" \
+  -keystore integration/keystore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
   -validity 365
@@ -31,31 +31,23 @@ keytool -genkeypair \
 # Exports the public cert from the P12 keystore
 keytool -export \
   -alias ballerina \
-  -file ballerina-integration.crt \
-  -keystore keystore.p12 \
+  -file integration/ballerina-integration.crt \
+  -keystore integration/keystore.p12 \
   -storetype PKCS12 \
   -storepass ballerina
 
 keytool -importcert \
   -alias actual-cp-ingress-cert \
-  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/security/cp/actual-cp-ingress-cert.crt \
-  -keystore truststore.p12 \
+  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/cp/actual-cp-ingress-cert.crt \
+  -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
   -noprompt
 
 keytool -importcert \
   -alias control-cert \
-  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/security/cp/control-cert.crt \
-  -keystore truststore.p12 \
-  -storetype PKCS12 \
-  -storepass ballerina \
-  -noprompt
-
-keytool -importcert \
-  -alias wso2-cp \
-  -file /Users/ramindu/wso2/general_demo/github/airbus-demo/integration/wso2-cp.crt \
-  -keystore truststore.p12 \
+  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/cp/control-cert.crt \
+  -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
   -noprompt
@@ -68,8 +60,8 @@ keytool -importcert \
 
 keytool -importcert \
       -alias dashboard \
-      -file ../icp/dashboard.crt \
-      -keystore truststore.p12 \
+      -file icp/dashboard.crt \
+      -keystore integration/truststore.p12 \
       -storetype PKCS12 \
       -storepass ballerina \
       -noprompt
@@ -77,8 +69,8 @@ keytool -importcert \
 # Import local ballerina-integration cert
 keytool -importcert \
   -alias ballerina-local \
-  -file ballerina-integration.crt \
-  -keystore truststore.p12 \
+  -file integration/ballerina-integration.crt \
+  -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
   -noprompt
@@ -91,9 +83,7 @@ echo "================================================"
 kubectl delete secret ballerina-integration-secret -n ballerina
 
 
-
-
 kubectl create secret generic ballerina-integration-secret \
-  --from-file=ballerinaKeystore.p12=keystore.p12 \
-  --from-file=ballerinaTruststore.p12=truststore.p12 \
+  --from-file=ballerinaKeystore.p12=integration/keystore.p12 \
+  --from-file=ballerinaTruststore.p12=integration/truststore.p12 \
   -n ballerina
