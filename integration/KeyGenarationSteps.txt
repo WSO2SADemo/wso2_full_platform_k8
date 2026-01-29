@@ -36,9 +36,11 @@ keytool -export \
   -storetype PKCS12 \
   -storepass ballerina
 
+keytool -delete -alias actual-cp-ingress-cert -keystore integration/truststore.p12 -storepass ballerina
+
 keytool -importcert \
   -alias actual-cp-ingress-cert \
-  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/cp/actual-cp-ingress-cert.crt \
+  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/new_keys/cp-ingress.crt \
   -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
