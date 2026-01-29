@@ -4,7 +4,7 @@ on:
   push:
     paths:
       # 1. CORRECTED: Trigger on changes within the new source directory
-      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integration-2/mock_backends/**' '
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integration-2/mock_backends/**'
       - '.github/workflows/mock_backends-ci.yml'
     branches:
       - main
