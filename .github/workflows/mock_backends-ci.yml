@@ -18,7 +18,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      IMAGE_TAG: "1.0.10" 
+      IMAGE_TAG: "1.0.11" 
 
     steps:
       - name: Checkout Code
@@ -81,6 +81,22 @@ jobs:
               # groupId="cluster1"
               # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
               # nodeId="mock_backends"
+
+              # --- Observability (Moesif) ---
+              [ballerina.observe]
+              tracingEnabled=true
+              tracingProvider="moesif"
+              metricsEnabled=true
+              metricsReporter="moesif"
+
+              [ballerinax.moesif]
+              applicationId = "${{ env.MOESIF_APP_ID }}"
+              
+              # --- Logging to File (For FluentBit) ---
+              [ballerina.log]
+              format = "json"
+              [[ballerina.log.destinations]]
+              path = "/home/ballerina/logs/app.log"
 
               [ballerinax.wso2.apim.catalog]
               serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
