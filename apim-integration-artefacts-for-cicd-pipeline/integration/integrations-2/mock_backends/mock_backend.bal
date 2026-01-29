@@ -3,7 +3,7 @@ import ballerina/log;
 import ballerina/io;
 import ballerina/data.xmldata;
 import ballerina/file;
-import ballerinax/wso2.controlplane as _;
+// import ballerinax/wso2.controlplane as _;
 import ballerinax/wso2.apim.catalog as _;
 
 // ============================================================================
