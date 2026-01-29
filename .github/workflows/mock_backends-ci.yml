@@ -140,7 +140,6 @@ jobs:
             name: ballerina-values-mock-backends
             namespace: $NAMESPACE
           data:
-            BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
             BAL_CONFIG_DATA: |
               # --- Observability (Moesif) ---
               [ballerina.observe]
