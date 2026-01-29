@@ -37,7 +37,7 @@ jobs:
       - name: Push Docker Image
         run: |
           # Ensure this image name matches what is in your Ballerina generated YAML
-          IMAGE_NAME="ramilu90/mock_backend:1.0.0"
+          IMAGE_NAME="ramilu90/mock_backend:1.0.1"
           docker push ${IMAGE_NAME}
 
       - name: Ensure Namespace Exists
@@ -71,7 +71,7 @@ jobs:
             namespace: $NAMESPACE
           data:
             BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
-            BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-wso2-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
+            BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
           EOF
 
           # Apply it to the cluster
