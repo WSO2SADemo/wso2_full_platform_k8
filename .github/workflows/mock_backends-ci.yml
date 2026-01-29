@@ -18,7 +18,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      IMAGE_TAG: "1.0.8" 
+      IMAGE_TAG: "1.0.9" 
 
     steps:
       - name: Checkout Code
