@@ -1,4 +1,5 @@
 spec:
+  publishNotReadyAddresses: true
   ports:
   - name: servlet-http
     port: 9763

@@ -83,6 +83,7 @@ keytool -importcert \
 
 
 echo | openssl s_client -connect cp.wso2.com:443 -servername cp.wso2.com 2>/dev/null | openssl x509 -outform PEM > security/cp/actual-cp-ingress-cert.crt
+keytool -delete -alias cp-ingress -keystore security/gw/client-truststore.jks -storepass wso2carbon
 keytool -importcert -alias cp-ingress -file security/cp/actual-cp-ingress-cert.crt -keystore security/gw/client-truststore.jks -storepass wso2carbon -noprompt
 
 
@@ -98,14 +99,14 @@ kubectl delete secret apim-keystore-secret -n apim-gw --ignore-not-found=true
 # Create Gateway secret (keystore + truststore)
 echo "Creating secret in apim-gw namespace..."
 kubectl create secret generic apim-keystore-secret \
- --from-file=gateway-keystore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/gw/gateway-keystore.jks \
+ --from-file=wso2carbon.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/gw/gateway-keystore.jks \
  --from-file=client-truststore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/gw/client-truststore.jks \
  -n apim-gw
 
 # Create Control Plane secret (keystore + truststore)
 echo "Creating secret in apim-cp namespace..."
 kubectl create secret generic apim-keystore-secret \
- --from-file=control-keystore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/cp/control-keystore.jks \
+ --from-file=wso2carbon.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/cp/control-keystore.jks \
  --from-file=client-truststore.jks=/Users/ramindu/wso2/general_demo/github/k8-artefacts-apim-bi-elk/security/cp/client-truststore.jks \
  -n apim-cp
 

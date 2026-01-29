@@ -38,8 +38,6 @@ wso2:
       security:
         keystores:
           tls:
-            name: "control-keystore.jks"
-            alias: "wso2carbon"
             password: "wso2carbon"
             keyPassword: "wso2carbon"
         truststore:
