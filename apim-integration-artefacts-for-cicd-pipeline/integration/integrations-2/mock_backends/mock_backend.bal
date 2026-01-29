@@ -12,6 +12,11 @@ listener http:Listener oasListener = check new (9092);
 
 service /oas on oasListener {
 
+    function init() {
+        log:printError("Initialize mock_backends");
+        log:printError("Initialize mock_backends with service URL: " + scServiceUrl);
+    }
+
     // Register or update member benefit data (called by Cash Registries)
     resource function post benefits(@http:Payload BenefitRegistrationRequest request) returns RegistrationResponse|http:InternalServerError {
         

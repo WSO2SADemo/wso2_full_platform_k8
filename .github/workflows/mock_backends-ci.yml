@@ -1,4 +1,4 @@
-name: Integration - Ochastration
+name: Integration - Mock Backends
 
 on:
   push:
