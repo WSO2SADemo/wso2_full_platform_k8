@@ -9,6 +9,15 @@ import ballerinax/wso2.controlplane as _;
 // OAS SERVICE (Master Database) - Port 9092
 // ============================================================================
 
+http:ClientConfiguration clientEPConfig = {
+    secureSocket: {
+        cert: {
+            path: "./bre/security/truststore.p12",
+            password: "ballerina"
+        }
+    }
+};
+
 listener http:Listener oasListener = check new (9092);
 
 service /oas on oasListener {

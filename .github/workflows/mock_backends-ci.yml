@@ -1,7 +1,6 @@
 name: Integration - Mock Backends
 
 on:
-  # Trigger on push to specific paths
   push:
     paths:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends/**'
@@ -9,7 +8,7 @@ on:
     branches:
       - main
   
-  # Allows you to run this manually from the Actions tab
+  # Allows manual triggering
   workflow_dispatch:
 
 jobs:
@@ -19,8 +18,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      # Ensure this matches your Docker Hub repo and tag
-      IMAGE_TAG: "1.0.5" 
+      IMAGE_TAG: "1.0.6" 
 
     steps:
       - name: Checkout Code
@@ -42,7 +40,6 @@ jobs:
       - name: Retag and Push Docker Image
         run: |
           # 1. Find the image ID built by Ballerina (uses the most recent one)
-          # We use 'head -n 1' to grab the most recent build if multiple exist
           BUILT_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "ramilu90/mock_backend" | head -n 1)
           
           if [ -z "$BUILT_IMAGE" ]; then
@@ -97,7 +94,7 @@ jobs:
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
 
       # -----------------------------------------------------------
-      # ✅ FIX 2: Robust Service & Patching Logic
+      # ✅ FIX 2: Robust Service Patching (Handles Unnamed Ports)
       # -----------------------------------------------------------
       - name: Ensure Service & Patch Ports
         run: |
@@ -108,16 +105,29 @@ jobs:
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
-             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP
+             # We create it with a NAME immediately to avoid future issues
+             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP --name=serviceport
           else
              echo "Service $SERVICE_NAME already exists."
           fi
 
-          # 2. PATCH: Force add port 9264 if not present
+          # 2. PATCH: Ensure existing port (Index 0) has a name
+          # Kubernetes requires ALL ports to be named if there is more than one.
+          EXISTING_PORT_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].name}')
+          
+          if [ -z "$EXISTING_PORT_NAME" ]; then
+             echo "Port 9092 is unnamed. Adding name 'serviceport'..."
+             # We use 'add' operation. On a dictionary, this adds the key if missing.
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/0/name", "value": "serviceport"}]'
+          else
+             echo "Existing port already has name: $EXISTING_PORT_NAME"
+          fi
+
+          # 3. PATCH: Add 'management' port (9264)
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "9264"; then
              echo "Port 9264 already exists. Skipping patch."
           else
-             echo "Port 9264 missing. Patching service..."
+             echo "Adding 'management' port 9264..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "management", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
           fi
 
