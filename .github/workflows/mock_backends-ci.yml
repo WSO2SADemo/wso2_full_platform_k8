@@ -37,7 +37,7 @@ jobs:
       - name: Push Docker Image
         run: |
           # Ensure this image name matches what is in your Ballerina generated YAML
-          IMAGE_NAME="ramilu90/mock_backend:1.0.2"
+          IMAGE_NAME="ramilu90/mock_backend:1.0.3"
           docker push ${IMAGE_NAME}
 
       - name: Ensure Namespace Exists
