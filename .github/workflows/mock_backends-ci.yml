@@ -141,21 +141,21 @@ jobs:
             namespace: $NAMESPACE
           data:
             BAL_CONFIG_DATA: |
-              # --- Observability (Moesif) ---
-              [ballerina.observe]
-              tracingEnabled=true
-              tracingProvider="moesif"
-              metricsEnabled=true
-              metricsReporter="moesif"
+              # # --- Observability (Moesif) ---
+              # [ballerina.observe]
+              # tracingEnabled=true
+              # tracingProvider="moesif"
+              # metricsEnabled=true
+              # metricsReporter="moesif"
 
-              [ballerinax.moesif]
-              applicationId = "${{ env.MOESIF_APP_ID }}"
+              # [ballerinax.moesif]
+              # applicationId = "${{ env.MOESIF_APP_ID }}"
               
-              # --- Logging to File (For FluentBit) ---
-              [ballerina.log]
-              format = "json"
-              [[ballerina.log.destinations]]
-              path = "/home/ballerina/logs/app.log"
+              # # --- Logging to File (For FluentBit) ---
+              # [ballerina.log]
+              # format = "json"
+              # [[ballerina.log.destinations]]
+              # path = "/home/ballerina/logs/app.log"
 
               # --- WSO2 Integration Control Plane ---
               # [ballerinax.wso2.controlplane.dashboard]
