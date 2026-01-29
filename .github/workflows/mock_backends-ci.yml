@@ -74,7 +74,6 @@ jobs:
             name: ballerina-values-mock-backends
             namespace: $NAMESPACE
           data:
-            BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
             BAL_CONFIG_DATA: |
               [ballerinax.wso2.controlplane.dashboard]
               url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
