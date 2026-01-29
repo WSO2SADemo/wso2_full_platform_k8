@@ -58,6 +58,25 @@ jobs:
             exit 1
           fi
 
+      - name: Create ConfigMap
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          
+          # Create the ConfigMap YAML file on the fly
+          cat <<EOF > configmap.yaml
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: ballerina-values-mock-backends
+            namespace: $NAMESPACE
+          data:
+            BAL_CONFIG_VAR_BALLERINAX_WSO2_CONTROLPLANE_NODEID: "mock_backends"
+            BAL_CONFIG_DATA: ' [ballerinax.wso2.controlplane.dashboard] \n url="https://cloud-wso2-icp.icp.svc.cluster.local:9743/dashboard/api" \n heartbeatInterval=10 \n groupId="cluster1" \n mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/" \n nodeId="mock_backends" '
+          EOF
+
+          # Apply it to the cluster
+          kubectl apply -f configmap.yaml
+
       - name: Deploy Kubernetes Resources
         run: |
           K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/mock_backends"
