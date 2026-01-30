@@ -130,8 +130,8 @@ jobs:
       - name: Ensure Service & Patch Ports
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          DEPLOYMENT="mock-backends-deployment"
-          SERVICE_NAME="mock-backends" 
+          DEPLOYMENT="orchestration-a-deployment"
+          SERVICE_NAME="orchestration" 
 
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
