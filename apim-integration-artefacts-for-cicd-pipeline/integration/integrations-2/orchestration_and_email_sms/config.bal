@@ -1,7 +1,7 @@
 import ballerina/os;
 
 configurable string smtpHost = os:getEnv("smtpHost");
-configurable string smtpPortStr = os:getEnv("smtpPort");
+configurable string smtpPortStr = os:getEnv("smtpPortStr");
 configurable string smtpUsername = os:getEnv("smtpUsername");
 configurable string smtpPassword = os:getEnv("smtpPassword");
 configurable string emailFrom = os:getEnv("emailFrom");

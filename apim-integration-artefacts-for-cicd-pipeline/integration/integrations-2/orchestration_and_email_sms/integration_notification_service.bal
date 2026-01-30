@@ -33,7 +33,7 @@ int smtpPort = check int:fromString(smtpPortStr);
 
 // Email client
 final email:SmtpClient smtpClient = check new (smtpHost, smtpUsername, smtpPassword, {
-    port: 2525,
+    port: smtpPort,
     security: email:START_TLS_AUTO
 });
 
