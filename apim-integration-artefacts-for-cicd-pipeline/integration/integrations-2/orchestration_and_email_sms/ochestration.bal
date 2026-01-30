@@ -41,7 +41,7 @@ service /api on orchestrationListener {
             previousMonthlySalary: request.previousMonthlySalary
         };
         
-        BenefitCalculationResponse|http:ClientError calculationResult = cashRegistryOrchClient->/cashregistry/applications.post(calculationRequest);
+        BenefitCalculationResponse|http:ClientError calculationResult = cashRegistryOrchClient->/applications.post(calculationRequest);
         
         if calculationResult is http:ClientError {
             log:printError(string `Orchestration: Failed to calculate benefit - ${calculationResult.message()}`);
@@ -72,7 +72,7 @@ service /api on orchestrationListener {
         log:printInfo(string `Orchestration: Benefit calculated - ${calculationResult.dailyAllowance} SEK/day`);
         
         // Step 2: Register the calculated benefit to OAS
-        RegistrationResponse|http:ClientError registrationResult = cashRegistryOrchClient->/cashregistry/register/[request.personalNumber].post(message = (), kassaName = request.kassaName);
+        RegistrationResponse|http:ClientError registrationResult = cashRegistryOrchClient->/register/[request.personalNumber].post(message = (), kassaName = request.kassaName);
         
         if registrationResult is http:ClientError {
             log:printError(string `Orchestration: Failed to register to OAS - ${registrationResult.message()}`);
@@ -90,7 +90,7 @@ service /api on orchestrationListener {
         log:printInfo(string `Orchestration: Registered to OAS - ${registrationResult.message}`);
         
         // Step 3: Verify registration by looking up in OAS
-        MemberLookupResponse|http:ClientError lookupResult = oasOrchClient->/oas/members/[request.personalNumber].get();
+        MemberLookupResponse|http:ClientError lookupResult = oasOrchClient->/members/[request.personalNumber].get();
         
         if lookupResult is http:ClientError {
             log:printError(string `Orchestration: Failed to verify registration - ${lookupResult.message()}`);
