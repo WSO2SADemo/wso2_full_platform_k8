@@ -1,7 +1,7 @@
 [container.image]
 repository="ramilu90" # Docker hub repository name.
 name="orchestration_and_email_sms" # container name
-tag="1.0.3"
+tag="1.0.4"
 
 [[cloud.secret.envs]]
 key_ref="smtpUsername"
