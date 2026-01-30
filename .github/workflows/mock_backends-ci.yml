@@ -91,12 +91,17 @@ jobs:
 
               [ballerinax.moesif]
               applicationId = "${{ env.MOESIF_APP_ID }}"
+              reporterBaseUrl = "https://api.moesif.net"   
+              tracingReporterFlushInterval = 1000         
+              tracingReporterBufferSize = 10000            
+              isTraceLoggingEnabled = false                
+              isPayloadLoggingEnabled = false 
               
-              # --- Logging to File (For FluentBit) ---
-              [ballerina.log]
-              format = "json"
-              [[ballerina.log.destinations]]
-              path = "/home/ballerina/logs/app.log"
+              # # --- Logging to File (For FluentBit) ---
+              # [ballerina.log]
+              # format = "json"
+              # [[ballerina.log.destinations]]
+              # path = "/home/ballerina/logs/app.log"
 
               [ballerinax.wso2.apim.catalog]
               serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
