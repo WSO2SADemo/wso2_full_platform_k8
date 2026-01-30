@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/orchestration_and_email_sms/**'
-      - '.github/workflows/ochestration_email_sms-ci-ci.yml'
+      - '.github/workflows/ochestration_email_sms-ci.yml'
     branches:
       - main
   
