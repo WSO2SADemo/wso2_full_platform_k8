@@ -8,3 +8,4 @@ title = "orchestration_and_email_sms"
 cloud = "k8s"
 remoteManagement=true
 sticky = true
+observabilityIncluded=true
