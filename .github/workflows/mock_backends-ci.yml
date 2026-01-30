@@ -106,13 +106,13 @@ jobs:
               # [[ballerina.log.destinations]]
               # path = "/home/ballerina/logs/app.log"
 
-              # [ballerinax.wso2.apim.catalog]
-              # serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
-              # tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
-              # username="admin"
-              # password="admin"
-              # clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
-              # clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
+              [ballerinax.wso2.apim.catalog]
+              serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
+              tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
+              username="admin"
+              password="admin"
+              clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
+              clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
           EOF
 
           echo "Applying Corrected ConfigMap..."
