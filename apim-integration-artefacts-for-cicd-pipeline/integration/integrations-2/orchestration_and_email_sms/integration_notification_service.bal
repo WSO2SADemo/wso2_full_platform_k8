@@ -5,7 +5,8 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/email;
 import ballerinax/twilio;
-// import ballerinax/wso2.controlplane as _;
+import ballerinax/wso2.controlplane as _;
+import ballerinax/moesif as _;
 
 listener http:Listener notificationServiceListener = check new (9097);
 
