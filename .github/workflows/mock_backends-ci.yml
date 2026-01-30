@@ -127,41 +127,43 @@ jobs:
       # -----------------------------------------------------------
       # ✅ FIX 2: Robust Service Patching (Handles Unnamed Ports)
       # -----------------------------------------------------------
-      - name: Ensure Service & Patch Ports
+      - name: Ensure Service & Patch Ports (Mock Backends)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           DEPLOYMENT="mock-backends-deployment"
           SERVICE_NAME="mock-backends" 
+          
+          # Define prefixed port names
+          MAIN_PORT_NAME="${SERVICE_NAME}-serviceport"
+          MGT_PORT_NAME="${SERVICE_NAME}-management"
 
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
-             # We create it with a NAME immediately to avoid future issues
-             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP --name=serviceport
+             # FIX: Removed the extra '--name' flag.
+             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP
           else
              echo "Service $SERVICE_NAME already exists."
           fi
 
-          # 2. PATCH: Ensure existing port (Index 0) has a name
-          # Kubernetes requires ALL ports to be named if there is more than one.
+          # 2. PATCH: Ensure existing port (Index 0) has the PREFIXED name
           EXISTING_PORT_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].name}')
           
           if [ -z "$EXISTING_PORT_NAME" ]; then
-             echo "Port 9092 is unnamed. Adding name 'serviceport'..."
-             # We use 'add' operation. On a dictionary, this adds the key if missing.
-             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/0/name", "value": "serviceport"}]'
+             echo "Port 9092 is unnamed. Naming it '$MAIN_PORT_NAME'..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/0/name", "value": "'"$MAIN_PORT_NAME"'"}]'
           else
              echo "Existing port already has name: $EXISTING_PORT_NAME"
           fi
 
-          # 3. PATCH: Add 'management' port (9264)
+          # 3. PATCH: Add 'management' port (9264) with PREFIXED name
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "9264"; then
              echo "Port 9264 already exists. Skipping patch."
           else
-             echo "Adding 'management' port 9264..."
-             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "management", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
+             echo "Adding management port '$MGT_PORT_NAME' (9264)..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$MGT_PORT_NAME"'", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
           fi
-
+          
       - name: Patch Deployment (Volume Mounts & Env)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
