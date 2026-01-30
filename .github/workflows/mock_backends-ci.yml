@@ -143,7 +143,6 @@ jobs:
           # ------------------------------------------------------------------
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
-             # We create it with port 9092 initially
              kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP
           else
              echo "Service $SERVICE_NAME already exists."
@@ -152,20 +151,11 @@ jobs:
           # ------------------------------------------------------------------
           # 2. PATCH: Ensure Port 9092 exists and is named
           # ------------------------------------------------------------------
-          # Check if 9092 exists
+          # Check if port 9092 exists in the port list
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9092\b"; then
-             # Find which index corresponds to 9092
-             INDEX_9092=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*]}' | jq -r '.[] | select(.port==9092) | .name')
-             
-             # Note: Retrieving the exact index in bash with kubectl jsonpath is tricky.
-             # Easier Strategy: If we know it exists, we try to patch by name OR assume index 0 if it was just created.
-             # However, for robustness, we will fetch the current name associated with port 9092 specifically.
-             
-             # Simple patch approach: Loop through ports to find the one with port=9092 and patch it?
-             # Kubernetes 'strategic merge patch' uses 'port' as the merge key, so we can just patch by value.
-             
+             echo "Port 9092 exists. Enforcing name '$PORT_9092_NAME'..."
+             # 'strategic' merge uses the port number as the key to find and update the entry
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9092,"name":"'"$PORT_9092_NAME"'"}]}}'
-             echo "Patched/Verified Port 9092 name."
           else
              echo "Port 9092 missing. Adding it..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9092_NAME"'", "port": 9092, "targetPort": 9092, "protocol": "TCP"}}]'
@@ -175,12 +165,22 @@ jobs:
           # 3. PATCH: Ensure Port 9091 exists and is named
           # ------------------------------------------------------------------
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9091\b"; then
-             echo "Port 9091 exists. Ensuring name is '$PORT_9091_NAME'..."
-             # Strategic merge patch will update the name if the port matches
+             echo "Port 9091 exists. Enforcing name '$PORT_9091_NAME'..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9091,"name":"'"$PORT_9091_NAME"'"}]}}'
           else
              echo "Port 9091 missing. Adding it..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9091_NAME"'", "port": 9091, "targetPort": 9091, "protocol": "TCP"}}]'
+          fi
+
+          # ------------------------------------------------------------------
+          # 4. PATCH: Ensure Management Port (9264) exists and is named
+          # ------------------------------------------------------------------
+          if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9264\b"; then
+             echo "Port 9264 exists. Enforcing name '$PORT_9264_NAME'..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9264,"name":"'"$PORT_9264_NAME"'"}]}}'
+          else
+             echo "Management port missing. Adding '$PORT_9264_NAME'..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9264_NAME"'", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
           fi
 
           # ------------------------------------------------------------------
