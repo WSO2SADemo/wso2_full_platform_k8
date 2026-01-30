@@ -3,6 +3,7 @@
 
 import ballerina/http;
 import ballerina/log;
+import ballerinax/wso2.controlplane as _;
 
 listener http:Listener orchestrationListener = check new (9090);
 

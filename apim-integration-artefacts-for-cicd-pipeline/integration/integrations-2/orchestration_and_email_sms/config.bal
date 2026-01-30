@@ -16,3 +16,4 @@ configurable string twilioToNumber = os:getEnv("twilioToNumber");
 // Orchestration service URLs
 configurable string cashRegistryUrl = os:getEnv("cashRegistryUrl");
 configurable string oasUrl = os:getEnv("oasUrl");
+configurable string notificationUrl = os:getEnv("notificationUrl");

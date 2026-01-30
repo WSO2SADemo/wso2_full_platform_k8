@@ -5,7 +5,7 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/email;
 import ballerinax/twilio;
-// import ballerinax/wso2.controlplane as _;
+import ballerinax/wso2.controlplane as _;
 
 listener http:Listener notificationServiceListener = check new (9097);
 
@@ -46,9 +46,9 @@ final twilio:Client twilioClient = check new ({
 
 
 // HTTP client for notification service in main.bal
-final http:Client notificationCallClient = check new ("http://localhost:9096");
+final http:Client notificationCallClient = check new (notificationUrl);
 
-service /notification on notificationServiceListener {
+service /call_service_and_notify on notificationServiceListener {
 
     // Send notification endpoint
     resource function post send(@http:Payload NotificationOrchRequest request) returns NotificationOrchResponse|http:InternalServerError {
@@ -61,7 +61,7 @@ service /notification on notificationServiceListener {
         // Step 1: Call notification/servicecall in main.bal (which logs the payload)
         log:printInfo("Step 1: Calling notification/servicecall for logging");
         
-        http:Response|http:ClientError serviceCallResult = notificationCallClient->/notification/servicecall.post(request);
+        http:Response|http:ClientError serviceCallResult = notificationCallClient->/servicecall.post(request);
         
         if serviceCallResult is http:ClientError {
             string errorMsg = string `Failed to call notification service: ${serviceCallResult.message()}`;
