@@ -18,7 +18,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      IMAGE_TAG: "1.0.13"
+      IMAGE_TAG: "1.0.14"
       MOESIF_APP_ID: "eyJhcHAiOiI0OTM6MzM3MiIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.XD0ilo6xwD8igZvVaQgz4w9kIvyx_yMTBbrBWdZyEVs" 
 
     steps:
