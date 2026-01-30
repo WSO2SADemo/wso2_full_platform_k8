@@ -1,4 +1,4 @@
-name: Integration - Mock Backends
+name: Integration - Ochastration and Email/SMS
 
 on:
   push:
@@ -81,7 +81,7 @@ jobs:
               # heartbeatInterval=10
               # groupId="cluster1"
               # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
-              # nodeId="orchestration_and_email_smss"
+              # nodeId="orchestration_and_email_sms"
 
               [ballerina.observe]
               tracingEnabled=true
@@ -120,7 +120,7 @@ jobs:
 
       - name: Deploy Kubernetes Resources
         run: |
-          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/orchestration_and_email_smss"
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/orchestration_and_email_sms"
           echo "Applying resources to Local Cluster..."
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
 
