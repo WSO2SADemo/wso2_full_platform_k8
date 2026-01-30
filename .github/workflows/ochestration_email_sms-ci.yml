@@ -136,8 +136,9 @@ jobs:
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
-             # We create it with a NAME immediately to avoid future issues
-             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP --name=serviceport
+             # FIX: Removed the incorrect '--name=serviceport' at the end. 
+             # The port naming is handled in Step 2.
+             kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP
           else
              echo "Service $SERVICE_NAME already exists."
           fi
