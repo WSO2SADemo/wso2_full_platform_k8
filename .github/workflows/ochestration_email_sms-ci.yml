@@ -140,27 +140,41 @@ jobs:
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
-             # FIX: Removed the extra '--name' flag.
              kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9092 --target-port=9092 --type=ClusterIP
           else
              echo "Service $SERVICE_NAME already exists."
           fi
 
-          # 2. PATCH: Ensure existing port (Index 0) has the PREFIXED name
-          EXISTING_PORT_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].name}')
+          # 2. PATCH: Rename Main Port (Index 0)
+          # We check if the CURRENT name matches the DESIRED name.
+          EXISTING_MAIN_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].name}')
           
-          if [ -z "$EXISTING_PORT_NAME" ]; then
-             echo "Port 9092 is unnamed. Naming it '$MAIN_PORT_NAME'..."
-             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/0/name", "value": "'"$MAIN_PORT_NAME"'"}]'
+          if [ "$EXISTING_MAIN_NAME" != "$MAIN_PORT_NAME" ]; then
+             echo "Updating port 0 name from '$EXISTING_MAIN_NAME' to '$MAIN_PORT_NAME'..."
+             
+             # If name is empty, we 'add'. If it exists (e.g. 'serviceport'), we 'replace'.
+             if [ -z "$EXISTING_MAIN_NAME" ]; then OP="add"; else OP="replace"; fi
+             
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "'$OP'", "path": "/spec/ports/0/name", "value": "'"$MAIN_PORT_NAME"'"}]'
           else
-             echo "Existing port already has name: $EXISTING_PORT_NAME"
+             echo "Main port is already correctly named: $EXISTING_MAIN_NAME"
           fi
 
-          # 3. PATCH: Add 'management' port (9264) with PREFIXED name
+          # 3. PATCH: Handle Management Port (9264)
+          # First, check if port 9264 exists.
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "9264"; then
-             echo "Port 9264 already exists. Skipping patch."
+             # It exists. Now check if it is named correctly (assuming it is at Index 1)
+             EXISTING_MGT_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[1].name}')
+             
+             if [ "$EXISTING_MGT_NAME" != "$MGT_PORT_NAME" ]; then
+                 echo "Updating port 1 name from '$EXISTING_MGT_NAME' to '$MGT_PORT_NAME'..."
+                 if [ -z "$EXISTING_MGT_NAME" ]; then OP="add"; else OP="replace"; fi
+                 kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "'$OP'", "path": "/spec/ports/1/name", "value": "'"$MGT_PORT_NAME"'"}]'
+             else
+                 echo "Management port is already correctly named: $EXISTING_MGT_NAME"
+             fi
           else
-             echo "Adding management port '$MGT_PORT_NAME' (9264)..."
+             echo "Management port missing. Adding '$MGT_PORT_NAME'..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$MGT_PORT_NAME"'", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
           fi
 
