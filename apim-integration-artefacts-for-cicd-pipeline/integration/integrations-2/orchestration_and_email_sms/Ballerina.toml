@@ -1,8 +1,8 @@
 [package]
 org = "ramindu"
-name = "integration_orchestration_service"
+name = "orchestration_and_email_sms"
 version = "0.1.0"
-title = "integration_orchestration_service"
+title = "orchestration_and_email_sms"
 
 [build-options]
 cloud = "k8s"
