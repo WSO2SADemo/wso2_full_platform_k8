@@ -51,6 +51,11 @@ final http:Client notificationCallClient = check new (notificationUrl);
 
 service /call_service_and_notify on notificationServiceListener {
 
+    function init() {
+        log:printInfo("Initialize call_service_and_notify");
+        log:printInfo("Initialize smtpPortStr: " + smtpPortStr);
+    }
+
     // Send notification endpoint
     resource function post send(@http:Payload NotificationOrchRequest request) returns NotificationOrchResponse|http:InternalServerError {
         
