@@ -7,8 +7,8 @@ import ballerina/log;
 listener http:Listener orchestrationListener = check new (9090);
 
 // Clients for backend services
-final http:Client cashRegistryOrchClient = check new ("http://localhost:9091");
-final http:Client oasOrchClient = check new ("http://localhost:9092");
+final http:Client cashRegistryOrchClient = check new (cashRegistryUrl);
+final http:Client oasOrchClient = check new (oasUrl);
 
 // Request type for orchestration
 type OrchestrationRequest record {|

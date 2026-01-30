@@ -8,3 +8,4 @@ title = "mock_backends"
 cloud = "k8s"
 remoteManagement=true
 sticky = true
+observabilityIncluded=true

@@ -83,7 +83,6 @@ jobs:
               # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
               # nodeId="mock_backends"
 
-              # --- Observability (Moesif) ---
               [ballerina.observe]
               tracingEnabled=true
               tracingProvider="moesif"
@@ -91,11 +90,11 @@ jobs:
               metricsReporter="moesif"
 
               [ballerinax.moesif]
-              applicationId = "${{ env.MOESIF_APP_ID }}"
+              applicationId = "eyJhcHAiOiI0OTM6MzM3MiIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.XD0ilo6xwD8igZvVaQgz4w9kIvyx_yMTBbrBWdZyEVs"
               reporterBaseUrl = "https://api.moesif.net"   
               tracingReporterFlushInterval = 1000         
               tracingReporterBufferSize = 10000            
-              isTraceLoggingEnabled = false                
+              isTraceLoggingEnabled = true                
               isPayloadLoggingEnabled = false 
               
               # # --- Logging to File (For FluentBit) ---
@@ -104,8 +103,8 @@ jobs:
               # [[ballerina.log.destinations]]
               # path = "/home/ballerina/logs/app.log"
 
-              [[ballerina.log.destinations]]
-              path = "/home/ballerina/logs/app.log"
+              # [[ballerina.log.destinations]]
+              # path = "/home/ballerina/logs/app.log"
 
               [ballerinax.wso2.apim.catalog]
               serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"

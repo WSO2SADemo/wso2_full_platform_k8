@@ -42,3 +42,11 @@ config_name="ballerina-values"
 [[cloud.config.envs]]
 key_ref="twilioToNumber"
 config_name="ballerina-values"
+
+[[cloud.config.envs]]
+key_ref="smtpUsername"
+config_name="ballerina-values"
+
+[[cloud.config.envs]]
+key_ref="oasUrl"
+config_name="ballerina-values"
