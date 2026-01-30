@@ -18,7 +18,8 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
-      IMAGE_TAG: "1.0.11" 
+      IMAGE_TAG: "1.0.11"
+      MOESIF_APP_ID: "eyJhcHAiOiI0OTM6MzM3MiIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.XD0ilo6xwD8igZvVaQgz4w9kIvyx_yMTBbrBWdZyEVs" 
 
     steps:
       - name: Checkout Code
@@ -102,6 +103,9 @@ jobs:
               # format = "json"
               # [[ballerina.log.destinations]]
               # path = "/home/ballerina/logs/app.log"
+
+              [[ballerina.log.destinations]]
+              path = "/home/ballerina/logs/app.log"
 
               [ballerinax.wso2.apim.catalog]
               serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
