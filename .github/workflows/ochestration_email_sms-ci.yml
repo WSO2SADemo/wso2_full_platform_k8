@@ -131,13 +131,16 @@ jobs:
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           DEPLOYMENT="orchestration-a-deployment"
-          SERVICE_NAME="orchestration"
+          SERVICE_NAME="orchestration" 
           
-          # Define prefixed port names
+          # --- 1. DEFINE ALL PORT NAMES HERE ---
           MAIN_PORT_NAME="${SERVICE_NAME}-serviceport"
           MGT_PORT_NAME="${SERVICE_NAME}-management"
+          PORT_9097_NAME="${SERVICE_NAME}-9097"  # <--- This was missing!
 
-          # 1. Create Service if missing
+          # ------------------------------------------------------------------
+          # 2. Create Service if missing
+          # ------------------------------------------------------------------
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service not found. Creating it now..."
              kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=9090 --target-port=9090 --type=ClusterIP
@@ -145,33 +148,33 @@ jobs:
              echo "Service $SERVICE_NAME already exists."
           fi
 
-          # 2. PATCH: Rename Main Port (Index 0)
-          # We check if the CURRENT name matches the DESIRED name.
+          # ------------------------------------------------------------------
+          # 3. PATCH: Rename Main Port (Index 0)
+          # ------------------------------------------------------------------
           EXISTING_MAIN_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].name}')
           
           if [ "$EXISTING_MAIN_NAME" != "$MAIN_PORT_NAME" ]; then
              echo "Updating port 0 name from '$EXISTING_MAIN_NAME' to '$MAIN_PORT_NAME'..."
-             
-             # If name is empty, we 'add'. If it exists (e.g. 'serviceport'), we 'replace'.
              if [ -z "$EXISTING_MAIN_NAME" ]; then OP="add"; else OP="replace"; fi
-             
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "'$OP'", "path": "/spec/ports/0/name", "value": "'"$MAIN_PORT_NAME"'"}]'
           else
              echo "Main port is already correctly named: $EXISTING_MAIN_NAME"
           fi
 
-          # 3. PATCH: Handle Management Port (9264)
-          # First, check if port 9264 exists.
+          # ------------------------------------------------------------------
+          # 4. PATCH: Handle Management Port (9264)
+          # ------------------------------------------------------------------
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "9264"; then
-             # It exists. Now check if it is named correctly (assuming it is at Index 1)
+             # Check if named correctly (assuming Index 1 for now, but safer to use strategic patch if index varies)
+             # NOTE: If your service is stable, Index 1 is usually Mgt. 
              EXISTING_MGT_NAME=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[1].name}')
              
              if [ "$EXISTING_MGT_NAME" != "$MGT_PORT_NAME" ]; then
-                 echo "Updating port 1 name from '$EXISTING_MGT_NAME' to '$MGT_PORT_NAME'..."
+                 echo "Updating port 1 name..."
                  if [ -z "$EXISTING_MGT_NAME" ]; then OP="add"; else OP="replace"; fi
                  kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "'$OP'", "path": "/spec/ports/1/name", "value": "'"$MGT_PORT_NAME"'"}]'
              else
-                 echo "Management port is already correctly named: $EXISTING_MGT_NAME"
+                 echo "Management port is already correctly named."
              fi
           else
              echo "Management port missing. Adding '$MGT_PORT_NAME'..."
@@ -179,20 +182,15 @@ jobs:
           fi
 
           # ------------------------------------------------------------------
-          # PATCH: Ensure Port 9097 exists and is named
+          # 5. PATCH: Ensure Port 9097 exists and is named
           # ------------------------------------------------------------------
-          # 1. Check if port 9097 exists in the list
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9097\b"; then
              echo "Port 9097 exists. Enforcing name '$PORT_9097_NAME'..."
-             
-             # STRATEGIC PATCH: 
-             # We use this instead of 'json' patch because we don't know if 9097 is at index [0], [1], or [2].
-             # This command tells K8s: "Find the entry with port:9097 and update its name."
+             # Strategic patch finds the port by number and updates the name
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9097,"name":"'"$PORT_9097_NAME"'"}]}}'
           else
              echo "Port 9097 missing. Adding it..."
-             # JSON PATCH (Add):
-             # Appends the new port to the end of the list ("-")
+             # Valid JSON patch needs the variable to be expanded
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9097_NAME"'", "port": 9097, "targetPort": 9097, "protocol": "TCP"}}]'
           fi
 
