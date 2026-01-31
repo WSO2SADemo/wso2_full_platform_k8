@@ -136,6 +136,7 @@ jobs:
           # Define Port Names
           PORT_9092_NAME="${SERVICE_NAME}-serviceport"
           PORT_9091_NAME="${SERVICE_NAME}-9091"
+          PORT_9096_NAME="${SERVICE_NAME}-9096"
           PORT_9264_NAME="${SERVICE_NAME}-management"
 
           # ------------------------------------------------------------------
@@ -151,10 +152,8 @@ jobs:
           # ------------------------------------------------------------------
           # 2. PATCH: Ensure Port 9092 exists and is named
           # ------------------------------------------------------------------
-          # Check if port 9092 exists in the port list
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9092\b"; then
              echo "Port 9092 exists. Enforcing name '$PORT_9092_NAME'..."
-             # 'strategic' merge uses the port number as the key to find and update the entry
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9092,"name":"'"$PORT_9092_NAME"'"}]}}'
           else
              echo "Port 9092 missing. Adding it..."
@@ -173,21 +172,21 @@ jobs:
           fi
 
           # ------------------------------------------------------------------
-          # 4. PATCH: Ensure Management Port (9264) exists and is named
+          # 4. PATCH: Ensure Port 9096 exists and is named (NEW)
           # ------------------------------------------------------------------
-          if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9264\b"; then
-             echo "Port 9264 exists. Enforcing name '$PORT_9264_NAME'..."
-             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9264,"name":"'"$PORT_9264_NAME"'"}]}}'
+          if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9096\b"; then
+             echo "Port 9096 exists. Enforcing name '$PORT_9096_NAME'..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9096,"name":"'"$PORT_9096_NAME"'"}]}}'
           else
-             echo "Management port missing. Adding '$PORT_9264_NAME'..."
-             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9264_NAME"'", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
+             echo "Port 9096 missing. Adding it..."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9096_NAME"'", "port": 9096, "targetPort": 9096, "protocol": "TCP"}}]'
           fi
 
           # ------------------------------------------------------------------
-          # 4. PATCH: Ensure Management Port (9264) exists and is named
+          # 5. PATCH: Ensure Management Port (9264) exists and is named
           # ------------------------------------------------------------------
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9264\b"; then
-             echo "Port 9264 exists. Ensuring name is '$PORT_9264_NAME'..."
+             echo "Port 9264 exists. Enforcing name '$PORT_9264_NAME'..."
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9264,"name":"'"$PORT_9264_NAME"'"}]}}'
           else
              echo "Management port missing. Adding '$PORT_9264_NAME'..."
