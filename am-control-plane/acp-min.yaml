@@ -68,18 +68,30 @@ wso2:
           wsHostname: "websocket.wso2.com"
           httpHostname: "gw.wso2.com"
           websubHostname: "websub.wso2.com"
-        - name: "APK-GW"
+        - name: "ExtGw"
           type: "hybrid"
+          gatewayType: "Regular"
           provider: "wso2"
-          gatewayType: "APK"
           displayInApiConsole: true
           description: "This is a hybrid gateway that handles both production and sandbox token traffic."
           showAsTokenEndpointUrl: true
-          serviceName: "kgw-wso2-apk-gateway-service.apim-kgw.svc.cluster.local"
-          servicePort: 9095
-          wsHostname: "websocket.wso2.com"
-          httpHostname: "kgw.wso2.com:9095"
-          websubHostname: "websub.wso2.com"
+          serviceName: "extgw-wso2am-universal-gw-service"
+          servicePort: 9443
+          wsHostname: "extwebsocket.wso2.com"
+          httpHostname: "extgw.wso2.com"
+          websubHostname: "extwebsub.wso2.com"
+        # - name: "APK-GW"
+        #   type: "hybrid"
+        #   provider: "wso2"
+        #   gatewayType: "APK"
+        #   displayInApiConsole: true
+        #   description: "This is a hybrid gateway that handles both production and sandbox token traffic."
+        #   showAsTokenEndpointUrl: true
+        #   serviceName: "kgw-wso2-apk-gateway-service.apim-kgw.svc.cluster.local"
+        #   servicePort: 9095
+        #   wsHostname: "websocket.wso2.com"
+        #   httpHostname: "kgw.wso2.com:9095"
+        #   websubHostname: "websub.wso2.com"
 kubernetes:
   ingress:
     controlPlane:

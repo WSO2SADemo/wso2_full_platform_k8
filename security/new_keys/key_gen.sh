@@ -24,7 +24,7 @@ keytool -genkeypair \
  -keyalg RSA \
  -keysize 2048 \
  -dname "CN=*.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
- -ext "SAN=DNS:gw.wso2.com,DNS:cp.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
+ -ext "SAN=DNS:extgw.wso2.com,DNS:gw.wso2.com,DNS:cp.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:extgw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
  -keystore wso2carbon.jks \
  -storepass wso2carbon \
  -keypass wso2carbon \
@@ -47,16 +47,22 @@ echo "================================================"
 echo "2. Creating Truststore"
 echo "================================================"
 
-# Export the public cert from the shared keystore
+# 1. Export the public cert from the NEW shared keystore
 keytool -export \
  -alias wso2carbon \
  -file wso2carbon.crt \
  -keystore wso2carbon.jks \
  -storepass wso2carbon
 
-# Create client-truststore.jks and import the cert
-# (Ideally, you copy the original wso2 client-truststore.jks and add to it, 
-# but creating a new one works for this demo context)
+# 2. DELETE the old 'wso2carbon' alias from the copied truststore
+# (This is the missing step!)
+keytool -delete \
+ -alias wso2carbon \
+ -keystore client-truststore.jks \
+ -storepass wso2carbon \
+ -noprompt 2>/dev/null || true
+
+# 3. Import the NEW wso2carbon cert
 keytool -importcert \
  -alias wso2carbon \
  -file wso2carbon.crt \

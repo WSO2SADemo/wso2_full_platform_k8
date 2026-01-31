@@ -1,0 +1,86 @@
+# gateway/gw-min.yaml
+wso2:
+  deployment:
+    image:
+      registry: docker.io
+      repository: "ramilu90/wso2am-uni-gw-arm:4.6.0"
+      digest: "sha256:18167aa736dbe4983b7054afe51257fce0edd222a304ec21832400b5d80d4f17"
+    resources:
+      requests:
+        cpu: "0.5"  # Guarantee 0.5 CPU to start
+      limits:
+        cpu: "1"    # NEVER allow more than 1 CPU
+    imagePullPolicy: Always
+    replicas: 1
+    # You must override these HPA values, or Kubernetes will force it back to 2
+    minReplicas: 1
+    maxReplicas: 1
+  
+  # --- 1. THIS IS YOUR BLOCK ---
+  # This correctly sets [apim.analytics] enable = true in the deployment.toml
+  ELKAnalytics:
+    enabled: false
+  
+  moesifAnalytics:
+    enabled: true
+    # -- Moesif API key
+    key: "eyJhcHAiOiI0OTM6MzM2OSIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.mKO_4CWNaDL86p-ZYpDREGbV9zxHSj15u-I-NbP0FyM"
+    # -- Moesif base URL
+    # moesif_base_url: "https://api.moesif.net"
+    # -- Moesif send header
+    send_headers: false
+  
+  # --- (rest of your apim config) ---
+  apim:
+    configurations:
+      userStore:
+        type: "database_unique_id"
+      adminUsername: "admin"
+      adminPassword: "admin"
+      security:
+        keystores:
+          tls:
+            password: "wso2carbon"
+            keyPassword: "wso2carbon"
+        truststore:
+          password: "wso2carbon"
+      databases:
+        type: "h2"
+        jdbc:
+          driver: "org.h2.Driver"
+        shared_db:
+          url: "jdbc:h2:./repository/database/WSO2SHARED_DB;DB_CLOSE_ON_EXIT=FALSE"
+          username: "wso2carbon"
+          password: "wso2carbon"
+      syncRuntimeArtifacts:
+        gateway:
+          # -- Gateway label used to filter out artifact retrieval
+          labels: ["ExtGw"]
+        tenantLoading:
+          # -- Enable tenant loading in the gateway for artifacts
+          enabled: false
+          # -- Tenants to be loaded in the gateway for artifacts.
+          tenants: "*"
+      km:
+        serviceUrl: "acp-wso2am-acp-service.apim-cp.svc.cluster.local"
+        servicePort: 9443
+      throttling:
+        serviceUrl: "acp-wso2am-acp-service.apim-cp.svc.cluster.local"
+        servicePort: 9443
+        urls:
+          - "acp-wso2am-acp-1-service.apim-cp.svc.cluster.local"
+          # - "acp-wso2am-acp-2-service.apim-cp.svc.cluster.local" < if replica factor is more than 1
+      transport:
+        passthru_https:
+          sender:
+            parameters:
+              hostnameVerifier: "AllowAll"
+
+kubernetes:
+  ingress:
+    gateway:
+      hostname: "extgw.wso2.com"
+    websocket:
+      hostname: "extwebsocket.wso2.com" 
+    websub:
+      hostname: "extwebsub.wso2.com"
