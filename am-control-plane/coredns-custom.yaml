@@ -11,7 +11,7 @@ data:
         errors
         cache 30
         hosts {
-            10.43.87.241 cp.wso2.com gw.wso2.com kibana.wso2.com icp.wso2.com
+            10.43.87.241 cp.wso2.com gw.wso2.com kibana.wso2.com icp.wso2.com extgw.wso2.com
             fallthrough
         }
     }

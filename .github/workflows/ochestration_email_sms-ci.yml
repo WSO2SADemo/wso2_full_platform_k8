@@ -178,6 +178,24 @@ jobs:
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$MGT_PORT_NAME"'", "port": 9264, "targetPort": 9264, "protocol": "TCP"}}]'
           fi
 
+          # ------------------------------------------------------------------
+          # PATCH: Ensure Port 9097 exists and is named
+          # ------------------------------------------------------------------
+          # 1. Check if port 9097 exists in the list
+          if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b9097\b"; then
+             echo "Port 9097 exists. Enforcing name '$PORT_9097_NAME'..."
+             
+             # STRATEGIC PATCH: 
+             # We use this instead of 'json' patch because we don't know if 9097 is at index [0], [1], or [2].
+             # This command tells K8s: "Find the entry with port:9097 and update its name."
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":9097,"name":"'"$PORT_9097_NAME"'"}]}}'
+          else
+             echo "Port 9097 missing. Adding it..."
+             # JSON PATCH (Add):
+             # Appends the new port to the end of the list ("-")
+             kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$PORT_9097_NAME"'", "port": 9097, "targetPort": 9097, "protocol": "TCP"}}]'
+          fi
+
       - name: Patch Deployment (Volume Mounts & Env)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"

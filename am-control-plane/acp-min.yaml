@@ -73,7 +73,7 @@ wso2:
           gatewayType: "Regular"
           provider: "wso2"
           displayInApiConsole: true
-          description: "This is a hybrid gateway that handles both production and sandbox token traffic."
+          description: "This is a hybrid gateway that handles both production and sandbox token traffic from external clients."
           showAsTokenEndpointUrl: true
           serviceName: "extgw-wso2am-universal-gw-service"
           servicePort: 9443
