@@ -1,0 +1,222 @@
+type: api
+version: v4.6.0
+data:
+  id: ccfa6b78-7478-4487-8599-2b84cc37350c
+  name: OASServiceAPI
+  displayName: OASServiceAPI
+  description: |
+    Master Database Service for Swedish Unemployment Benefits (A-kassa) System.
+    This service manages member benefit registrations from various Cash Registries (A-kassorna)
+    and provides lookup capabilities for Arbetsförmedlingen (AF).
+  context: /oasserviceapi
+  version: 1.0.0
+  provider: admin
+  lifeCycleStatus: PUBLISHED
+  responseCachingEnabled: true
+  cacheTimeout: 300
+  hasThumbnail: false
+  isDefaultVersion: false
+  isRevision: false
+  revisionId: 0
+  enableSchemaValidation: false
+  enableSubscriberVerification: false
+  type: HTTP
+  audiences:
+   - all
+  transport:
+   - https
+  tags: []
+  policies:
+   - Gold
+   - Unlimited
+  organizationPolicies: []
+  authorizationHeader: Authorization
+  apiKeyHeader: ApiKey
+  securityScheme:
+   - api_key
+   - oauth_basic_auth_api_key_mandatory
+   - oauth2
+  visibility: PUBLIC
+  visibleRoles: []
+  visibleTenants: []
+  visibleOrganizations:
+   - none
+  mediationPolicies: []
+  subscriptionAvailability: CURRENT_TENANT
+  subscriptionAvailableTenants: []
+  additionalProperties: []
+  additionalPropertiesMap: {}
+  accessControl: NONE
+  accessControlRoles: []
+  businessInformation: {}
+  corsConfiguration:
+    corsConfigurationEnabled: false
+    accessControlAllowOrigins:
+     - '*'
+    accessControlAllowCredentials: false
+    accessControlAllowHeaders:
+     - authorization
+     - Access-Control-Allow-Origin
+     - Content-Type
+     - SOAPAction
+    accessControlAllowMethods:
+     - GET
+     - PUT
+     - POST
+     - DELETE
+     - PATCH
+     - OPTIONS
+  websubSubscriptionConfiguration:
+    enable: false
+    secret: ""
+    signingAlgorithm: SHA1
+    signatureHeader: x-hub-signature
+  createdTime: "1770025525000"
+  lastUpdatedTimestamp: "1770026460000"
+  lastUpdatedTime: 2026-02-02 10:01:00.0
+  endpointConfig:
+    endpoint_type: http
+    sandbox_endpoints:
+      url: http://mock-backends.ballerina.svc.cluster.local:9092/oas/
+    production_endpoints:
+      url: http://mock-backends.ballerina.svc.cluster.local:9092/oas/
+  endpointImplementationType: ENDPOINT
+  subtypeConfiguration:
+    subtype: DEFAULT
+  scopes:
+   -
+    scope:
+      name: ordinary
+      displayName: ordinary
+      description: ordinary
+      bindings:
+       - ordinary
+    shared: true
+   -
+    scope:
+      name: privilaged
+      displayName: privilaged
+      description: privilaged
+      bindings:
+       - privilaged
+    shared: true
+  operations:
+   -
+    id: ""
+    target: /benefits
+    verb: POST
+    authType: Application & Application User
+    throttlingPolicy: AllowedIPs
+    scopes:
+     - privilaged
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v3
+        policyType: common
+        policyId: 33e1c3c3-9d97-4261-85d2-3de5dceccfb2
+        parameters:
+          headerValue: to_ballerina
+          headerName: bal_header
+       -
+        policyName: regexPolicy
+        policyVersion: v1
+        policyType: common
+        policyId: 394d728d-9378-439e-9a0f-14c128697eb8
+        parameters: {}
+      response: []
+      fault: []
+   -
+    id: ""
+    target: "/members/{personalNumber}"
+    verb: GET
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes: []
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v3
+        policyType: common
+        policyId: 33e1c3c3-9d97-4261-85d2-3de5dceccfb2
+        parameters:
+          headerValue: to_ballerina
+          headerName: bal_header
+       -
+        policyName: regexPolicy
+        policyVersion: v1
+        policyType: common
+        policyId: 394d728d-9378-439e-9a0f-14c128697eb8
+        parameters: {}
+      response: []
+      fault: []
+   -
+    id: ""
+    target: "/members/{personalNumber}/days"
+    verb: PUT
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes: []
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v3
+        policyType: common
+        policyId: 33e1c3c3-9d97-4261-85d2-3de5dceccfb2
+        parameters:
+          headerValue: to_ballerina
+          headerName: bal_header
+       -
+        policyName: regexPolicy
+        policyVersion: v1
+        policyType: common
+        policyId: 394d728d-9378-439e-9a0f-14c128697eb8
+        parameters: {}
+      response: []
+      fault: []
+   -
+    id: ""
+    target: /health
+    verb: GET
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes:
+     - ordinary
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v3
+        policyType: common
+        policyId: 33e1c3c3-9d97-4261-85d2-3de5dceccfb2
+        parameters:
+          headerValue: to_ballerina
+          headerName: bal_header
+       -
+        policyName: regexPolicy
+        policyVersion: v1
+        policyType: common
+        policyId: 394d728d-9378-439e-9a0f-14c128697eb8
+        parameters: {}
+      response: []
+      fault: []
+  categories: []
+  keyManagers:
+   - all
+  advertiseInfo:
+    advertised: false
+    apiOwner: admin
+    vendor: WSO2
+  gatewayVendor: wso2
+  gatewayType: wso2/synapse
+  initiatedFromGateway: false
+  asyncTransportProtocols: []
+  egress: false
+  organizationId: carbon.super

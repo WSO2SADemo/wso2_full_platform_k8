@@ -12,6 +12,10 @@ Config.toml
 
 # But not the packs folder
 
+service.cert
+service.key
+ca.pem
+
 packs/
 packs/**
 

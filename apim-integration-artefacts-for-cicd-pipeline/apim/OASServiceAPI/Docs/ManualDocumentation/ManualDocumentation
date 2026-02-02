@@ -1,0 +1,547 @@
+# OAS Service API Documentation
+
+## Overview
+
+The **OAS (Omställningsstöd Administration System) Service** is the master database service for the Swedish Unemployment Benefits (A-kassa) system. It manages member benefit registrations from various Cash Registries (A-kassorna) and provides lookup capabilities for Arbetsförmedlingen (AF).
+
+**Base URL:** `http://localhost:9092/oas`
+
+**Version:** 1.0.0
+
+---
+
+## Table of Contents
+
+1. [Authentication](#authentication)
+2. [Endpoints](#endpoints)
+   - [Register Benefit](#1-register-benefit)
+   - [Lookup Member](#2-lookup-member)
+   - [Update Remaining Days](#3-update-remaining-days)
+   - [Health Check](#4-health-check)
+3. [Data Models](#data-models)
+4. [Error Handling](#error-handling)
+5. [Usage Examples](#usage-examples)
+6. [Integration Guide](#integration-guide)
+
+---
+
+## Authentication
+
+Currently, the OAS service does not require authentication for local development. In production, implement appropriate authentication mechanisms (OAuth 2.0, API Keys, etc.).
+
+---
+
+## Endpoints
+
+### 1. Register Benefit
+
+Register or update member benefit data in the OAS master database.
+
+**Endpoint:** `POST /oas/benefits`
+
+**Called By:** Cash Registries (A-kassorna)
+
+**Request Body:**
+
+```json
+{
+  "personalNumber": "199001011234",
+  "kassaName": "Unionens A-kassa",
+  "dailyAllowance": 960.0,
+  "incomeBase": "HIGH",
+  "totalDays": 300
+}
+```
+
+**Request Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `personalNumber` | string | Yes | Swedish personal number (personnummer) - 10-12 digits |
+| `kassaName` | string | Yes | Name of the A-kassa (unemployment insurance fund) |
+| `dailyAllowance` | decimal | Yes | Daily unemployment allowance in SEK (0-1200) |
+| `incomeBase` | string | Yes | Income base category: `HIGH`, `MEDIUM`, or `LOW` |
+| `totalDays` | integer | Yes | Total number of benefit days (typically 300) |
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Benefit data successfully registered in OAS",
+  "registrationId": "199001011234"
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the operation was successful |
+| `message` | string | Human-readable message about the operation result |
+| `registrationId` | string | Registration identifier (personal number) |
+
+**Error Response (500 Internal Server Error):**
+
+```json
+{
+  "success": false,
+  "message": "An error occurred"
+}
+```
+
+**Example cURL:**
+
+```bash
+curl -X POST http://localhost:9092/oas/benefits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "personalNumber": "199001011234",
+    "kassaName": "Unionens A-kassa",
+    "dailyAllowance": 960.0,
+    "incomeBase": "HIGH",
+    "totalDays": 300
+  }'
+```
+
+---
+
+### 2. Lookup Member
+
+Lookup member benefit information to check if a person is registered with an A-kassa.
+
+**Endpoint:** `GET /oas/members/{personalNumber}`
+
+**Called By:** Arbetsförmedlingen (AF)
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `personalNumber` | string | Yes | Swedish personal number (10-12 digits) |
+
+**Response (200 OK) - Member Found:**
+
+```json
+{
+  "found": true,
+  "benefit": {
+    "personalNumber": "199001011234",
+    "kassaName": "Unionens A-kassa",
+    "isMember": true,
+    "dailyAllowance": 960.0,
+    "incomeBase": "HIGH",
+    "remainingDays": 300,
+    "registrationDate": "2024-01-15T10:30:00Z",
+    "lastUpdated": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Response (200 OK) - Member Not Found:**
+
+```json
+{
+  "found": false,
+  "benefit": null
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `found` | boolean | Whether the member was found in OAS |
+| `benefit` | object/null | Member benefit details (null if not found) |
+| `benefit.personalNumber` | string | Swedish personal number |
+| `benefit.kassaName` | string | Name of the A-kassa |
+| `benefit.isMember` | boolean | Whether the person is an active member |
+| `benefit.dailyAllowance` | decimal | Daily unemployment allowance in SEK |
+| `benefit.incomeBase` | string | Income base category (HIGH/MEDIUM/LOW) |
+| `benefit.remainingDays` | integer | Number of benefit days remaining |
+| `benefit.registrationDate` | string | ISO 8601 timestamp of initial registration |
+| `benefit.lastUpdated` | string | ISO 8601 timestamp of last update |
+
+**Example cURL:**
+
+```bash
+curl http://localhost:9092/oas/members/199001011234
+```
+
+---
+
+### 3. Update Remaining Days
+
+Update the remaining benefit days for a member when benefits are consumed.
+
+**Endpoint:** `PUT /oas/members/{personalNumber}/days`
+
+**Called By:** System administrators or automated processes
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `personalNumber` | string | Yes | Swedish personal number (10-12 digits) |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `daysUsed` | integer | Yes | Number of benefit days consumed (minimum: 1) |
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Days updated. Remaining: 295"
+}
+```
+
+**Response (404 Not Found):**
+
+```json
+{
+  "success": false,
+  "message": "Member not found in OAS"
+}
+```
+
+**Example cURL:**
+
+```bash
+curl -X PUT "http://localhost:9092/oas/members/199001011234/days?daysUsed=5"
+```
+
+---
+
+### 4. Health Check
+
+Check the health status of the OAS service.
+
+**Endpoint:** `GET /oas/health`
+
+**Response (200 OK):**
+
+```
+OAS Service is running
+```
+
+**Example cURL:**
+
+```bash
+curl http://localhost:9092/oas/health
+```
+
+---
+
+## Data Models
+
+### MemberBenefit
+
+Complete member benefit information stored in OAS.
+
+```typescript
+{
+  personalNumber: string;      // Swedish personal number (10-12 digits)
+  kassaName: string;           // Name of the A-kassa
+  isMember: boolean;           // Active membership status
+  dailyAllowance: decimal;     // Daily allowance in SEK (0-1200)
+  incomeBase: string;          // HIGH | MEDIUM | LOW
+  remainingDays: integer;      // Benefit days remaining (0-300)
+  registrationDate: string;    // ISO 8601 timestamp
+  lastUpdated: string;         // ISO 8601 timestamp
+}
+```
+
+### BenefitRegistrationRequest
+
+Request payload for registering benefits.
+
+```typescript
+{
+  personalNumber: string;      // Required: 10-12 digits
+  kassaName: string;           // Required: A-kassa name
+  dailyAllowance: decimal;     // Required: 0-1200 SEK
+  incomeBase: string;          // Required: HIGH | MEDIUM | LOW
+  totalDays: integer;          // Required: Typically 300
+}
+```
+
+### RegistrationResponse
+
+Standard response for registration operations.
+
+```typescript
+{
+  success: boolean;            // Operation success status
+  message: string;             // Human-readable message
+  registrationId?: string;     // Optional: Personal number
+}
+```
+
+### MemberLookupResponse
+
+Response for member lookup operations.
+
+```typescript
+{
+  found: boolean;              // Whether member exists
+  benefit: MemberBenefit | null; // Benefit details or null
+}
+```
+
+---
+
+## Error Handling
+
+### HTTP Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 OK | Request successful |
+| 404 Not Found | Member not found in OAS |
+| 500 Internal Server Error | Server-side error occurred |
+
+### Error Response Format
+
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+---
+
+## Usage Examples
+
+### Complete Integration Flow
+
+#### Step 1: Cash Registry Registers Benefit
+
+```bash
+curl -X POST http://localhost:9092/oas/benefits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "personalNumber": "199001011234",
+    "kassaName": "Unionens A-kassa",
+    "dailyAllowance": 960.0,
+    "incomeBase": "HIGH",
+    "totalDays": 300
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Benefit data successfully registered in OAS",
+  "registrationId": "199001011234"
+}
+```
+
+#### Step 2: AF Looks Up Member
+
+```bash
+curl http://localhost:9092/oas/members/199001011234
+```
+
+**Response:**
+```json
+{
+  "found": true,
+  "benefit": {
+    "personalNumber": "199001011234",
+    "kassaName": "Unionens A-kassa",
+    "isMember": true,
+    "dailyAllowance": 960.0,
+    "incomeBase": "HIGH",
+    "remainingDays": 300,
+    "registrationDate": "2024-01-15T10:30:00Z",
+    "lastUpdated": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Step 3: Update Days After Benefit Consumption
+
+```bash
+curl -X PUT "http://localhost:9092/oas/members/199001011234/days?daysUsed=5"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Days updated. Remaining: 295"
+}
+```
+
+### Income Base Categories
+
+| Category | Monthly Salary Range | Daily Allowance Calculation |
+|----------|---------------------|----------------------------|
+| HIGH | ≥ 30,000 SEK | 80% of daily salary, max 1,200 SEK |
+| MEDIUM | 20,000 - 29,999 SEK | 80% of daily salary, max 1,200 SEK |
+| LOW | < 20,000 SEK | 80% of daily salary, max 1,200 SEK |
+
+**Daily Allowance Formula:**
+```
+dailyRate = monthlySalary / 30
+dailyAllowance = min(dailyRate * 0.8, 1200)
+```
+
+### Example Calculations
+
+**High Income Member:**
+- Monthly Salary: 35,000 SEK
+- Daily Rate: 35,000 / 30 = 1,166.67 SEK
+- 80% Rate: 1,166.67 * 0.8 = 933.33 SEK
+- Daily Allowance: 933.33 SEK (under ceiling)
+
+**Very High Income Member:**
+- Monthly Salary: 50,000 SEK
+- Daily Rate: 50,000 / 30 = 1,666.67 SEK
+- 80% Rate: 1,666.67 * 0.8 = 1,333.33 SEK
+- Daily Allowance: 1,200 SEK (capped at ceiling)
+
+---
+
+## Integration Guide
+
+### For Cash Registries (A-kassorna)
+
+1. **Calculate Benefits:** Use your internal calculation logic
+2. **Register to OAS:** Call `POST /oas/benefits` with calculated data
+3. **Handle Response:** Check `success` field and log `registrationId`
+
+### For Arbetsförmedlingen (AF)
+
+1. **Lookup Member:** Call `GET /oas/members/{personalNumber}`
+2. **Check Found Status:** Verify `found` field in response
+3. **Process Benefit:** If found, use `benefit` object for decision-making
+4. **Fallback:** If not found, member receives basic grant (grundbelopp ~223 SEK/day)
+
+### For System Administrators
+
+1. **Monitor Health:** Regularly call `GET /oas/health`
+2. **Update Days:** Use `PUT /oas/members/{personalNumber}/days` to adjust remaining days
+3. **Audit Logs:** Check service logs for registration and lookup activities
+
+---
+
+## Service Configuration
+
+### Port Configuration
+
+The OAS service runs on port **9092** by default. This can be configured via:
+
+```ballerina
+configurable int oasServicePort = 9092;
+```
+
+### In-Memory Storage
+
+The service uses in-memory storage for development:
+
+```ballerina
+map<MemberBenefit> oasMemberDatabase = {};
+```
+
+**Note:** In production, replace with persistent database (PostgreSQL, MySQL, etc.)
+
+---
+
+## Logging
+
+The service logs all operations:
+
+- **Registration:** `OAS: Registered benefit for {personalNumber} from {kassaName}`
+- **Lookup Found:** `OAS: Lookup for {personalNumber} - FOUND`
+- **Lookup Not Found:** `OAS: Lookup for {personalNumber} - NOT FOUND`
+- **Days Updated:** `OAS: Updated days for {personalNumber}. Remaining: {remainingDays}`
+
+---
+
+## Testing
+
+### Test All Endpoints
+
+```bash
+# Health Check
+curl http://localhost:9092/oas/health
+
+# Register Benefit
+curl -X POST http://localhost:9092/oas/benefits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "personalNumber": "199001011234",
+    "kassaName": "Unionens A-kassa",
+    "dailyAllowance": 960.0,
+    "incomeBase": "HIGH",
+    "totalDays": 300
+  }'
+
+# Lookup Member (Found)
+curl http://localhost:9092/oas/members/199001011234
+
+# Lookup Member (Not Found)
+curl http://localhost:9092/oas/members/999999999999
+
+# Update Days
+curl -X PUT "http://localhost:9092/oas/members/199001011234/days?daysUsed=5"
+```
+
+---
+
+## Related Services
+
+- **Cash Registry Service:** Port 9091 - Handles benefit applications and calculations
+- **SOAP Service:** Port 9093 - XML/XSD/DTD validation
+- **Notification Service:** Port 9096 - Logging and notifications
+
+---
+
+## Support
+
+For issues or questions about the OAS service:
+
+- Check service health: `GET /oas/health`
+- Review service logs for error details
+- Verify request payload matches data models
+- Ensure personal numbers are valid (10-12 digits)
+
+---
+
+## Changelog
+
+### Version 1.0.0 (Current)
+- Initial release
+- Member benefit registration
+- Member lookup functionality
+- Remaining days update
+- Health check endpoint
+- In-memory storage for development
+
+---
+
+## Future Enhancements
+
+- [ ] Persistent database integration
+- [ ] Authentication and authorization
+- [ ] Rate limiting
+- [ ] Audit trail and history tracking
+- [ ] Bulk registration endpoint
+- [ ] Advanced search and filtering
+- [ ] Webhook notifications for updates
+- [ ] API versioning support
+
+---
+
+**Last Updated:** 2024-01-15
+
+**Service Version:** 1.0.0
+
+**Documentation Version:** 1.0.0

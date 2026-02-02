@@ -1,0 +1,134 @@
+name: APIM - OAS APIM Pipeline
+on:
+  push:
+    paths:
+      - 'apim/OASServiceAPI/**'
+      - '.github/workflows/oas_api.yml'
+    branches:
+      - main
+
+jobs:
+  deploy-api-prod:
+    runs-on: self-hosted
+    if: ${{ contains(github.event.head_commit.message, 'prod') || github.event_name == 'push' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Add etc/hosts entry for cp.wso2.com 🌐
+        run: |
+          echo '127.0.0.1 cp.wso2.com' | sudo tee -a /etc/hosts
+
+      - name: Install apictl
+        run: |
+          wget https://github.com/wso2/product-apim-tooling/releases/download/v4.6.0/apictl-4.6.0-linux-amd64.tar.gz
+          tar -xzf apictl-4.6.0-linux-amd64.tar.gz
+          chmod +x apictl/apictl
+          sudo mv apictl/apictl /usr/local/bin/
+
+      - name: Configure Prod Environment
+        run: |
+          echo "⚙️ Configuring APIM environment..."
+          
+          # 1. Remove 'prod' if it already exists (suppress errors with || true)
+          # This ensures we don't fail if it's the very first run, 
+          # and we don't fail with "already exists" on subsequent runs.
+          apictl remove env prod --verbose 2>/dev/null || true
+
+          # 2. Add it fresh
+          # This guarantees the URL is always correct, even if you change it later in the workflow.
+          apictl add env prod --apim https://cp.wso2.com
+
+      - name: Login to APIM CP
+        run: |
+          apictl login prod -u ${{ secrets.APIM_USERNAME }} -p ${{ secrets.APIM_PASSWORD }} --insecure
+
+      # -------------------------------------------------------------
+      # NEW STEP: Check Existence
+      # -------------------------------------------------------------
+      - name: Check if API Exists in APIM
+        id: check_api
+        run: |
+          echo "🔍 Checking for existing API..."
+
+          # 1. Capture Raw Output
+          # We use '2>/dev/null' to hide stderr warnings, but sometimes apictl prints warnings to stdout too.
+          RAW_OUTPUT=$(apictl get apis -e prod -q name:OASServiceAPI --insecure --format json 2>/dev/null)
+          
+          # Debugging: Print what we actually got (helps if this fails again)
+          echo "-------------- DEBUG: RAW OUTPUT START --------------"
+          echo "$RAW_OUTPUT"
+          echo "-------------- DEBUG: RAW OUTPUT END ----------------"
+
+          # 2. Clean the Output
+          # Use sed to ignore everything UNTIL the first line starting with '{'
+          # This strips out "Insecure connection..." or "Update available..." preambles.
+          CLEAN_JSON=$(echo "$RAW_OUTPUT" | sed -n '/^{/,$p')
+
+          # 3. Parse with jq
+          # We use '// 0' to default to 0 if the output is empty or null, preventing bash errors
+          EXISTING_API=$(echo "$CLEAN_JSON" | jq -r '.count // 0')
+          
+          echo "Parsed Count: $EXISTING_API"
+
+          if [ "$EXISTING_API" -gt "0" ]; then
+            echo "✅ API found. A new revision will be created."
+            echo "api_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ API not found. A new API will be created."
+            echo "api_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # -------------------------------------------------------------
+      # MODIFIED STEP: Import with logic logging
+      # -------------------------------------------------------------
+      - name: Import API to Prod
+        run: |
+          # CORRECTED PATH based on your ls -R output
+          API_PROJECT_PATH="${GITHUB_WORKSPACE}/apim-integration-artefacts-for-cicd-pipeline/apim/OASServiceAPI"
+
+          echo "📂 Project Path: $API_PROJECT_PATH"
+
+          # Debug check
+          if [ -d "$API_PROJECT_PATH" ]; then
+             echo "✅ Directory found."
+          else
+             echo "❌ Directory NOT found at $API_PROJECT_PATH"
+             exit 1
+          fi
+
+          if [ "${{ steps.check_api.outputs.api_exists }}" == "true" ]; then
+             echo "🚀 Updating existing API and creating a new Revision..."
+          else
+             echo "🆕 Creating fresh API..."
+          fi
+
+          # Import using the corrected path
+          apictl import api -f "$API_PROJECT_PATH" -e prod --preserve-provider=false --update --insecure
+
+      - name: Run Tests (Optional)
+        run: |
+          found=false
+          # Loop 3 times
+          for i in {1..3}; do
+            echo "Attempt $i: Checking for OASServiceAPI..."
+            
+            # -q means quiet mode (don't output the line, just return true/false)
+            if apictl get apis -e prod --insecure | grep -q "OASServiceAPI"; then
+              echo "✅ OASServiceAPI is present in Publisher"
+              found=true
+              break
+            fi
+            
+            echo "⚠️ API not found yet. Waiting 2 seconds..."
+            sleep 2
+          done
+
+          # Final check
+          if [ "$found" = false ]; then
+            echo "❌ OASServiceAPI not found in Publisher (prod) after 3 attempts."
+            # List all APIs to see what IS there (helps debugging)
+            echo "Available APIs were:"
+            apictl get apis -e prod --insecure
+            exit 1
+          fi

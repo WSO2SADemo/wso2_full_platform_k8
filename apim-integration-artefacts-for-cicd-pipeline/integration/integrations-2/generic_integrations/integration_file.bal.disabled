@@ -13,9 +13,6 @@ const string TEMP_DIR = "./temp_transfer";
 // Track last processed file to avoid duplicates
 string lastProcessedFile = "";
 
-int ftpPort = check int:fromString(ftpPortStr);
-int nfsPort = check int:fromString(nfsPortStr);
-
 // FTP Client
 final ftp:Client ftpClient = check new ({
     protocol: ftp:FTP,
@@ -30,6 +27,10 @@ final ftp:Client ftpClient = check new ({
 });
 
 // Initialize the scheduled service
+// NOTE: This main function will block other services from running
+// To run WebSocket service, either:
+// 1. Comment out this main function, or
+// 2. Run this file separately: bal run integration_file.bal
 public function main() returns error? {
     
     // Create temp directory if it doesn't exist
@@ -107,6 +108,16 @@ function processFileTransfer() returns error? {
     
     log:printInfo(string `Successfully transferred '${latestFile.name}' from FTP to NFS`);
     
+    // Log transfer to database
+    FileTransferRequest transferRecord = {
+        fileName: latestFile.name,
+        fileSize: latestFile.size,
+        sourceLocation: string `ftp://${ftpHost}:${ftpPort}${ftpDirectory}`,
+        destinationLocation: string `nfs://${nfsHost}:${nfsPort}${nfsDirectory}`,
+        transferStatus: "SUCCESS"
+    };
+    
+     
     // Update last processed file
     lastProcessedFile = latestFile.name;
     

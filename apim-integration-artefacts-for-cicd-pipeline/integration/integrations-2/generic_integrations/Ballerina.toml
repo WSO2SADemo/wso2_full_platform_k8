@@ -6,3 +6,8 @@ title = "fto_to_nfs_file_transfer"
 
 [build-options]
 sticky = true
+
+[[platform.java17.dependency]]
+groupId = "com.mysql"
+artifactId = "mysql-connector-j"
+version = "8.3.0"
