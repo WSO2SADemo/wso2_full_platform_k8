@@ -1,0 +1,8 @@
+[package]
+org = "ramindu"
+name = "ftp_to_nfs_integration"
+version = "0.1.0"
+title = "ftp_to_nfs_integration"
+
+[build-options]
+sticky = true

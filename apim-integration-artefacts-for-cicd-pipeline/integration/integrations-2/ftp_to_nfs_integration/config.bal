@@ -1,0 +1,10 @@
+import ballerina/os;
+configurable string ftpUsername = os:getEnv("ftpUsername");
+configurable string ftpPassword = os:getEnv("ftpPassword");
+configurable string ftpHost = os:getEnv("ftpHost");
+configurable int ftpPort = 21;
+configurable string ftpDirectory = os:getEnv("ftpDirectory");
+configurable string nfsHost = os:getEnv("nfsHost");
+configurable int nfsPort = 2049;
+configurable string nfsMountPoint = os:getEnv("nfsMountPoint");
+configurable string nfsDirectory = os:getEnv("nfsDirectory");
