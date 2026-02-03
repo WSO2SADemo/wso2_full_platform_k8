@@ -14,4 +14,6 @@ data:
             10.43.87.241 cp.wso2.com gw.wso2.com kibana.wso2.com icp.wso2.com extgw.wso2.com
             fallthrough
         }
+        # 👇 ADD THIS LINE: If not in hosts list, ask Google
+        forward . 8.8.8.8 1.1.1.1 
     }

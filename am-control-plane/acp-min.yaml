@@ -55,7 +55,7 @@ wso2:
           username: "apimadmin"
           password: "T6pC37Gg"
       ai:
-        enabled: false
+        enabled: true
         key: "ckVZZVllcVd6T0lfOUNGS0J4ZmN4YUI3X2lBYTpwVlRScmIyZ0pIbUl3NVNsVDRoOEhuN1RMOHJMNWI4d0dja2w4RnJxQzlnYQ=="
         endpoint: "https://dev-tools.wso2.com/apim-ai-service/v2"
         tokenEndpoint: "https://api.asgardeo.io/t/wso2devtools/oauth2/token"
