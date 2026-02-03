@@ -54,6 +54,12 @@ wso2:
           url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/shared_db?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
           username: "apimadmin"
           password: "T6pC37Gg"
+      ai:
+        enabled: false
+        key: "ckVZZVllcVd6T0lfOUNGS0J4ZmN4YUI3X2lBYTpwVlRScmIyZ0pIbUl3NVNsVDRoOEhuN1RMOHJMNWI4d0dja2w4RnJxQzlnYQ=="
+        endpoint: "https://dev-tools.wso2.com/apim-ai-service/v2"
+        tokenEndpoint: "https://api.asgardeo.io/t/wso2devtools/oauth2/token"
+
       gateway:
         environments:
         - name: "Default"
