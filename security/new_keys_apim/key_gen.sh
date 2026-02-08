@@ -24,7 +24,7 @@ keytool -genkeypair \
  -keyalg RSA \
  -keysize 2048 \
  -dname "CN=*.wso2.com, OU=WSO2, O=WSO2, L=Colombo, ST=Western, C=LK" \
- -ext "SAN=DNS:extgw.wso2.com,DNS:gw.wso2.com,DNS:cp.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:extgw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
+ -ext "SAN=DNS:is.wso2.com,DNS:extgw.wso2.com,DNS:gw.wso2.com,DNS:cp.wso2.com,DNS:localhost,DNS:acp-wso2am-acp-service.apim-cp.svc.cluster.local,DNS:acp-wso2am-acp-1-service.apim-cp.svc.cluster.local,DNS:extgw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:gw-wso2am-universal-gw-service.apim-gw.svc.cluster.local,DNS:*.apim-cp.svc.cluster.local,DNS:*.apim-gw.svc.cluster.local" \
  -keystore wso2carbon.jks \
  -storepass wso2carbon \
  -keypass wso2carbon \
@@ -111,9 +111,39 @@ kubectl create secret generic apim-keystore-secret \
  --from-file=client-truststore.jks=client-truststore.jks \
  -n apim-cp
 
+ keytool -importkeystore \
+  -srckeystore wso2carbon.jks \
+  -srcstoretype JKS \
+  -srcstorepass wso2carbon \
+  -destkeystore wso2carbon.p12 \
+  -deststoretype PKCS12 \
+  -deststorepass wso2carbon
+
+keytool -importkeystore \
+  -srckeystore client-truststore.jks \
+  -srcstoretype JKS \
+  -srcstorepass wso2carbon \
+  -destkeystore client-truststore.p12 \
+  -deststoretype PKCS12 \
+  -deststorepass wso2carbon
+
+kubectl delete secret wso2is-keystore-secret -n iam --ignore-not-found=true
+
+kubectl create secret generic wso2is-keystore-secret \
+  --from-file=wso2carbon.p12=wso2carbon.p12 \
+  --from-file=client-truststore.p12=client-truststore.p12 \
+  -n iam
+
+kubectl delete secret is-tls -n iam
+openssl pkcs12 -in wso2carbon.p12 -nocerts -out wso2carbon.key -nodes
+openssl pkcs12 -in wso2carbon.p12 -nokeys -out wso2carbon.crt -nodes
+kubectl create secret tls is-tls --cert=wso2carbon.crt --key=wso2carbon.key -n iam
+
+
 # Restart pods
 echo "Restarting deployments..."
-kubectl rollout restart deployment -n apim-cp
-kubectl rollout restart deployment -n apim-gw
+# kubectl rollout restart deployment -n apim-cp
+# kubectl rollout restart deployment -n apim-gw
+# kubectl rollout restart deployment -n iam
 
 echo "✓ Done! Both components now share the same 'wso2carbon.jks'."

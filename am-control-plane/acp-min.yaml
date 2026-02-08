@@ -47,13 +47,13 @@ wso2:
         jdbc:
           driver: "com.mysql.cj.jdbc.Driver"
         apim_db:
-          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/apim_db?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
-          username: "apimadmin"
-          password: "T6pC37Gg"
+          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/WSO2AM_DB_460?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
+          username: "wso2carbon"
+          password: "wso2carbon"
         shared_db:
-          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/shared_db?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
-          username: "apimadmin"
-          password: "T6pC37Gg"
+          url: "jdbc:mysql://wso2-mysql.apim-db.svc.cluster.local:3306/WSO2AM_SHARED_DB_460?useSSL=false&amp;requireSSL=true&amp;verifyServerCertificate=false&amp;allowPublicKeyRetrieval=true"
+          username: "wso2carbon"
+          password: "wso2carbon"
       ai:
         enabled: true
         key: "ckVZZVllcVd6T0lfOUNGS0J4ZmN4YUI3X2lBYTpwVlRScmIyZ0pIbUl3NVNsVDRoOEhuN1RMOHJMNWI4d0dja2w4RnJxQzlnYQ=="

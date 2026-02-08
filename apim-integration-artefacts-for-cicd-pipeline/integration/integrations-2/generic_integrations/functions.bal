@@ -143,6 +143,20 @@ function getEmployeeById(int employeeId) returns Employee|error {
     return result;
 }
 
+// Delete employee by ID
+function deleteEmployee(int employeeId) returns error? {
+    sql:ParameterizedQuery deleteQuery = `DELETE FROM employee WHERE id = ${employeeId}`;
+    
+    sql:ExecutionResult|sql:Error result = mysqlClient->execute(deleteQuery);
+    
+    if result is sql:Error {
+        log:printError(string `Failed to delete employee with ID ${employeeId}: ${result.message()}`);
+        return result;
+    }
+    
+    return;
+}
+
 // Helper function to filter Kafka messages by stock symbol
 public function filterMessageBySymbol(string message, string targetSymbol) returns boolean {
     // Try to parse the message as JSON to extract the symbol

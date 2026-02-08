@@ -45,6 +45,20 @@ service /employees on httpListener {
             id: result
         };
     }
+
+    // Delete employee by ID
+    resource function delete remove(@http:Query int id) returns record {|string message;|}|http:InternalServerError {
+        error? result = deleteEmployee(id);
+
+        if result is error {
+            log:printError(string `Failed to delete employee: ${result.message()}`);
+            return http:INTERNAL_SERVER_ERROR;
+        }
+
+        return {
+            message: "Employee deleted successfully"
+        };
+    }
 }
 
 // File Transfer Management Service (separate service with database integration)
