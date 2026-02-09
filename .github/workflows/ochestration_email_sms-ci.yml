@@ -14,7 +14,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: [self-hosted, my-runner]
-    
+
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/orchestration_and_email_sms
@@ -111,8 +111,8 @@ jobs:
               tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
               username="admin"
               password="admin"
-              clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
-              clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
+              clientId="vfnVza32YRo6PsVX7B38WGcGM2Ea"
+              clientSecret="3oXmb7aOVve_gXbQokvPQbTp1nAa"
           EOF
 
           echo "Applying Corrected ConfigMap..."
