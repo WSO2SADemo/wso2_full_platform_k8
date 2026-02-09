@@ -13,8 +13,8 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: [self-hosted, macOS, ARM64]
-
+    runs-on: [self-hosted, my-runner]
+    
     env:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/orchestration_and_email_sms
