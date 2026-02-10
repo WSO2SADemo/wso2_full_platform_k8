@@ -73,7 +73,7 @@ jobs:
       - name: Ensure Ballerina Secret Exists
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          SECRET_NAME="ballerina-integration-secret"
+          SECRET_NAME="ballerina-secrets"
           LOCAL_SECRET_PATH="/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/integration/ballerina-secrets.yaml"
 
           echo "Checking if secret '$SECRET_NAME' exists in namespace '$NAMESPACE'..."
@@ -142,7 +142,7 @@ jobs:
           CONFIG_MAP_NAME="${{ env.CONFIG_MAP_NAME }}"
           
           # ⚠️ VERIFY: This must match the secret name established in "Ensure Ballerina Secret Exists"
-          SECRET_NAME="ballerina-secret"
+          SECRET_NAME="ballerina-secrets"
 
           echo "Patching Deployment: $DEPLOYMENT"
           echo "Using ConfigMap: $CONFIG_MAP_NAME"
