@@ -3,7 +3,7 @@ name: Integration - VIES Integration
 on:
   push:
     paths:
-      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies_integration/**'
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration/**'
       - '.github/workflows/vies-ci.yml'
     branches:
       - main
