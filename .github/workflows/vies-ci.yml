@@ -103,6 +103,10 @@ jobs:
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           SERVICE_NAME="vies-integration" 
           TARGET_PORT_NAME="vies-integration-port"
+          TYPO_SERVICE_NAME="vies-integratio"
+
+          echo "Checking for duplicate service '$TYPO_SERVICE_NAME'..."
+          kubectl delete svc $TYPO_SERVICE_NAME -n $NAMESPACE --ignore-not-found
           
           echo "Current Deployments in $NAMESPACE:"
           kubectl get deployments -n $NAMESPACE
