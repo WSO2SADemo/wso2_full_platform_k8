@@ -11,14 +11,13 @@ data:
         errors
         cache 30
         hosts {
-            # IAM / Identity Server
-            10.43.174.18 is.wso2.com
-            
-            # APIM Control Plane
-            10.43.78.159 cp.wso2.com
-            
-            # APIM Gateways & Analytics
-            10.43.234.94 gw.wso2.com icp.wso2.com extgw.wso2.com kibana.wso2.com
+            # Point EVERYTHING to the Nginx Ingress Controller IP (10.43.234.238)
+            10.43.234.238 is.wso2.com
+            10.43.234.238 cp.wso2.com
+            10.43.234.238 gw.wso2.com
+            10.43.234.238 icp.wso2.com
+            10.43.234.238 extgw.wso2.com
+            10.43.234.238 kibana.wso2.com
             
             fallthrough
         }

@@ -15,6 +15,13 @@ wso2:
     # You must override these HPA values, or Kubernetes will force it back to 2
     minReplicas: 1
     maxReplicas: 1
+    startupProbe:
+      # -- Number of seconds after the container has started before startup probes are initiated
+      initialDelaySeconds: 60
+      # -- How often (in seconds) to perform the probe
+      periodSeconds: 10
+      # -- Minimum consecutive successes for the probe to be considered successful after having failed
+      failureThreshold: 30 
   
   moesifAnalytics:
     enabled: true

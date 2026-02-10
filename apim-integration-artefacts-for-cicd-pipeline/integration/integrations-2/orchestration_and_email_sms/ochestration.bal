@@ -43,6 +43,7 @@ service /api on orchestrationListener {
             previousMonthlySalary: request.previousMonthlySalary
         };
         
+        log:printInfo(string `Orchestration: cashRegistryUrl ${cashRegistryUrl}`);
         BenefitCalculationResponse|http:ClientError calculationResult = cashRegistryOrchClient->/applications.post(calculationRequest);
         
         if calculationResult is http:ClientError {
