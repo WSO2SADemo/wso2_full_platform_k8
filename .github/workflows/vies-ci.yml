@@ -142,7 +142,7 @@ jobs:
           CONFIG_MAP_NAME="${{ env.CONFIG_MAP_NAME }}"
           
           # ⚠️ VERIFY: This must match the secret name established in "Ensure Ballerina Secret Exists"
-          SECRET_NAME="ballerina-integration-secret"
+          SECRET_NAME="ballerina-secret"
 
           echo "Patching Deployment: $DEPLOYMENT"
           echo "Using ConfigMap: $CONFIG_MAP_NAME"
