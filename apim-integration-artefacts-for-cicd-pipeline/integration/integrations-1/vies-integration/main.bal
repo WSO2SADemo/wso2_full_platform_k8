@@ -1,7 +1,7 @@
 import ballerina/http;
 import ballerina/log;
-// import ballerinax/wso2.apim.catalog as _;
-// import ballerinax/moesif as _;
+import ballerinax/wso2.apim.catalog as _;
+import ballerinax/moesif as _;
 
 // Service to receive SAP-MDM requests and forward to VIES
 service /sapToVies on sapMdmListener {
