@@ -31,6 +31,11 @@ type OrchestrationResponse record {|
 
 service /api on orchestrationListener {
 
+    function init() {
+        log:printInfo("Initialize orchestration service");
+        log:printInfo("Initialize cashRegistryUrl: " + cashRegistryUrl);
+    }
+
     // Complete orchestration: Calculate benefit, register to OAS, and return final result
     resource function post benefits/register(@http:Payload OrchestrationRequest request) returns OrchestrationResponse|http:BadRequest|http:InternalServerError {
         
@@ -43,7 +48,6 @@ service /api on orchestrationListener {
             previousMonthlySalary: request.previousMonthlySalary
         };
         
-        log:printInfo(string `Orchestration: cashRegistryUrl ${cashRegistryUrl}`);
         BenefitCalculationResponse|http:ClientError calculationResult = cashRegistryOrchClient->/applications.post(calculationRequest);
         
         if calculationResult is http:ClientError {
