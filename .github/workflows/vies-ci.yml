@@ -3,7 +3,7 @@ name: Integration - VIES Integration
 on:
   push:
     paths:
-      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/vies_integration/**'
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies_integration/**'
       - '.github/workflows/vies-ci.yml'
     branches:
       - main
@@ -15,7 +15,7 @@ jobs:
 
     env:
       BALLERINA_NAMESPACE: ballerina 
-      PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/vies_integration
+      PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies_integration
       IMAGE_TAG: "1.0.0"
       DOCKER_REPO: "ramilu90/vies_integration" 
       # Config Map Name (Must match metadata.name in your local YAML file)
