@@ -74,6 +74,28 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure Ballerina Secret Exists
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          SECRET_NAME="ballerina-integration-secret"
+          LOCAL_SECRET_PATH="/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/integration/ballerina-secrets.yaml"
+
+          echo "Checking if secret '$SECRET_NAME' exists in namespace '$NAMESPACE'..."
+
+          if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" > /dev/null 2>&1; then
+            echo "✅ Secret '$SECRET_NAME' already exists. Skipping application."
+          else
+            echo "⚠️ Secret '$SECRET_NAME' NOT found."
+            
+            if [ -f "$LOCAL_SECRET_PATH" ]; then
+              echo "Applying from local path: $LOCAL_SECRET_PATH"
+              kubectl apply -f "$LOCAL_SECRET_PATH" -n "$NAMESPACE"
+            else
+              echo "❌ Error: Local secret file not found at $LOCAL_SECRET_PATH"
+              exit 1
+            fi
+          fi
+      
       - name: Deploy Kubernetes Resources
         run: |
           K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/orchestration_and_email_sms"

@@ -33,9 +33,11 @@ gateway/wso2am-gw/**
 integration/ballerina-secrets.yaml
 integration/config-map.yaml
 config-map*.yaml
+apim-secrets.yaml
 
 security/cp/*
 security/gw/*
+*.tgz
 
 # Don't ignore .gitignore itself
 !.gitignore

@@ -21,6 +21,15 @@ password = {{ .Values.wso2.apim.configurations.adminPassword | quote }}
 {{- end }}
 create_admin_account = true
 
+[apim.analytics]
+enable = true
+type = "moesif"
+
+[apim.analytics.properties]
+moesifKey = "eyJhcHAiOiI0OTM6************r9lZ7MhH0"
+moesif_base_url = "https://api.moesif.net"
+send_headers = false
+
 [database.shared_db]
 type = "{{ .Values.wso2.apim.configurations.databases.type }}"
 url = "{{ .Values.wso2.apim.configurations.databases.shared_db.url }}"

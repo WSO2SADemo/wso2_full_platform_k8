@@ -15,6 +15,12 @@ wso2:
     # You must override these HPA values, or Kubernetes will force it back to 2
     minReplicas: 1
     maxReplicas: 1
+    env:
+      - name: MOESIF_KEY_ENV_VAR
+        valueFrom:
+          secretKeyRef:
+            name: apim-secrets    # Matches metadata.name in step 1
+            key: MOESIF_API_KEY   # Matches the key in 'data' in step 1
   
   # --- 1. THIS IS YOUR BLOCK ---
   # This correctly sets [apim.analytics] enable = true in the deployment.toml
@@ -24,7 +30,7 @@ wso2:
   moesifAnalytics:
     enabled: true
     # -- Moesif API key
-    key: "eyJhcHAiOiI0OTM6MzM2OSIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.mKO_4CWNaDL86p-ZYpDREGbV9zxHSj15u-I-NbP0FyM"
+    key: "$env{MOESIF_KEY_ENV_VAR}"
     # -- Moesif base URL
     # moesif_base_url: "https://api.moesif.net"
     # -- Moesif send header
