@@ -101,32 +101,51 @@ jobs:
       - name: Ensure Service & Patch Port 8080
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          DEPLOYMENT="vies-integration-deployment"
           SERVICE_NAME="vies-integration" 
           TARGET_PORT_NAME="vies-integration-port"
+          
+          # 🔍 Debug: List all deployments to see what actually exists
+          echo "Current Deployments in $NAMESPACE:"
+          kubectl get deployments -n $NAMESPACE
 
+          # 🧠 AUTO-DETECT: Find the deployment name matching 'vies-integration'
+          # This looks for any deployment containing "vies" and "integration"
+          DEPLOYMENT=$(kubectl get deployments -n $NAMESPACE -o name | grep "vies" | grep "integration" | head -n 1 | sed 's|deployment.apps/||')
+
+          if [ -z "$DEPLOYMENT" ]; then
+            echo "❌ Error: Could not find any deployment matching 'vies...integration'"
+            exit 1
+          fi
+
+          echo "✅ Found Deployment: $DEPLOYMENT"
+
+          # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
-             echo "Service $SERVICE_NAME not found. Creating it..."
+             echo "Service $SERVICE_NAME not found. Creating it for $DEPLOYMENT..."
              kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=8080 --target-port=8080 --type=ClusterIP
           fi
 
+          # 2. Patch Port Name
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b8080\b"; then
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":8080,"name":"'"$TARGET_PORT_NAME"'"}]}}'
           else
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$TARGET_PORT_NAME"'", "port": 8080, "targetPort": 8080, "protocol": "TCP"}}]'
           fi
+          
+          # 3. Export DEPLOYMENT name for the next step (Env/Vol Patch)
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT" >> $GITHUB_ENV
 
       - name: Patch Deployment (Volume Mounts & Env)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          DEPLOYMENT="vies-integration-deployment"
+          # ✅ Use the auto-detected name from the previous step
+          DEPLOYMENT="${{ env.DEPLOYMENT_NAME }}" 
           
-          # We use the env var here to match what is inside your local YAML file
           CONFIG_MAP_NAME="${{ env.CONFIG_MAP_NAME }}"
           
+          echo "Patching Deployment: $DEPLOYMENT"
+
           CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
-          
-          echo "Patching Deployment $DEPLOYMENT (Container: $CONTAINER_NAME) using ConfigMap: $CONFIG_MAP_NAME..."
           
           kubectl patch deployment $DEPLOYMENT -n $NAMESPACE --patch "
           spec:
@@ -135,7 +154,7 @@ jobs:
                 volumes:
                 - name: keystore-vol
                   secret:
-                    secretName: ballerina-secrets
+                    secretName: ballerina-secret  # ⚠️ Ensure this matches your secret name
                 containers:
                 - name: $CONTAINER_NAME
                   envFrom:
