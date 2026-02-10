@@ -191,7 +191,7 @@ jobs:
                 volumes:
                 - name: keystore-vol
                   secret:
-                    secretName: ballerina-integration-secret
+                    secretName: ballerina-secrets
                 containers:
                 - name: $CONTAINER_NAME
                   envFrom:
