@@ -19,7 +19,9 @@ jobs:
       BALLERINA_NAMESPACE: ballerina 
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends
       IMAGE_TAG: "1.0.14"
-      MOESIF_APP_ID: "eyJhcHAiOiI0OTM6MzM3MiIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.XD0ilo6xwD8igZvVaQgz4w9kIvyx_yMTBbrBWdZyEVs" 
+      CONFIG_MAP_NAME: "ballerina-values-mock-backends" 
+      # Local Path to ConfigMap
+      LOCAL_CONFIG_MAP_PATH: "/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-2/mock_backends/config-map-mock_backends.yaml"
 
     steps:
       - name: Checkout Code
@@ -63,60 +65,15 @@ jobs:
       # -----------------------------------------------------------
       # ✅ FIX 1: ConfigMap with CORRECT formatting (using | )
       # -----------------------------------------------------------
-      - name: Create ConfigMap
+      - name: Apply Local ConfigMap
         run: |
-          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          
-          # We use cat <<EOF to handle newlines correctly. 
-          cat <<EOF > configmap.yaml
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: ballerina-values-mock-backends
-            namespace: $NAMESPACE
-          data:
-            BAL_CONFIG_DATA: |
-              # [ballerinax.wso2.controlplane.dashboard]
-              # url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
-              # heartbeatInterval=10
-              # groupId="cluster1"
-              # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
-              # nodeId="mock_backends"
-
-              [ballerina.observe]
-              tracingEnabled=true
-              tracingProvider="moesif"
-              metricsEnabled=true
-              metricsReporter="moesif"
-
-              [ballerinax.moesif]
-              applicationId = "eyJhcHAiOiI0OTM6MzM3MiIsInZlciI6IjIuMSIsIm9yZyI6Ijg2OjcxMiIsImlhdCI6MTc2NzIyNTYwMH0.XD0ilo6xwD8igZvVaQgz4w9kIvyx_yMTBbrBWdZyEVs"
-              reporterBaseUrl = "https://api.moesif.net"   
-              tracingReporterFlushInterval = 1000         
-              tracingReporterBufferSize = 10000            
-              isTraceLoggingEnabled = true                
-              isPayloadLoggingEnabled = false 
-              
-              # # --- Logging to File (For FluentBit) ---
-              # [ballerina.log]
-              # format = "json"
-              # [[ballerina.log.destinations]]
-              # path = "/home/ballerina/logs/app.log"
-
-              # [[ballerina.log.destinations]]
-              # path = "/home/ballerina/logs/app.log"
-
-              [ballerinax.wso2.apim.catalog]
-              serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
-              tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
-              username="admin"
-              password="admin"
-              clientId="Pvn5k2ijIq04b1JzbPaSFJbyIfIa"
-              clientSecret="y7gXcCrf9HJrBWTR5F0MbH6qpzQa"
-          EOF
-
-          echo "Applying Corrected ConfigMap..."
-          kubectl apply -f configmap.yaml
+          echo "Applying ConfigMap from local path..."
+          if [ -f "${{ env.LOCAL_CONFIG_MAP_PATH }}" ]; then
+            kubectl apply -f "${{ env.LOCAL_CONFIG_MAP_PATH }}" -n ${{ env.BALLERINA_NAMESPACE }}
+          else
+            echo "❌ Error: File not found at ${{ env.LOCAL_CONFIG_MAP_PATH }}"
+            exit 1
+          fi
 
       - name: Deploy Kubernetes Resources
         run: |

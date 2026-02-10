@@ -1,0 +1,275 @@
+# Orchestration Service - OpenAPI Specification
+
+openapi: 3.0.0
+info:
+  title: Orchestration Service API
+  description: |
+    Orchestration service that coordinates between Cash Registry and OAS (Occupational 
+    Accident Service). This service provides a unified API for clients to calculate 
+    benefits, register members, and manage the complete benefit registration workflow.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:9090
+    description: Local development server
+
+paths:
+  /api/benefits/register:
+    post:
+      summary: Register benefit for a member
+      description: |
+        Complete orchestration workflow that:
+        1. Submits application to Cash Registry for benefit calculation
+        2. Registers the calculated benefit to OAS
+        3. Verifies registration by looking up the member in OAS
+        4. Returns the complete result including calculation and registration details
+      operationId: registerBenefit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrchestrationRequest'
+            example:
+              personalNumber: "198001011234"
+              kassaName: "Alfa Kassan"
+              previousMonthlySalary: 35000.00
+              workCertificates:
+                - "CERT-2023-001"
+                - "CERT-2023-002"
+      responses:
+        '200':
+          description: Benefit successfully calculated and registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              example:
+                success: true
+                message: "Benefit successfully calculated and registered"
+                calculation:
+                  approved: true
+                  dailyAllowance: 1166.67
+                  incomeBase: "35000.00 SEK"
+                  totalDays: 300
+                  message: "Application approved"
+                registration:
+                  success: true
+                  message: "Member registered successfully"
+                  registrationId: "REG-2024-001"
+                finalBenefit:
+                  personalNumber: "198001011234"
+                  kassaName: "Alfa Kassan"
+                  isMember: true
+                  dailyAllowance: 1166.67
+                  incomeBase: "35000.00 SEK"
+                  remainingDays: 300
+                  registrationDate: "2024-01-15"
+                  lastUpdated: "2024-01-15T10:30:00Z"
+        '400':
+          description: Bad request - Application not approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              example:
+                success: false
+                message: "Application rejected: Insufficient work history"
+                calculation:
+                  approved: false
+                  dailyAllowance: 0
+                  incomeBase: "0 SEK"
+                  totalDays: 0
+                  message: "Application rejected: Insufficient work history"
+                registration: null
+                finalBenefit: null
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              examples:
+                calculationError:
+                  summary: Failed at calculation step
+                  value:
+                    success: false
+                    message: "Failed to calculate benefit at Cash Registry"
+                    calculation: null
+                    registration: null
+                    finalBenefit: null
+                registrationError:
+                  summary: Failed at registration step
+                  value:
+                    success: false
+                    message: "Failed to register benefit in OAS"
+                    calculation:
+                      approved: true
+                      dailyAllowance: 1166.67
+                      incomeBase: "35000.00 SEK"
+                      totalDays: 300
+                      message: "Application approved"
+                    registration: null
+                    finalBenefit: null
+
+components:
+  schemas:
+    OrchestrationRequest:
+      type: object
+      required:
+        - personalNumber
+        - kassaName
+        - previousMonthlySalary
+        - workCertificates
+      properties:
+        personalNumber:
+          type: string
+          description: Swedish personal number (personnummer)
+          pattern: '^\d{10,12}$'
+          example: "198001011234"
+        kassaName:
+          type: string
+          description: Name of the unemployment insurance fund (a-kassa)
+          example: "Alfa Kassan"
+        previousMonthlySalary:
+          type: number
+          format: decimal
+          description: Previous monthly salary in SEK
+          minimum: 0
+          example: 35000.00
+        workCertificates:
+          type: array
+          description: List of work certificate IDs
+          items:
+            type: string
+          minItems: 1
+          example:
+            - "CERT-2023-001"
+            - "CERT-2023-002"
+
+    OrchestrationResponse:
+      type: object
+      required:
+        - success
+        - message
+        - calculation
+        - registration
+        - finalBenefit
+      properties:
+        success:
+          type: boolean
+          description: Whether the orchestration was successful
+          example: true
+        message:
+          type: string
+          description: Status message
+          example: "Benefit successfully calculated and registered"
+        calculation:
+          $ref: '#/components/schemas/BenefitCalculationResponse'
+          nullable: true
+        registration:
+          $ref: '#/components/schemas/RegistrationResponse'
+          nullable: true
+        finalBenefit:
+          $ref: '#/components/schemas/MemberBenefit'
+          nullable: true
+
+    BenefitCalculationResponse:
+      type: object
+      required:
+        - approved
+        - dailyAllowance
+        - incomeBase
+        - totalDays
+        - message
+      properties:
+        approved:
+          type: boolean
+          description: Whether the application was approved
+          example: true
+        dailyAllowance:
+          type: number
+          format: decimal
+          description: Daily allowance amount in SEK
+          example: 1166.67
+        incomeBase:
+          type: string
+          description: Income base used for calculation
+          example: "35000.00 SEK"
+        totalDays:
+          type: integer
+          description: Total number of benefit days
+          example: 300
+        message:
+          type: string
+          description: Status message from calculation
+          example: "Application approved"
+
+    RegistrationResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether registration was successful
+          example: true
+        message:
+          type: string
+          description: Registration status message
+          example: "Member registered successfully"
+        registrationId:
+          type: string
+          description: Unique registration identifier
+          example: "REG-2024-001"
+
+    MemberBenefit:
+      type: object
+      required:
+        - personalNumber
+        - kassaName
+        - isMember
+        - dailyAllowance
+        - incomeBase
+        - remainingDays
+        - registrationDate
+        - lastUpdated
+      properties:
+        personalNumber:
+          type: string
+          description: Swedish personal number
+          example: "198001011234"
+        kassaName:
+          type: string
+          description: Name of the unemployment insurance fund
+          example: "Alfa Kassan"
+        isMember:
+          type: boolean
+          description: Whether the person is an active member
+          example: true
+        dailyAllowance:
+          type: number
+          format: decimal
+          description: Daily allowance amount in SEK
+          example: 1166.67
+        incomeBase:
+          type: string
+          description: Income base for benefit calculation
+          example: "35000.00 SEK"
+        remainingDays:
+          type: integer
+          description: Number of remaining benefit days
+          example: 300
+        registrationDate:
+          type: string
+          format: date
+          description: Date of registration
+          example: "2024-01-15"
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"

@@ -1,0 +1,161 @@
+# Notification Orchestration Service - OpenAPI Specification
+
+openapi: 3.0.0
+info:
+  title: Notification Orchestration Service API
+  description: |
+    Notification service that orchestrates the complete notification flow by calling 
+    a logging service and sending email/SMS notifications.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:9097
+    description: Local development server
+
+paths:
+  /call_service_and_notify/send:
+    post:
+      summary: Send notification
+      description: |
+        Orchestrates the complete notification flow:
+        1. Calls the notification/servicecall endpoint for logging
+        2. Sends email notification (if requested)
+        3. Sends SMS notification (if requested)
+      operationId: sendNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationOrchRequest'
+            examples:
+              fullNotification:
+                summary: Full notification with email and SMS
+                value:
+                  message: "Your application has been approved"
+                  data:
+                    applicationId: "APP-12345"
+                    status: "approved"
+                  sendEmail: true
+                  sendSms: true
+              emailOnly:
+                summary: Email notification only
+                value:
+                  message: "Password reset requested"
+                  sendEmail: true
+                  sendSms: false
+      responses:
+        '200':
+          description: Notification processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationOrchResponse'
+              examples:
+                success:
+                  summary: Successful notification
+                  value:
+                    success: true
+                    message: "Notification sent successfully"
+                    logId: "LOG-2024-001"
+                    emailSent: true
+                    smsSent: true
+                partialSuccess:
+                  summary: Partial success with errors
+                  value:
+                    success: false
+                    message: "Notification completed with errors"
+                    logId: "LOG-2024-002"
+                    emailSent: true
+                    smsSent: false
+                    errors:
+                      - "Failed to send SMS: Invalid phone number"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationOrchResponse'
+              example:
+                success: false
+                message: "Failed to call notification service"
+                errors:
+                  - "Failed to call notification service: Connection timeout"
+
+  /call_service_and_notify/health:
+    get:
+      summary: Health check
+      description: Check if the notification orchestration service is running
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Notification Orchestration Service is running on port 9097"
+
+components:
+  schemas:
+    NotificationOrchRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: The notification message to be sent
+          example: "Your application has been approved"
+        data:
+          type: object
+          description: Optional additional data to be logged
+          additionalProperties: true
+          example:
+            applicationId: "APP-12345"
+            status: "approved"
+        sendEmail:
+          type: boolean
+          description: Whether to send email notification (defaults to true)
+          default: true
+        sendSms:
+          type: boolean
+          description: Whether to send SMS notification (defaults to true)
+          default: true
+
+    NotificationOrchResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the notification was successful
+          example: true
+        message:
+          type: string
+          description: Status message
+          example: "Notification sent successfully"
+        logId:
+          type: string
+          description: ID of the log entry created
+          example: "LOG-2024-001"
+        emailSent:
+          type: boolean
+          description: Whether email was sent successfully
+          example: true
+        smsSent:
+          type: boolean
+          description: Whether SMS was sent successfully
+          example: true
+        errors:
+          type: array
+          description: List of errors encountered during processing
+          items:
+            type: string
+          example:
+            - "Failed to send SMS: Invalid phone number"
+

@@ -1,7 +1,7 @@
 import ballerina/http;
 import ballerina/log;
-import ballerinax/kafka;
-import ballerinax/wso2.controlplane as _;
+// import ballerinax/wso2.apim.catalog as _;
+// import ballerinax/moesif as _;
 
 // Service to receive SAP-MDM requests and forward to VIES
 service /sapToVies on sapMdmListener {
@@ -11,26 +11,46 @@ service /sapToVies on sapMdmListener {
 
         log:printInfo("Received VAT validation request", countryCode = request.countryCode, vatNumber = request.vatNumber);
 
-        // Process the VAT validation
-        SapMdmVatResponse|error response = processVatValidation(request);
-
-        if response is error {
-            log:printError("Error processing VAT validation", 'error = response);
-
-            // Return error response in SAP-MDM format
-            SapMdmVatResponse errorResponse = createErrorResponse(request.countryCode, request.vatNumber, response.message());
-
+        // Transform SAP-MDM request to VIES SOAP format
+        xml soapRequest = transformToViesSoapRequest(request);
+        
+        // Send SOAP request to VIES service
+        http:Response|error viesResponse = viesClient->post("", soapRequest, {
+            "Content-Type": "text/xml;charset=UTF-8",
+            "SOAPAction": ""
+        });
+        
+        if viesResponse is error {
+            log:printError("Error sending request to VIES", 'error = viesResponse);
+            SapMdmVatResponse errorResponse = createErrorResponse(request.countryCode, request.vatNumber, viesResponse.message());
+            return <http:InternalServerError>{
+                body: errorResponse
+            };
+        }
+        
+        // Get SOAP response
+        xml|error soapResponseXml = viesResponse.getXmlPayload();
+        
+        if soapResponseXml is error {
+            log:printError("Error parsing VIES response", 'error = soapResponseXml);
+            SapMdmVatResponse errorResponse = createErrorResponse(request.countryCode, request.vatNumber, soapResponseXml.message());
+            return <http:InternalServerError>{
+                body: errorResponse
+            };
+        }
+        
+        // Transform VIES SOAP response to SAP-MDM format
+        SapMdmVatResponse|error sapResponse = transformToSapMdmResponse(soapResponseXml);
+        
+        if sapResponse is error {
+            log:printError("Error transforming VIES response", 'error = sapResponse);
+            SapMdmVatResponse errorResponse = createErrorResponse(request.countryCode, request.vatNumber, sapResponse.message());
             return <http:InternalServerError>{
                 body: errorResponse
             };
         }
 
-        log:printInfo("VAT validation completed successfully", valid = response.valid);
-        check kafkaProducer->send({
-            topic: "sampletopic",
-            value: (response)
-        });
-        return response;
+        return sapResponse;
     }
 
     // Resource to validate VAT number with approximate matching
@@ -38,22 +58,47 @@ service /sapToVies on sapMdmListener {
 
         log:printInfo("Received VAT approximate validation request", countryCode = request.countryCode, vatNumber = request.vatNumber);
 
-        // Process the VAT approximate validation
-        SapMdmVatApproxResponse|error response = processVatApproxValidation(request);
-
-        if response is error {
-            log:printError("Error processing VAT approximate validation", 'error = response);
-
-            // Return error response in SAP-MDM format
-            SapMdmVatApproxResponse errorResponse = createApproxErrorResponse(request.countryCode, request.vatNumber, response.message());
-
+        // Transform SAP-MDM request to VIES SOAP format
+        xml soapRequest = transformToViesApproxSoapRequest(request);
+        
+        // Send SOAP request to VIES service
+        http:Response|error viesResponse = viesClient->post("", soapRequest, {
+            "Content-Type": "text/xml;charset=UTF-8",
+            "SOAPAction": ""
+        });
+        
+        if viesResponse is error {
+            log:printError("Error sending request to VIES", 'error = viesResponse);
+            SapMdmVatApproxResponse errorResponse = createApproxErrorResponse(request.countryCode, request.vatNumber, viesResponse.message());
+            return <http:InternalServerError>{
+                body: errorResponse
+            };
+        }
+        
+        // Get SOAP response
+        xml|error soapResponseXml = viesResponse.getXmlPayload();
+        
+        if soapResponseXml is error {
+            log:printError("Error parsing VIES response", 'error = soapResponseXml);
+            SapMdmVatApproxResponse errorResponse = createApproxErrorResponse(request.countryCode, request.vatNumber, soapResponseXml.message());
+            return <http:InternalServerError>{
+                body: errorResponse
+            };
+        }
+        
+        // Transform VIES SOAP response to SAP-MDM format
+        SapMdmVatApproxResponse|error sapResponse = transformToSapMdmApproxResponse(soapResponseXml);
+        
+        if sapResponse is error {
+            log:printError("Error transforming VIES response", 'error = sapResponse);
+            SapMdmVatApproxResponse errorResponse = createApproxErrorResponse(request.countryCode, request.vatNumber, sapResponse.message());
             return <http:InternalServerError>{
                 body: errorResponse
             };
         }
 
-        log:printInfo("VAT approximate validation completed successfully", valid = response.valid);
-        return response;
+        log:printInfo("VAT approximate validation completed successfully", valid = sapResponse.valid);
+        return sapResponse;
     }
 
     // Health check endpoint
