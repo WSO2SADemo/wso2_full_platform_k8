@@ -76,6 +76,11 @@ spec:
         image: {{ .Values.wso2.deployment.image.registry }}/{{ .Values.wso2.deployment.image.repository }}@{{ .Values.wso2.deployment.image.digest }}
         imagePullPolicy: {{ .Values.wso2.deployment.imagePullPolicy }}
         env:
+        - name: MOESIF_KEY_ENV_VAR
+          valueFrom:
+            secretKeyRef:
+              name: apim-secrets    
+              key: MOESIF_API_KEY 
         - name: PROFILE_NAME
           value: gateway-worker
         - name: NODE_IP

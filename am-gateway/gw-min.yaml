@@ -16,6 +16,15 @@ wso2:
     minReplicas: 1
     maxReplicas: 1
   
+  moesifAnalytics:
+    enabled: true
+    # -- Moesif API key
+    key: "$env{MOESIF_KEY_ENV_VAR}"
+    # -- Moesif base URL
+    moesif_base_url: "https://api.moesif.net"
+    # -- Moesif send header
+    send_headers: false
+  
   # --- (rest of your apim config) ---
   apim:
     configurations:
