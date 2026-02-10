@@ -104,27 +104,25 @@ jobs:
           SERVICE_NAME="vies-integration" 
           TARGET_PORT_NAME="vies-integration-port"
           
-          # 🔍 Debug: List all deployments to see what actually exists
           echo "Current Deployments in $NAMESPACE:"
           kubectl get deployments -n $NAMESPACE
-
-          # 🧠 AUTO-DETECT: Find the deployment name matching 'vies-integration'
-          # This looks for any deployment containing "vies" and "integration"
-          DEPLOYMENT=$(kubectl get deployments -n $NAMESPACE -o name | grep "vies" | grep "integration" | head -n 1 | sed 's|deployment.apps/||')
-
+          
+          # ✅ FIX: Search only for 'vies' to handle the 'integratio' typo
+          DEPLOYMENT=$(kubectl get deployments -n $NAMESPACE -o name | grep "vies" | head -n 1 | sed 's|deployment.apps/||')
+          
           if [ -z "$DEPLOYMENT" ]; then
-            echo "❌ Error: Could not find any deployment matching 'vies...integration'"
+            echo "❌ Error: Could not find any deployment matching 'vies'"
             exit 1
           fi
-
+          
           echo "✅ Found Deployment: $DEPLOYMENT"
-
+          
           # 1. Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
              echo "Service $SERVICE_NAME not found. Creating it for $DEPLOYMENT..."
              kubectl expose deployment $DEPLOYMENT -n $NAMESPACE --name=$SERVICE_NAME --port=8080 --target-port=8080 --type=ClusterIP
           fi
-
+          
           # 2. Patch Port Name
           if kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[*].port}' | grep -q "\b8080\b"; then
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='strategic' -p='{"spec":{"ports":[{"port":8080,"name":"'"$TARGET_PORT_NAME"'"}]}}'
@@ -132,7 +130,7 @@ jobs:
              kubectl patch svc $SERVICE_NAME -n $NAMESPACE --type='json' -p='[{"op": "add", "path": "/spec/ports/-", "value": {"name": "'"$TARGET_PORT_NAME"'", "port": 8080, "targetPort": 8080, "protocol": "TCP"}}]'
           fi
           
-          # 3. Export DEPLOYMENT name for the next step (Env/Vol Patch)
+          # 3. Export DEPLOYMENT name for the next step
           echo "DEPLOYMENT_NAME=$DEPLOYMENT" >> $GITHUB_ENV
 
       - name: Patch Deployment (Volume Mounts & Env)
@@ -143,7 +141,12 @@ jobs:
           
           CONFIG_MAP_NAME="${{ env.CONFIG_MAP_NAME }}"
           
+          # ⚠️ VERIFY: This must match the secret name established in "Ensure Ballerina Secret Exists"
+          SECRET_NAME="ballerina-integration-secret"
+
           echo "Patching Deployment: $DEPLOYMENT"
+          echo "Using ConfigMap: $CONFIG_MAP_NAME"
+          echo "Using Secret: $SECRET_NAME"
 
           CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
           
@@ -154,7 +157,7 @@ jobs:
                 volumes:
                 - name: keystore-vol
                   secret:
-                    secretName: ballerina-secret  # ⚠️ Ensure this matches your secret name
+                    secretName: $SECRET_NAME
                 containers:
                 - name: $CONTAINER_NAME
                   envFrom:
