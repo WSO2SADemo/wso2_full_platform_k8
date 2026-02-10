@@ -94,7 +94,7 @@ jobs:
       
       - name: Deploy Kubernetes Resources
         run: |
-          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/vies-integration"
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/vies_integration"
           echo "Applying resources from $K8S_DIR..."
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
 
