@@ -4,6 +4,10 @@ import ballerinax/wso2.apim.catalog as _;
 import ballerinax/moesif as _;
 import ballerinax/kafka;
 
+function init() {
+    log:printInfo("VIES DMZ External service initializing...");
+}
+
 // Service to consume SOAP requests from Kafka topic 2 and invoke VIES service
 service on kafkaListenerTopic2 {
 

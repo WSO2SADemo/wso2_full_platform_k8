@@ -4,6 +4,10 @@ import ballerinax/wso2.apim.catalog as _;
 import ballerinax/moesif as _;
 import ballerinax/kafka;
 
+function init() {
+    log:printInfo("VIES Internal service initializing...");
+}
+
 // Service to receive SAP-MDM requests and forward to Kafka
 service /sapToKafka on sapMdmListener {
 

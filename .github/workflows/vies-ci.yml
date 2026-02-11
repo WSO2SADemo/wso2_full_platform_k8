@@ -22,22 +22,20 @@ jobs:
             docker_repo: "ramilu90/vies_integration_internal"
             config_map_name: "ballerina-values-vies-internal"
             # k8s_artifact_name must match [package].name in Ballerina.toml
-            # IMPORTANT: update Ballerina.toml name to "vies_internal" for unique k8s resources
             k8s_artifact_name: "vies_integration_internal"
-            service_name: "vies-integration-internal"
-            port_name: "vies-int-port"
+            expose_port: false
 
           - project_subdir: vies2-dmz_internal
             docker_repo: "ramilu90/vies_integration_dmz_internal"
             config_map_name: "ballerina-values-vies-dmz-internal"
             k8s_artifact_name: "vies_integration_dmz_internal"
-            service_name: "vies-integration-dmz-internal"
-            port_name: "vies-dmz-int-port"
+            expose_port: false
 
           - project_subdir: vies3-dmz_ext
             docker_repo: "ramilu90/vies_integration_dmz_external"
             config_map_name: "ballerina-values-vies-dmz-external"
             k8s_artifact_name: "vies_integration_dmz_external"
+            expose_port: true
             service_name: "vies-integration-dmz-external"
             port_name: "vies-dmz-ext-port"
 
@@ -154,6 +152,11 @@ jobs:
           DEPLOYMENT=$(awk '/kind:.*Deployment/{found=1} found && /name:/{gsub(/.*name:/, ""); gsub(/^[ ]*/, ""); gsub(/"/, ""); print; exit}' "$K8S_YAML")
           echo "Parsed deployment name from YAML: $DEPLOYMENT"
 
+          # One-time cleanup: remove old single-project deployment (can be removed after first successful run)
+          kubectl delete deployment vies-integratio-deployment -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
+          kubectl delete svc vies-integratio -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
+          kubectl delete hpa vies-integratio -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
+
           # Delete existing deployment if selector labels have changed (immutable field)
           if kubectl get deployment "$DEPLOYMENT" -n ${{ env.BALLERINA_NAMESPACE }} > /dev/null 2>&1; then
             echo "Deleting existing deployment '$DEPLOYMENT' to allow selector update..."
@@ -166,6 +169,7 @@ jobs:
           echo "DEPLOYMENT_NAME=$DEPLOYMENT" >> $GITHUB_ENV
 
       - name: Ensure Service & Patch Port 8080
+        if: matrix.expose_port == true
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           SERVICE_NAME="${{ matrix.service_name }}"
