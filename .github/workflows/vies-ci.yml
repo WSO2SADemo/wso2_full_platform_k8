@@ -146,38 +146,35 @@ jobs:
       - name: Deploy Kubernetes Resources
         run: |
           K8S_DIR="${{ env.BASE_DIR }}/${{ matrix.project_subdir }}/target/kubernetes/${{ matrix.k8s_artifact_name }}"
+          K8S_YAML="${K8S_DIR}/${{ matrix.k8s_artifact_name }}.yaml"
           echo "Applying resources from $K8S_DIR..."
 
+          # Parse the deployment name from the generated YAML (Ballerina may truncate names)
+          # Find the line after 'kind: "Deployment"' that contains 'name:'
+          DEPLOYMENT=$(awk '/kind:.*Deployment/{found=1} found && /name:/{gsub(/.*name:/, ""); gsub(/^[ ]*/, ""); gsub(/"/, ""); print; exit}' "$K8S_YAML")
+          echo "Parsed deployment name from YAML: $DEPLOYMENT"
+
           # Delete existing deployment if selector labels have changed (immutable field)
-          DEPLOYMENT_NAME=$(kubectl get deployments -n ${{ env.BALLERINA_NAMESPACE }} -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep "vies-integratio" | head -n 1)
-          if [ -n "$DEPLOYMENT_NAME" ]; then
-            echo "Deleting existing deployment '$DEPLOYMENT_NAME' to allow selector update..."
-            kubectl delete deployment "$DEPLOYMENT_NAME" -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
-            kubectl delete svc vies-integratio -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
-            kubectl delete hpa vies-integratio -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
+          if kubectl get deployment "$DEPLOYMENT" -n ${{ env.BALLERINA_NAMESPACE }} > /dev/null 2>&1; then
+            echo "Deleting existing deployment '$DEPLOYMENT' to allow selector update..."
+            kubectl delete deployment "$DEPLOYMENT" -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
           fi
 
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
+
+          # Export deployment name for subsequent steps
+          echo "DEPLOYMENT_NAME=$DEPLOYMENT" >> $GITHUB_ENV
 
       - name: Ensure Service & Patch Port 8080
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           SERVICE_NAME="${{ matrix.service_name }}"
           TARGET_PORT_NAME="${{ matrix.port_name }}"
+          DEPLOYMENT="${{ env.DEPLOYMENT_NAME }}"
 
           echo "Current Deployments in $NAMESPACE:"
           kubectl get deployments -n $NAMESPACE
-
-          # Auto-detect the Deployment Name created by bal build for this project
-          # The deployment name is derived from the Ballerina package name
-          DEPLOYMENT=$(kubectl get deployments -n $NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | grep "${{ matrix.k8s_artifact_name }}" | head -n 1)
-
-          if [ -z "$DEPLOYMENT" ]; then
-            echo "❌ Error: Could not find any deployment matching '${{ matrix.k8s_artifact_name }}'"
-            exit 1
-          fi
-
-          echo "✅ Found Deployment: $DEPLOYMENT"
+          echo "✅ Using Deployment: $DEPLOYMENT"
 
           # Create Service if missing
           if ! kubectl get svc $SERVICE_NAME -n $NAMESPACE > /dev/null 2>&1; then
