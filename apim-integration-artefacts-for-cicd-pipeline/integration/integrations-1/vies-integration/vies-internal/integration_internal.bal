@@ -17,7 +17,7 @@ service /sapToKafka on sapMdmListener {
         // Publish to Kafka
         string soapRequestString = soapRequest.toString();
         kafka:Error? sendResult = kafkaProducer->send({
-            topic: kafkaTopic1,
+            topic: internalKafkaTopic,
             value: soapRequestString.toBytes()
         });
         
@@ -44,7 +44,7 @@ service /sapToKafka on sapMdmListener {
         // Publish to Kafka
         string soapRequestString = soapRequest.toString();
         kafka:Error? sendResult = kafkaProducer->send({
-            topic: kafkaTopic1,
+            topic: internalKafkaTopic,
             value: soapRequestString.toBytes()
         });
         

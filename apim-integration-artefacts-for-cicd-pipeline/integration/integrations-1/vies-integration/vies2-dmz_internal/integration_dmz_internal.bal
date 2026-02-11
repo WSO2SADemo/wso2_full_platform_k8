@@ -26,7 +26,7 @@ service on kafkaListenerTopic1 {
             
             // Publish to Kafka topic 2
             kafka:Error? sendResult = kafkaProducerTopic2->send({
-                topic: kafkaTopic2,
+                topic: externalKafkaTopic,
                 value: messageBytes
             });
             
