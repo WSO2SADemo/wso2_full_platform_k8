@@ -23,7 +23,7 @@ final kafka:Producer kafkaProducerTopic2 = check new (kafkaBootstrapServers, {
 // Kafka listener for topic 1 with SSL configuration
 listener kafka:Listener kafkaListenerTopic1 = check new (
     bootstrapServers = kafkaBootstrapServers,
-    groupId = kafkaConsumerGroupId,
+    groupId = "group1",
     topics = internalKafkaTopic,
     securityProtocol = kafka:PROTOCOL_SSL,
     secureSocket = {

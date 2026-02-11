@@ -10,7 +10,7 @@ final http:Client viesClient = check new (viesServiceUrl, {timeout: 30});
 // Kafka listener for topic 2 with SSL configuration
 listener kafka:Listener kafkaListenerTopic2 = check new (
     bootstrapServers = kafkaBootstrapServers,
-    groupId = kafkaConsumerGroupId + "_topic2",
+    groupId = "group1",
     topics = externalKafkaTopic,
     securityProtocol = kafka:PROTOCOL_SSL,
     secureSocket = {
