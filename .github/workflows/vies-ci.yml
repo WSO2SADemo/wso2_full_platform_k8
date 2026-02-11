@@ -22,19 +22,19 @@ jobs:
             docker_repo: "ramilu90/vies_integration_internal"
             config_map_name: "ballerina-values-vies-internal"
             # k8s_artifact_name must match [package].name in Ballerina.toml
-            k8s_artifact_name: "vies_integration_internal"
+            k8s_artifact_name: "vies_internal"
             expose_port: false
 
           - project_subdir: vies2-dmz_internal
             docker_repo: "ramilu90/vies_integration_dmz_internal"
             config_map_name: "ballerina-values-vies-dmz-internal"
-            k8s_artifact_name: "vies_integration_dmz_internal"
+            k8s_artifact_name: "vies_dmz_int"
             expose_port: false
 
           - project_subdir: vies3-dmz_ext
             docker_repo: "ramilu90/vies_integration_dmz_external"
             config_map_name: "ballerina-values-vies-dmz-external"
-            k8s_artifact_name: "vies_integration_dmz_external"
+            k8s_artifact_name: "vies_dmz_ext"
             expose_port: true
             service_name: "vies-integration-dmz-external"
             port_name: "vies-dmz-ext-port"

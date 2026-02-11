@@ -1,6 +1,6 @@
 [package]
 org = "ramindu"
-name = "vies_integration_internal"
+name = "vies_internal"
 version = "1.0.0"
 
 [build-options]

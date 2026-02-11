@@ -1,6 +1,6 @@
 [package]
 org = "ramindu"
-name = "vies_integration_dmz_external"
+name = "vies_dmz_ext"
 version = "1.0.0"
 
 [build-options]
