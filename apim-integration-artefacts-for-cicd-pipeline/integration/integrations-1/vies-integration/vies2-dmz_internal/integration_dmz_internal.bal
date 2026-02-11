@@ -1,5 +1,7 @@
 import ballerina/log;
 import ballerinax/kafka;
+import ballerinax/wso2.apim.catalog as _;
+import ballerinax/moesif as _;
 
 // Service to consume messages from Kafka topic 1 and publish to Kafka topic 2
 service on kafkaListenerTopic1 {
