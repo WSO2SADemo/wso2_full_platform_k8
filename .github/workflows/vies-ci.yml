@@ -45,6 +45,8 @@ jobs:
       BALLERINA_NAMESPACE: ballerina
       BASE_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration
       IMAGE_TAG: "1.0.1"
+      # Absolute path to vies-integration dir on the self-hosted runner
+      LOCAL_BASE_PATH: "/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration"
       # Shared Kafka resources path (common to all projects)
       LOCAL_RES_PATH: "/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration/resources"
 
@@ -84,7 +86,7 @@ jobs:
 
       - name: Apply Local ConfigMap
         run: |
-          CONFIG_MAP_FILE="${GITHUB_WORKSPACE}/${{ env.BASE_DIR }}/${{ matrix.project_subdir }}/config-map-vies.yaml"
+          CONFIG_MAP_FILE="${{ env.LOCAL_BASE_PATH }}/${{ matrix.project_subdir }}/config-map-vies.yaml"
           echo "Applying ConfigMap from $CONFIG_MAP_FILE..."
           if [ -f "$CONFIG_MAP_FILE" ]; then
             kubectl apply -f "$CONFIG_MAP_FILE" -n ${{ env.BALLERINA_NAMESPACE }}
