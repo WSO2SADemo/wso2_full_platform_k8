@@ -84,7 +84,7 @@ jobs:
 
       - name: Apply Local ConfigMap
         run: |
-          CONFIG_MAP_FILE="${{ env.BASE_DIR }}/${{ matrix.project_subdir }}/config-map-vies.yaml"
+          CONFIG_MAP_FILE="${GITHUB_WORKSPACE}/${{ env.BASE_DIR }}/${{ matrix.project_subdir }}/config-map-vies.yaml"
           echo "Applying ConfigMap from $CONFIG_MAP_FILE..."
           if [ -f "$CONFIG_MAP_FILE" ]; then
             kubectl apply -f "$CONFIG_MAP_FILE" -n ${{ env.BALLERINA_NAMESPACE }}
