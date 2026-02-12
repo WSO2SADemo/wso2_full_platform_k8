@@ -163,7 +163,17 @@ jobs:
             kubectl delete deployment "$DEPLOYMENT" -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
           fi
 
+          # Parse the Ballerina-generated service name (to clean it up after apply)
+          BAL_SVC=$(awk '/kind:.*Service/{found=1} found && /name:/{gsub(/.*name:/, ""); gsub(/^[ ]*/, ""); gsub(/"/, ""); print; exit}' "$K8S_YAML")
+          echo "Parsed Ballerina-generated service name: $BAL_SVC"
+
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
+
+          # Delete the Ballerina-generated service (workflow manages its own service)
+          if [ -n "$BAL_SVC" ]; then
+            echo "Removing Ballerina-generated service '$BAL_SVC'..."
+            kubectl delete svc "$BAL_SVC" -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found
+          fi
 
           # Export deployment name for subsequent steps
           echo "DEPLOYMENT_NAME=$DEPLOYMENT" >> $GITHUB_ENV
