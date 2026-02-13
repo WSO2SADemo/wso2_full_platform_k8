@@ -35,7 +35,7 @@ final kafka:Producer internalKafkaProducer = check new (internalKafkaBootstrapSe
 // Kafka listener for internal topic with SSL configuration
 listener kafka:Listener internalKafkaListener = check new (
     bootstrapServers = internalKafkaBootstrapServers,
-    groupId = internalKafkaConsumerGroupId,
+    groupId = "internalKafkaConsumerGroupId",
     topics = internalKafkaTopic,
     securityProtocol = kafka:PROTOCOL_SSL,
     secureSocket = {

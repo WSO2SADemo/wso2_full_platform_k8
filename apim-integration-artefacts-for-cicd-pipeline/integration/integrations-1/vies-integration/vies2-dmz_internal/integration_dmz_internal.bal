@@ -49,19 +49,21 @@ service on internalKafkaListener {
             log:printInfo("Successfully published message to external Kafka topic", uuid = kafkaMessage.uuid);
             
             // Create a consumer for the response topic with UUID as groupId
-            kafka:Consumer responseConsumer = check new (externalKafkaBootstrapServers, {
-                groupId: kafkaMessage.uuid,
-                topics: externalKafkaTopicResponse,
-                securityProtocol: kafka:PROTOCOL_SSL,
-                secureSocket: {
+            string consumerGroupId = string `response-consumer-${kafkaMessage.uuid}`;
+            kafka:Consumer responseConsumer = check new (
+                bootstrapServers = externalKafkaBootstrapServers,
+                groupId = consumerGroupId,
+                topics = externalKafkaTopicResponse,
+                securityProtocol = kafka:PROTOCOL_SSL,
+                secureSocket = {
                     cert: externalKafkaCaCertPath,
                     key: {
                         certFile: externalKafkaClientCertPath,
                         keyFile: externalKafkaClientKeyPath
                     }
                 },
-                autoCommit: true
-            });
+                autoCommit = false
+            );
             
             log:printInfo("Created response consumer", uuid = kafkaMessage.uuid, topic = externalKafkaTopicResponse);
             
