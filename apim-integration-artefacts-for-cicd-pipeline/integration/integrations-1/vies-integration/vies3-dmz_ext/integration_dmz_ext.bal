@@ -6,6 +6,17 @@ import ballerinax/kafka;
 
 function init() {
     log:printInfo("VIES DMZ External service initializing...");
+    log:printInfo("Configuration loaded", 
+        kafkaBootstrapServers = kafkaBootstrapServers,
+        externalKafkaTopic = externalKafkaTopic,
+        externalKafkaTopicResponse = externalKafkaTopicResponse,
+        viesServiceUrl = viesServiceUrl
+    );
+    
+    // Validate critical configurations
+    if externalKafkaTopicResponse.trim() == "" {
+        log:printWarn("WARNING: externalKafkaTopicResponse is not configured. Response publishing will fail.");
+    }
 }
 
 // Service to consume SOAP requests from Kafka topic 2 and invoke VIES service
@@ -74,8 +85,11 @@ service on kafkaListenerTopic2 {
                 }
                 soapRequestXml = parsedXml;
                 
-                // Generate a UUID for tracking
-                requestUuid = "direct-" + consumerRecord.offset.toString();
+                // Generate a UUID for tracking using partition and offset
+                kafka:PartitionOffset partitionOffset = consumerRecord.offset;
+                string offsetString = partitionOffset.offset.toString();
+                string partitionString = partitionOffset.partition.partition.toString();
+                requestUuid = "direct-p" + partitionString + "-o" + offsetString;
             }
             
             // Invoke VIES service with the SOAP request and UUID
@@ -134,6 +148,15 @@ function invokeViesService(xml soapRequest, string requestUuid) returns error? {
     json responseJson = responsePayload.toJson();
     string responseJsonString = responseJson.toJsonString();
     
+    // Validate topic name before sending
+    if externalKafkaTopicResponse.trim() == "" {
+        error topicError = error("External Kafka response topic is not configured");
+        log:printError("Failed to send response to Kafka: topic not configured", 'error = topicError, uuid = requestUuid);
+        return topicError;
+    }
+    
+    log:printInfo("Sending response to Kafka topic", topic = externalKafkaTopicResponse, uuid = requestUuid);
+    
     // Send response to Kafka producer topic
     kafka:Error? sendResult = kafkaProducerResponse->send({
         topic: externalKafkaTopicResponse,
@@ -141,7 +164,7 @@ function invokeViesService(xml soapRequest, string requestUuid) returns error? {
     });
     
     if sendResult is kafka:Error {
-        log:printError("Failed to send response to Kafka", 'error = sendResult, uuid = requestUuid);
+        log:printError("Failed to send response to Kafka", 'error = sendResult, topic = externalKafkaTopicResponse, uuid = requestUuid);
         return sendResult;
     }
     
