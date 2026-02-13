@@ -142,9 +142,9 @@ jobs:
             -n $NAMESPACE
 
           kubectl create secret generic $EXT_SECRET_NAME \
-            --from-file=ca.pem="$RES_PATH/external_ca.pem" \
-            --from-file=service.cert="$RES_PATH/external_service.cert" \
-            --from-file=service.key="$RES_PATH/external_service.key" \
+            --from-file=external_ca.pem="$RES_PATH/external_ca.pem" \
+            --from-file=external_service.cert="$RES_PATH/external_service.cert" \
+            --from-file=external_service.key="$RES_PATH/external_service.key" \
             -n $NAMESPACE
 
           echo "✅ Secret '$SECRET_NAME' created successfully."
