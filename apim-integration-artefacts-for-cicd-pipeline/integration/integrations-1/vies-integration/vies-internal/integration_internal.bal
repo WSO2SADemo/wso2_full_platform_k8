@@ -1,7 +1,7 @@
 import ballerina/http;
 import ballerina/log;
-import ballerinax/wso2.apim.catalog as _;
-import ballerinax/moesif as _;
+// import ballerinax/wso2.apim.catalog as _;
+// import ballerinax/moesif as _;
 import ballerinax/kafka;
 import ballerina/uuid;
 import ballerina/lang.runtime;
@@ -48,8 +48,9 @@ service /sapToKafka on sapMdmListener {
         log:printInfo("Successfully published VAT validation request to Kafka");
         
         // Create Kafka consumer with UUID as group ID
+        string consumerGroupId = string `internal-response-consumer-${requestUuid}`;
         kafka:Consumer kafkaConsumer = check new (kafkaBootstrapServers, {
-            groupId: requestUuid,
+            groupId: consumerGroupId,
             topics: [internalKafkaTopicResponse],
             securityProtocol: kafka:PROTOCOL_SSL,
             secureSocket: {
@@ -68,22 +69,18 @@ service /sapToKafka on sapMdmListener {
         
         while attemptCount < maxAttempts {
             kafka:AnydataConsumerRecord[]|kafka:Error pollResult = kafkaConsumer->poll(1);
-            
             if pollResult is kafka:AnydataConsumerRecord[] {
                 foreach kafka:AnydataConsumerRecord consumerRecord in pollResult {
                     byte[] valueBytes = check consumerRecord.value.ensureType();
                     string responseString = check string:fromBytes(valueBytes);
-                    
                     KafkaResponsePayload responsePayload = check responseString.fromJsonStringWithType();
-                    
                     // Check if UUID matches
                     if responsePayload.uuid == requestUuid {
                         log:printInfo("Received matching response from Kafka", uuid = requestUuid);
-                        
                         // Parse SOAP response
                         xml soapResponse = check xml:fromString(responsePayload.soapResponse);
-                        SapMdmVatResponse sapResponse = check transformToSapMdmResponse(soapResponse);
-                        
+                        SapMdmVatResponse sapResponse = check transformToSapMdmResponse(soapResponse);  
+                        log:printInfo("Responded to the client after converting the message to JSON", sapResponse = sapResponse);                   
                         return sapResponse;
                     }
                 }

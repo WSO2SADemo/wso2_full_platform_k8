@@ -65,5 +65,4 @@ type KafkaMessagePayload record {|
 type KafkaResponsePayload record {|
     string uuid;
     string soapResponse;
-    string requestType; // "checkVat" or "checkVatApprox"
 |};
