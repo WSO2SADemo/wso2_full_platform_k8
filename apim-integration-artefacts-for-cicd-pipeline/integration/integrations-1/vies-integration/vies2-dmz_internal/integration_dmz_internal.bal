@@ -72,7 +72,7 @@ service on internalKafkaListener {
             // Poll for matching response (with timeout of 30 seconds)
             boolean responseFound = false;
             decimal elapsedSeconds = 0.0;
-            decimal pollIntervalSeconds = 5.0;
+            decimal pollIntervalSeconds = 0.5;
             decimal maxWaitSeconds = 30.0;
 
             while !responseFound && elapsedSeconds < maxWaitSeconds {

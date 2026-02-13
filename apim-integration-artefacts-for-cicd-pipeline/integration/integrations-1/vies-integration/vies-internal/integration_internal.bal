@@ -87,7 +87,7 @@ service /sapToKafka on sapMdmListener {
             }
             
             attemptCount += 1;
-            runtime:sleep(1);
+            runtime:sleep(0.5);
         }
         
         log:printError("Timeout waiting for response from Kafka", uuid = requestUuid);
