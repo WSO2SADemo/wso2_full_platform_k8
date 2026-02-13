@@ -53,3 +53,17 @@ type SapMdmVatApproxResponse record {|
     string requestDate;
     string? traderAddress;
 |};
+
+// Kafka message wrapper with UUID
+type KafkaMessagePayload record {|
+    string uuid;
+    string soapRequest;
+    string requestType; // "checkVat" or "checkVatApprox"
+|};
+
+// Kafka response wrapper with UUID
+type KafkaResponsePayload record {|
+    string uuid;
+    string soapResponse;
+    string requestType; // "checkVat" or "checkVatApprox"
+|};

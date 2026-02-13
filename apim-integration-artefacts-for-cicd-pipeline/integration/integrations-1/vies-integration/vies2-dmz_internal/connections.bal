@@ -8,29 +8,41 @@ listener http:Listener sapMdmListener = new (servicePort);
 final http:Client viesClient = check new (viesServiceUrl, {timeout: 30});
 
 
-// Kafka producer for topic 2 with SSL configuration
-final kafka:Producer kafkaProducerTopic2 = check new (kafkaBootstrapServers, {
+// Kafka producer for external topic with SSL configuration
+final kafka:Producer externalKafkaProducer = check new (externalKafkaBootstrapServers, {
     securityProtocol: kafka:PROTOCOL_SSL,
     secureSocket: {
-        cert: kafkaCaCertPath,
+        cert: externalKafkaCaCertPath,
         key: {
-            certFile: kafkaClientCertPath,
-            keyFile: kafkaClientKeyPath
+            certFile: externalKafkaClientCertPath,
+            keyFile: externalKafkaClientKeyPath
         }
     }
 });
 
-// Kafka listener for topic 1 with SSL configuration
-listener kafka:Listener kafkaListenerTopic1 = check new (
-    bootstrapServers = kafkaBootstrapServers,
-    groupId = "group1",
+// Kafka producer for internal response topic with SSL configuration
+final kafka:Producer internalKafkaProducer = check new (internalKafkaBootstrapServers, {
+    securityProtocol: kafka:PROTOCOL_SSL,
+    secureSocket: {
+        cert: internalKafkaCaCertPath,
+        key: {
+            certFile: internalKafkaClientCertPath,
+            keyFile: internalKafkaClientKeyPath
+        }
+    }
+});
+
+// Kafka listener for internal topic with SSL configuration
+listener kafka:Listener internalKafkaListener = check new (
+    bootstrapServers = internalKafkaBootstrapServers,
+    groupId = internalKafkaConsumerGroupId,
     topics = internalKafkaTopic,
     securityProtocol = kafka:PROTOCOL_SSL,
     secureSocket = {
-        cert: kafkaCaCertPath,
+        cert: internalKafkaCaCertPath,
         key: {
-            certFile: kafkaClientCertPath,
-            keyFile: kafkaClientKeyPath
+            certFile: internalKafkaClientCertPath,
+            keyFile: internalKafkaClientKeyPath
         }
     }
 );

@@ -3,6 +3,8 @@ import ballerina/log;
 import ballerinax/wso2.apim.catalog as _;
 import ballerinax/moesif as _;
 import ballerinax/kafka;
+import ballerina/uuid;
+import ballerina/lang.runtime;
 
 function init() {
     log:printInfo("VIES Internal service initializing...");
@@ -12,17 +14,28 @@ function init() {
 service /sapToKafka on sapMdmListener {
 
     // Resource to validate VAT number
-    resource function post checkVat(@http:Payload SapMdmVatRequest request) returns http:Ok|http:InternalServerError {
+    resource function post checkVat(@http:Payload SapMdmVatRequest request) returns SapMdmVatResponse|http:InternalServerError|error {
         log:printInfo("Received VAT validation request", countryCode = request.countryCode, vatNumber = request.vatNumber);
+        
+        // Generate UUID for this request
+        string requestUuid = uuid:createType1AsString();
+        log:printInfo("Generated UUID for request", uuid = requestUuid);
         
         // Transform SAP-MDM request to VIES SOAP format
         xml soapRequest = transformToViesSoapRequest(request);
         
+        // Create Kafka message with UUID
+        KafkaMessagePayload kafkaMessage = {
+            uuid: requestUuid,
+            soapRequest: soapRequest.toString(),
+            requestType: "checkVat"
+        };
+        
         // Publish to Kafka
-        string soapRequestString = soapRequest.toString();
+        string kafkaMessageString = kafkaMessage.toJsonString();
         kafka:Error? sendResult = kafkaProducer->send({
             topic: internalKafkaTopic,
-            value: soapRequestString.toBytes()
+            value: kafkaMessageString.toBytes()
         });
         
         if sendResult is kafka:Error {
@@ -33,23 +46,82 @@ service /sapToKafka on sapMdmListener {
         }
         
         log:printInfo("Successfully published VAT validation request to Kafka");
-        return <http:Ok>{
-            body: {"status": "Message published to Kafka successfully"}
+        
+        // Create Kafka consumer with UUID as group ID
+        kafka:Consumer kafkaConsumer = check new (kafkaBootstrapServers, {
+            groupId: requestUuid,
+            topics: [internalKafkaTopicResponse],
+            securityProtocol: kafka:PROTOCOL_SSL,
+            secureSocket: {
+                cert: kafkaCaCertPath,
+                key: {
+                    certFile: kafkaClientCertPath,
+                    keyFile: kafkaClientKeyPath
+                }
+            },
+            autoCommit: true
+        });
+        
+        // Poll for response with matching UUID (timeout: 30 seconds)
+        int maxAttempts = 30;
+        int attemptCount = 0;
+        
+        while attemptCount < maxAttempts {
+            kafka:AnydataConsumerRecord[]|kafka:Error pollResult = kafkaConsumer->poll(1);
+            
+            if pollResult is kafka:AnydataConsumerRecord[] {
+                foreach kafka:AnydataConsumerRecord consumerRecord in pollResult {
+                    byte[] valueBytes = check consumerRecord.value.ensureType();
+                    string responseString = check string:fromBytes(valueBytes);
+                    
+                    KafkaResponsePayload responsePayload = check responseString.fromJsonStringWithType();
+                    
+                    // Check if UUID matches
+                    if responsePayload.uuid == requestUuid {
+                        log:printInfo("Received matching response from Kafka", uuid = requestUuid);
+                        
+                        // Parse SOAP response
+                        xml soapResponse = check xml:fromString(responsePayload.soapResponse);
+                        SapMdmVatResponse sapResponse = check transformToSapMdmResponse(soapResponse);
+                        
+                        return sapResponse;
+                    }
+                }
+            }
+            
+            attemptCount += 1;
+            runtime:sleep(1);
+        }
+        
+        log:printError("Timeout waiting for response from Kafka", uuid = requestUuid);
+        return <http:InternalServerError>{
+            body: {"error": "Timeout waiting for response", "uuid": requestUuid}
         };
     }
 
     // Resource to validate VAT number with approximate matching
-    resource function post checkVatApprox(@http:Payload SapMdmVatApproxRequest request) returns http:Ok|http:InternalServerError {
+    resource function post checkVatApprox(@http:Payload SapMdmVatApproxRequest request) returns SapMdmVatApproxResponse|http:InternalServerError|error {
         log:printInfo("Received VAT approximate validation request", countryCode = request.countryCode, vatNumber = request.vatNumber);
+        
+        // Generate UUID for this request
+        string requestUuid = uuid:createType1AsString();
+        log:printInfo("Generated UUID for request", uuid = requestUuid);
         
         // Transform SAP-MDM request to VIES SOAP format
         xml soapRequest = transformToViesApproxSoapRequest(request);
         
+        // Create Kafka message with UUID
+        KafkaMessagePayload kafkaMessage = {
+            uuid: requestUuid,
+            soapRequest: soapRequest.toString(),
+            requestType: "checkVatApprox"
+        };
+        
         // Publish to Kafka
-        string soapRequestString = soapRequest.toString();
+        string kafkaMessageString = kafkaMessage.toJsonString();
         kafka:Error? sendResult = kafkaProducer->send({
             topic: internalKafkaTopic,
-            value: soapRequestString.toBytes()
+            value: kafkaMessageString.toBytes()
         });
         
         if sendResult is kafka:Error {
@@ -60,8 +132,56 @@ service /sapToKafka on sapMdmListener {
         }
         
         log:printInfo("Successfully published VAT approximate validation request to Kafka");
-        return <http:Ok>{
-            body: {"status": "Message published to Kafka successfully"}
+        
+        // Create Kafka consumer with UUID as group ID
+        kafka:Consumer kafkaConsumer = check new (kafkaBootstrapServers, {
+            groupId: requestUuid,
+            topics: [internalKafkaTopic],
+            securityProtocol: kafka:PROTOCOL_SSL,
+            secureSocket: {
+                cert: kafkaCaCertPath,
+                key: {
+                    certFile: kafkaClientCertPath,
+                    keyFile: kafkaClientKeyPath
+                }
+            },
+            autoCommit: true
+        });
+        
+        // Poll for response with matching UUID (timeout: 30 seconds)
+        int maxAttempts = 30;
+        int attemptCount = 0;
+        
+        while attemptCount < maxAttempts {
+            kafka:AnydataConsumerRecord[]|kafka:Error pollResult = kafkaConsumer->poll(1);
+            
+            if pollResult is kafka:AnydataConsumerRecord[] {
+                foreach kafka:AnydataConsumerRecord consumerRecord in pollResult {
+                    byte[] valueBytes = check consumerRecord.value.ensureType();
+                    string responseString = check string:fromBytes(valueBytes);
+                    
+                    KafkaResponsePayload responsePayload = check responseString.fromJsonStringWithType();
+                    
+                    // Check if UUID matches
+                    if responsePayload.uuid == requestUuid {
+                        log:printInfo("Received matching response from Kafka", uuid = requestUuid);
+                        
+                        // Parse SOAP response
+                        xml soapResponse = check xml:fromString(responsePayload.soapResponse);
+                        SapMdmVatApproxResponse sapResponse = check transformToSapMdmApproxResponse(soapResponse);
+                        
+                        return sapResponse;
+                    }
+                }
+            }
+            
+            attemptCount += 1;
+            runtime:sleep(1);
+        }
+        
+        log:printError("Timeout waiting for response from Kafka", uuid = requestUuid);
+        return <http:InternalServerError>{
+            body: {"error": "Timeout waiting for response", "uuid": requestUuid}
         };
     }
 

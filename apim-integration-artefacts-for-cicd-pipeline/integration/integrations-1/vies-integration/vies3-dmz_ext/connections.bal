@@ -21,3 +21,16 @@ listener kafka:Listener kafkaListenerTopic2 = check new (
         }
     }
 );
+
+// Kafka producer for sending responses to external topic
+final kafka:Producer kafkaProducerResponse = check new (
+    bootstrapServers = kafkaBootstrapServers,
+    securityProtocol = kafka:PROTOCOL_SSL,
+    secureSocket = {
+        cert: kafkaCaCertPath,
+        key: {
+            certFile: kafkaClientCertPath,
+            keyFile: kafkaClientKeyPath
+        }
+    }
+);

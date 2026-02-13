@@ -5,11 +5,19 @@ configurable int servicePort = 8080;
 // VIES service endpoint
 configurable string viesServiceUrl = os:getEnv("viesServiceUrl");
 
-// Kafka configuration
-configurable string kafkaBootstrapServers = os:getEnv("kafkaBootstrapServers");
+// Internal Kafka configuration (for internalKafkaTopic)
+configurable string internalKafkaBootstrapServers = os:getEnv("internalKafkaBootstrapServers");
 configurable string internalKafkaTopic = os:getEnv("internalKafkaTopic");
+configurable string internalKafkaTopicResponse = os:getEnv("internalKafkaTopicResponse");
+configurable string internalKafkaConsumerGroupId = os:getEnv("internalKafkaConsumerGroupId");
+configurable string internalKafkaCaCertPath = "/home/ballerina/resources/internal_ca.pem";
+configurable string internalKafkaClientCertPath = "/home/ballerina/resources/internal_service.cert";
+configurable string internalKafkaClientKeyPath = "/home/ballerina/resources/internal_service.key";
+
+// External Kafka configuration (for externalKafkaTopic and externalKafkaTopicResponse)
+configurable string externalKafkaBootstrapServers = os:getEnv("externalKafkaBootstrapServers");
 configurable string externalKafkaTopic = os:getEnv("externalKafkaTopic");
-configurable string kafkaConsumerGroupId = os:getEnv("kafkaConsumerGroupId");
-configurable string kafkaCaCertPath = "/home/ballerina/resources/ca.pem";
-configurable string kafkaClientCertPath = "/home/ballerina/resources/service.cert";
-configurable string kafkaClientKeyPath = "/home/ballerina/resources/service.key";
+configurable string externalKafkaTopicResponse = os:getEnv("externalKafkaTopicResponse");
+configurable string externalKafkaCaCertPath = "/home/ballerina/external-resources/external_ca.pem";
+configurable string externalKafkaClientCertPath = "/home/ballerina/external-resources/external_service.cert";
+configurable string externalKafkaClientKeyPath = "/home/ballerina/external-resources/external_service.key";

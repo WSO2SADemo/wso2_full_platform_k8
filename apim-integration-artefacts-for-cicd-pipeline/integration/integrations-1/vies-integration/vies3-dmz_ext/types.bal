@@ -53,3 +53,16 @@ type SapMdmVatApproxResponse record {|
     string requestDate;
     string? traderAddress;
 |};
+
+// Kafka request payload structure
+type KafkaRequestPayload record {|
+    string uuid;
+    string soapRequest;
+    string requestType;
+|};
+
+// Kafka response payload structure
+type KafkaResponsePayload record {|
+    string uuid;
+    xml soapResponse;
+|};

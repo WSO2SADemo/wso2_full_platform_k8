@@ -53,3 +53,10 @@ type SapMdmVatApproxResponse record {|
     string requestDate;
     string? traderAddress;
 |};
+
+// Kafka message payload from internal topic
+type InternalKafkaMessage record {|
+    string uuid;
+    string soapRequest;
+    string requestType;
+|};

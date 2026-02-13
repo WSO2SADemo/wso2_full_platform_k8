@@ -119,6 +119,7 @@ jobs:
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           SECRET_NAME="kafka-resources-secret"
+          EXT_SECRET_NAME="external-kafka-resources-secret"
           RES_PATH="${{ env.LOCAL_RES_PATH }}"
 
           echo "Creating/Updating secret '$SECRET_NAME' from '$RES_PATH'..."
@@ -137,6 +138,12 @@ jobs:
             --from-file=ca.pem="$RES_PATH/ca.pem" \
             --from-file=service.cert="$RES_PATH/service.cert" \
             --from-file=service.key="$RES_PATH/service.key" \
+            -n $NAMESPACE
+
+          kubectl create secret generic $EXT_SECRET_NAME \
+            --from-file=ca.pem="$RES_PATH/external_ca.pem" \
+            --from-file=service.cert="$RES_PATH/external_service.cert" \
+            --from-file=service.key="$RES_PATH/external_service.key" \
             -n $NAMESPACE
 
           echo "✅ Secret '$SECRET_NAME' created successfully."
@@ -215,6 +222,7 @@ jobs:
           # Secret Names
           KEYSTORE_SECRET="ballerina-secrets"
           KAFKA_SECRET="kafka-resources-secret"
+          EXT_KAFKA_SECRET="external-kafka-resources-secret"
 
           echo "Patching Deployment: $DEPLOYMENT"
           echo "Using ConfigMap: $CONFIG_MAP_NAME"
@@ -233,6 +241,9 @@ jobs:
                 - name: kafka-vol
                   secret:
                     secretName: $KAFKA_SECRET
+                - name: ext-kafka-vol
+                  secret:
+                    secretName: $EXT_KAFKA_SECRET
                 containers:
                 - name: $CONTAINER_NAME
                   envFrom:
@@ -244,6 +255,9 @@ jobs:
                     readOnly: true
                   - name: kafka-vol
                     mountPath: /home/ballerina/resources
+                    readOnly: true
+                  - name: ext-kafka-vol
+                    mountPath: /home/ballerina/external-resources
                     readOnly: true
           "
 

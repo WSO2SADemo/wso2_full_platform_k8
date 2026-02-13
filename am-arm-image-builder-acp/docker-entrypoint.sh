@@ -69,5 +69,5 @@ then
   sh ${WSO2_SERVER_HOME}/bin/key-manager.sh "$@"
 else
   # start the server with the control-plane and provided startup arguments
-  sh ${WSO2_SERVER_HOME}/bin/api-cp.sh "$@"
+  sh ${WSO2_SERVER_HOME}/bin/api-cp.sh -DdisableRoleValidationAtScopeCreation=true "$@"
 fi
