@@ -10,9 +10,9 @@ configurable string internalKafkaBootstrapServers = os:getEnv("internalKafkaBoot
 configurable string internalKafkaTopic = os:getEnv("internalKafkaTopic");
 configurable string internalKafkaTopicResponse = os:getEnv("internalKafkaTopicResponse");
 configurable string internalKafkaConsumerGroupId = os:getEnv("internalKafkaConsumerGroupId");
-configurable string internalKafkaCaCertPath = "/home/ballerina/resources/internal_ca.pem";
-configurable string internalKafkaClientCertPath = "/home/ballerina/resources/internal_service.cert";
-configurable string internalKafkaClientKeyPath = "/home/ballerina/resources/internal_service.key";
+configurable string internalKafkaCaCertPath = "/home/ballerina/resources/ca.pem";
+configurable string internalKafkaClientCertPath = "/home/ballerina/resources/service.cert";
+configurable string internalKafkaClientKeyPath = "/home/ballerina/resources/service.key";
 
 // External Kafka configuration (for externalKafkaTopic and externalKafkaTopicResponse)
 configurable string externalKafkaBootstrapServers = os:getEnv("externalKafkaBootstrapServers");
