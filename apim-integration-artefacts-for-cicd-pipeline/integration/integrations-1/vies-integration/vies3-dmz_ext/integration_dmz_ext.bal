@@ -28,8 +28,22 @@ service on kafkaListenerTopic2 {
         
         // Process each record
         foreach kafka:AnydataConsumerRecord consumerRecord in records {
+            // Log received record details
+            kafka:PartitionOffset recordOffset = consumerRecord.offset;
+            log:printInfo("Received Kafka record", 
+                partition = recordOffset.partition.partition,
+                offset = recordOffset.offset,
+                timestamp = consumerRecord.timestamp,
+                topic = recordOffset.partition.topic
+            );
+            
             // Extract message value
             anydata messageValue = consumerRecord.value;
+            
+            // Log raw message value
+            log:printInfo("Raw message value", 
+                value = messageValue.toString()
+            );
             
             // Convert to string
             string payloadString = "";
