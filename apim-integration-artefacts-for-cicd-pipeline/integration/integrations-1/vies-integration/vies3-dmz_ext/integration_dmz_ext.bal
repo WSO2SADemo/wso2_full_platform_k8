@@ -31,25 +31,6 @@ service on kafkaListenerTopic2 {
             // Extract message value
             anydata messageValue = consumerRecord.value;
             
-            // Parse the JSON payload
-            InternalKafkaMessage kafkaMessage;
-            if messageValue is byte[] {
-                string messageString = check string:fromBytes(messageValue);
-                json messageJson = check messageString.fromJsonString();
-                kafkaMessage = check messageJson.cloneWithType();
-            } else if messageValue is string {
-                json messageJson = check messageValue.fromJsonString();
-                kafkaMessage = check messageJson.cloneWithType();
-            } else {
-                log:printError("Unsupported message format received");
-                continue;
-            }
-            log:printInfo("Processing message", uuid = kafkaMessage.uuid, requestType = kafkaMessage.requestType);            
-            // Log raw message value
-            log:printInfo("Raw message value", 
-                value = messageValue.toString()
-            );
-            
             // Convert to string
             string payloadString = "";
             if messageValue is byte[] {
@@ -65,16 +46,33 @@ service on kafkaListenerTopic2 {
                 payloadString = messageValue.toString();
             }
             
-            // Try to parse as JSON first (new format with UUID)
-            json|error payloadJson = payloadString.fromJsonString();
+            // Log raw message value
+            log:printInfo("Raw message value", value = payloadString);
+            
+            // Parse the JSON payload to InternalKafkaMessage
+            json|error messageJson = payloadString.fromJsonString();
+            if messageJson is error {
+                log:printError("Failed to parse message as JSON", 'error = messageJson);
+                continue;
+            }
+            
+            InternalKafkaMessage|error kafkaMessage = messageJson.cloneWithType();
+            if kafkaMessage is error {
+                log:printError("Failed to convert to InternalKafkaMessage", 'error = kafkaMessage);
+                continue;
+            }
             
             string requestUuid = kafkaMessage.uuid;
+            string requestType = kafkaMessage.requestType;
+            
+            log:printInfo("Processing message", uuid = requestUuid, requestType = requestType);
+            
+            // Parse SOAP request XML from the message
             xml|error soapRequestXml = xml:fromString(kafkaMessage.soapRequest);
             if soapRequestXml is error {
                 log:printError("Failed to parse SOAP request XML", 'error = soapRequestXml, uuid = requestUuid);
                 continue;
             }
-            
             
             // Invoke VIES service with the SOAP request and UUID
             error? invokeResult = invokeViesService(soapRequestXml, requestUuid);
