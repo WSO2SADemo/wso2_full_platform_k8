@@ -35,10 +35,11 @@ service on internalKafkaListener {
             
             log:printInfo("Processing message", uuid = kafkaMessage.uuid, requestType = kafkaMessage.requestType);
             
-            // Send to external Kafka topic
+            // Send to external Kafka topic (include UUID so response can be correlated)
+            json externalPayload = kafkaMessage.toJson();
             kafka:Error? sendResult = externalKafkaProducer->send({
                 topic: externalKafkaTopic,
-                value: kafkaMessage.soapRequest.toBytes()
+                value: externalPayload.toJsonString().toBytes()
             });
             
             if sendResult is kafka:Error {
