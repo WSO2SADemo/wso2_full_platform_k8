@@ -130,8 +130,9 @@ jobs:
              exit 1
           fi
 
-          # Delete existing secret (to ensure updates are applied if files changed)
+          # Delete existing secrets (to ensure updates are applied if files changed)
           kubectl delete secret $SECRET_NAME -n $NAMESPACE --ignore-not-found
+          kubectl delete secret $EXT_SECRET_NAME -n $NAMESPACE --ignore-not-found
 
           # Create new secret
           kubectl create secret generic $SECRET_NAME \
