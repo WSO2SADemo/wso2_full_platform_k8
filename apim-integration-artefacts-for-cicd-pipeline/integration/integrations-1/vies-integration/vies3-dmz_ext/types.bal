@@ -66,3 +66,11 @@ type KafkaResponsePayload record {|
     string uuid;
     xml soapResponse;
 |};
+
+
+// Kafka message payload from internal topic
+type InternalKafkaMessage record {|
+    string uuid;
+    string soapRequest;
+    string requestType;
+|};

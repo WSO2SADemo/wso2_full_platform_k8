@@ -28,18 +28,23 @@ service on kafkaListenerTopic2 {
         
         // Process each record
         foreach kafka:AnydataConsumerRecord consumerRecord in records {
-            // Log received record details
-            kafka:PartitionOffset recordOffset = consumerRecord.offset;
-            log:printInfo("Received Kafka record", 
-                partition = recordOffset.partition.partition,
-                offset = recordOffset.offset,
-                timestamp = consumerRecord.timestamp,
-                topic = recordOffset.partition.topic
-            );
-            
             // Extract message value
             anydata messageValue = consumerRecord.value;
             
+            // Parse the JSON payload
+            InternalKafkaMessage kafkaMessage;
+            if messageValue is byte[] {
+                string messageString = check string:fromBytes(messageValue);
+                json messageJson = check messageString.fromJsonString();
+                kafkaMessage = check messageJson.cloneWithType();
+            } else if messageValue is string {
+                json messageJson = check messageValue.fromJsonString();
+                kafkaMessage = check messageJson.cloneWithType();
+            } else {
+                log:printError("Unsupported message format received");
+                continue;
+            }
+            log:printInfo("Processing message", uuid = kafkaMessage.uuid, requestType = kafkaMessage.requestType);            
             // Log raw message value
             log:printInfo("Raw message value", 
                 value = messageValue.toString()
@@ -63,48 +68,13 @@ service on kafkaListenerTopic2 {
             // Try to parse as JSON first (new format with UUID)
             json|error payloadJson = payloadString.fromJsonString();
             
-            string requestUuid = "";
-            xml soapRequestXml;
-            
-            if payloadJson is json {
-                // New format: JSON payload with UUID and SOAP request
-                KafkaRequestPayload|error requestPayload = payloadJson.cloneWithType();
-                if requestPayload is error {
-                    log:printError("Failed to convert payload to KafkaRequestPayload", 'error = requestPayload);
-                    continue;
-                }
-                
-                requestUuid = requestPayload.uuid;
-                string soapRequestString = requestPayload.soapRequest;
-                string requestType = requestPayload.requestType;
-                
-                log:printInfo("Processing request (JSON format)", uuid = requestUuid, requestType = requestType);
-                
-                // Parse SOAP request XML
-                xml|error parsedXml = xml:fromString(soapRequestString);
-                if parsedXml is error {
-                    log:printError("Failed to parse SOAP request XML", 'error = parsedXml, uuid = requestUuid);
-                    continue;
-                }
-                soapRequestXml = parsedXml;
-            } else {
-                // Old format: Direct XML/SOAP payload
-                log:printInfo("Processing request (Direct XML format)");
-                
-                // Parse as XML directly
-                xml|error parsedXml = xml:fromString(payloadString);
-                if parsedXml is error {
-                    log:printError("Failed to parse payload as XML", 'error = parsedXml);
-                    continue;
-                }
-                soapRequestXml = parsedXml;
-                
-                // Generate a UUID for tracking using partition and offset
-                kafka:PartitionOffset partitionOffset = consumerRecord.offset;
-                string offsetString = partitionOffset.offset.toString();
-                string partitionString = partitionOffset.partition.partition.toString();
-                requestUuid = "direct-p" + partitionString + "-o" + offsetString;
+            string requestUuid = kafkaMessage.uuid;
+            xml|error soapRequestXml = xml:fromString(kafkaMessage.soapRequest);
+            if soapRequestXml is error {
+                log:printError("Failed to parse SOAP request XML", 'error = soapRequestXml, uuid = requestUuid);
+                continue;
             }
+            
             
             // Invoke VIES service with the SOAP request and UUID
             error? invokeResult = invokeViesService(soapRequestXml, requestUuid);
@@ -128,7 +98,7 @@ service on kafkaListenerTopic2 {
 
 // Function to invoke VIES service with SOAP request and send response to Kafka
 function invokeViesService(xml soapRequest, string requestUuid) returns error? {
-    log:printInfo("Invoking VIES service with SOAP request", uuid = requestUuid);
+    log:printInfo("Invoking VIES service with SOAP request", uuid = requestUuid, payload = soapRequest.toString());
     
     // Send SOAP request to VIES service
     http:Response|error viesResponse = viesClient->post("", soapRequest, {
