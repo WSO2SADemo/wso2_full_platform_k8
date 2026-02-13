@@ -42,7 +42,7 @@ jobs:
     env:
       BALLERINA_NAMESPACE: ballerina
       BASE_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration
-      IMAGE_TAG: "1.0.1"
+      IMAGE_TAG: "1.0.2"
       # Absolute path to vies-integration dir on the self-hosted runner
       LOCAL_BASE_PATH: "/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration"
       # Shared Kafka resources path (common to all projects)
