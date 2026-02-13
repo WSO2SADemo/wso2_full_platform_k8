@@ -16,6 +16,13 @@ service.cert
 service.key
 ca.pem
 
+*.cert
+*.key
+*.pem
+
+*.p12
+*.jks
+
 packs/
 packs/**
 

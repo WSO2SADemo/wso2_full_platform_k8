@@ -82,37 +82,38 @@ jobs:
       - name: Ensure Namespace Exists
         run: kubectl create namespace ${{ env.BALLERINA_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Apply Local ConfigMap
+      - name: Delete and Recreate Local ConfigMap
         run: |
           CONFIG_MAP_FILE="${{ env.LOCAL_BASE_PATH }}/${{ matrix.project_subdir }}/config-map-vies.yaml"
+          CONFIG_MAP_NAME="${{ matrix.config_map_name }}"
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+
+          echo "Deleting existing ConfigMap '$CONFIG_MAP_NAME' if present..."
+          kubectl delete configmap "$CONFIG_MAP_NAME" -n "$NAMESPACE" --ignore-not-found
+
           echo "Applying ConfigMap from $CONFIG_MAP_FILE..."
           if [ -f "$CONFIG_MAP_FILE" ]; then
-            kubectl apply -f "$CONFIG_MAP_FILE" -n ${{ env.BALLERINA_NAMESPACE }}
+            kubectl apply -f "$CONFIG_MAP_FILE" -n "$NAMESPACE"
           else
             echo "❌ Error: File not found at $CONFIG_MAP_FILE"
             exit 1
           fi
 
-      - name: Ensure Ballerina Keystore Secret Exists
+      - name: Delete and Recreate Ballerina Keystore Secret
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
           SECRET_NAME="ballerina-secrets"
           LOCAL_SECRET_PATH="/Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/integration/ballerina-secrets.yaml"
 
-          echo "Checking if secret '$SECRET_NAME' exists in namespace '$NAMESPACE'..."
+          echo "Deleting existing secret '$SECRET_NAME' if present..."
+          kubectl delete secret "$SECRET_NAME" -n "$NAMESPACE" --ignore-not-found
 
-          if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" > /dev/null 2>&1; then
-            echo "✅ Secret '$SECRET_NAME' already exists. Skipping application."
+          if [ -f "$LOCAL_SECRET_PATH" ]; then
+            echo "Recreating secret from: $LOCAL_SECRET_PATH"
+            kubectl apply -f "$LOCAL_SECRET_PATH" -n "$NAMESPACE"
           else
-            echo "⚠️ Secret '$SECRET_NAME' NOT found."
-
-            if [ -f "$LOCAL_SECRET_PATH" ]; then
-              echo "Applying from local path: $LOCAL_SECRET_PATH"
-              kubectl apply -f "$LOCAL_SECRET_PATH" -n "$NAMESPACE"
-            else
-              echo "❌ Error: Local secret file not found at $LOCAL_SECRET_PATH"
-              exit 1
-            fi
+            echo "❌ Error: Local secret file not found at $LOCAL_SECRET_PATH"
+            exit 1
           fi
 
       - name: Create Kafka Resources Secret
