@@ -35,32 +35,47 @@ service on kafkaListenerTopic2 {
                 payloadString = messageValue.toString();
             }
             
-            // Parse JSON payload
+            // Try to parse as JSON first (new format with UUID)
             json|error payloadJson = payloadString.fromJsonString();
-            if payloadJson is error {
-                log:printError("Failed to parse payload JSON", 'error = payloadJson);
-                continue;
-            }
             
-            // Convert to KafkaRequestPayload record
-            KafkaRequestPayload|error requestPayload = payloadJson.cloneWithType();
-            if requestPayload is error {
-                log:printError("Failed to convert payload to KafkaRequestPayload", 'error = requestPayload);
-                continue;
-            }
+            string requestUuid = "";
+            xml soapRequestXml;
             
-            // Extract UUID and SOAP request
-            string requestUuid = requestPayload.uuid;
-            string soapRequestString = requestPayload.soapRequest;
-            string requestType = requestPayload.requestType;
-            
-            log:printInfo("Processing request", uuid = requestUuid, requestType = requestType);
-            
-            // Parse SOAP request XML
-            xml|error soapRequestXml = xml:fromString(soapRequestString);
-            if soapRequestXml is error {
-                log:printError("Failed to parse SOAP request XML", 'error = soapRequestXml, uuid = requestUuid);
-                continue;
+            if payloadJson is json {
+                // New format: JSON payload with UUID and SOAP request
+                KafkaRequestPayload|error requestPayload = payloadJson.cloneWithType();
+                if requestPayload is error {
+                    log:printError("Failed to convert payload to KafkaRequestPayload", 'error = requestPayload);
+                    continue;
+                }
+                
+                requestUuid = requestPayload.uuid;
+                string soapRequestString = requestPayload.soapRequest;
+                string requestType = requestPayload.requestType;
+                
+                log:printInfo("Processing request (JSON format)", uuid = requestUuid, requestType = requestType);
+                
+                // Parse SOAP request XML
+                xml|error parsedXml = xml:fromString(soapRequestString);
+                if parsedXml is error {
+                    log:printError("Failed to parse SOAP request XML", 'error = parsedXml, uuid = requestUuid);
+                    continue;
+                }
+                soapRequestXml = parsedXml;
+            } else {
+                // Old format: Direct XML/SOAP payload
+                log:printInfo("Processing request (Direct XML format)");
+                
+                // Parse as XML directly
+                xml|error parsedXml = xml:fromString(payloadString);
+                if parsedXml is error {
+                    log:printError("Failed to parse payload as XML", 'error = parsedXml);
+                    continue;
+                }
+                soapRequestXml = parsedXml;
+                
+                // Generate a UUID for tracking
+                requestUuid = "direct-" + consumerRecord.offset.toString();
             }
             
             // Invoke VIES service with the SOAP request and UUID
