@@ -1,7 +1,7 @@
 import ballerina/http;
 import ballerina/log;
-// import ballerinax/wso2.apim.catalog as _;
-// import ballerinax/moesif as _;
+import ballerinax/wso2.apim.catalog as _;
+import ballerinax/moesif as _;
 import ballerinax/kafka;
 import ballerina/uuid;
 import ballerina/lang.runtime;

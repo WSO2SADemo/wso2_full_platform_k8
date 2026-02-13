@@ -1,7 +1,7 @@
 import ballerina/log;
 import ballerinax/kafka;
-// import ballerinax/wso2.apim.catalog as _;
-// import ballerinax/moesif as _;
+import ballerinax/wso2.apim.catalog as _;
+import ballerinax/moesif as _;
 
 function init() {
     log:printInfo("VIES DMZ Internal service initializing...");
