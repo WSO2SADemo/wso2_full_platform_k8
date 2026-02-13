@@ -6,7 +6,7 @@ configurable int servicePort = 8080;
 configurable string viesServiceUrl = os:getEnv("viesServiceUrl");
 
 // Internal Kafka configuration (for internalKafkaTopic)
-configurable string internalKafkaBootstrapServers = os:getEnv("internalKafkaBootstrapServers");
+configurable string internalKafkaBootstrapServers = os:getEnv("kafkaBootstrapServers");
 configurable string internalKafkaTopic = os:getEnv("internalKafkaTopic");
 configurable string internalKafkaTopicResponse = os:getEnv("internalKafkaTopicResponse");
 configurable string internalKafkaConsumerGroupId = os:getEnv("internalKafkaConsumerGroupId");
