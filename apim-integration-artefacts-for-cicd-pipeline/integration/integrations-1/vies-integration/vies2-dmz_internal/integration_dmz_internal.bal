@@ -62,48 +62,67 @@ service on internalKafkaListener {
                         keyFile: externalKafkaClientKeyPath
                     }
                 },
-                autoCommit = false
+                autoCommit = false,
+                offsetReset = kafka:OFFSET_RESET_EARLIEST
             );
             
             log:printInfo("Created response consumer", uuid = kafkaMessage.uuid, topic = externalKafkaTopicResponse);
             
-            // Poll for response (with timeout of 30 seconds)
-            kafka:AnydataConsumerRecord[]|kafka:Error pollResult = responseConsumer->poll(30);
-            
-            if pollResult is kafka:Error {
-                log:printError("Failed to poll response from external Kafka topic", 'error = pollResult, uuid = kafkaMessage.uuid);
-            } else if pollResult.length() > 0 {
-                log:printInfo("Received response from external Kafka topic", uuid = kafkaMessage.uuid, recordCount = pollResult.length());
-                
-                // Process the response
+            // Poll for matching response (with timeout of 30 seconds)
+            boolean responseFound = false;
+            int elapsedSeconds = 0;
+            int pollIntervalSeconds = 5;
+            int maxWaitSeconds = 30;
+
+            while !responseFound && elapsedSeconds < maxWaitSeconds {
+                kafka:AnydataConsumerRecord[]|kafka:Error pollResult = responseConsumer->poll(pollIntervalSeconds);
+
+                if pollResult is kafka:Error {
+                    log:printError("Failed to poll response from external Kafka topic", 'error = pollResult, uuid = kafkaMessage.uuid);
+                    break;
+                }
+
                 foreach kafka:AnydataConsumerRecord responseRecord in pollResult {
                     anydata responseValue = responseRecord.value;
-                    byte[] responseBytes;
-                    
+                    string responseString;
+
                     if responseValue is byte[] {
-                        responseBytes = responseValue;
+                        responseString = check string:fromBytes(responseValue);
                     } else if responseValue is string {
-                        responseBytes = responseValue.toBytes();
+                        responseString = responseValue;
                     } else {
-                        responseBytes = responseValue.toString().toBytes();
+                        responseString = responseValue.toString();
                     }
-                    
-                    log:printInfo("Response received", uuid = kafkaMessage.uuid, response = check string:fromBytes(responseBytes));
-                    
-                    // Send response to internal Kafka response topic
-                    kafka:Error? internalSendResult = internalKafkaProducer->send({
-                        topic: internalKafkaTopicResponse,
-                        value: responseBytes
-                    });
-                    
-                    if internalSendResult is kafka:Error {
-                        log:printError("Failed to publish response to internal Kafka response topic", 'error = internalSendResult, uuid = kafkaMessage.uuid);
-                    } else {
-                        log:printInfo("Successfully published response to internal Kafka response topic", uuid = kafkaMessage.uuid, topic = internalKafkaTopicResponse);
+
+                    // Check if this response matches our UUID
+                    json|error responseJson = responseString.fromJsonString();
+                    if responseJson is json {
+                        string|error responseUuid = (check responseJson.uuid).toString();
+                        if responseUuid is string && responseUuid == kafkaMessage.uuid {
+                            log:printInfo("Received matching response from external Kafka topic", uuid = kafkaMessage.uuid);
+
+                            // Send response to internal Kafka response topic
+                            kafka:Error? internalSendResult = internalKafkaProducer->send({
+                                topic: internalKafkaTopicResponse,
+                                value: responseString.toBytes()
+                            });
+
+                            if internalSendResult is kafka:Error {
+                                log:printError("Failed to publish response to internal Kafka response topic", 'error = internalSendResult, uuid = kafkaMessage.uuid);
+                            } else {
+                                log:printInfo("Successfully published response to internal Kafka response topic", uuid = kafkaMessage.uuid, topic = internalKafkaTopicResponse);
+                            }
+                            responseFound = true;
+                            break;
+                        }
                     }
                 }
-            } else {
-                log:printWarn("No response received within timeout period", uuid = kafkaMessage.uuid);
+
+                elapsedSeconds = elapsedSeconds + pollIntervalSeconds;
+            }
+
+            if !responseFound {
+                log:printWarn("No matching response received within timeout period", uuid = kafkaMessage.uuid);
             }
             
             // Close the response consumer
