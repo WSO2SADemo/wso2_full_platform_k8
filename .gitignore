@@ -41,6 +41,8 @@ integration/ballerina-secrets.yaml
 integration/config-map.yaml
 config-map*.yaml
 apim-secrets.yaml
+*config-map.yaml
+*secrets.yaml
 
 security/cp/*
 security/gw/*

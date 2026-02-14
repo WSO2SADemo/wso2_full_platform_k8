@@ -24,6 +24,12 @@ type SfOpportunityItem record {
     string Name;
 };
 
+type OpportunityPayload record {|
+    boolean isClosed;
+    boolean isWon;
+    SfOpportunityItem[] items;
+|};
+
 type S4HanaMaterial record {|
     string Material;
     string SalesOrderItemCategory;

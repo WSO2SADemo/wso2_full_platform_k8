@@ -14,72 +14,87 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/http;
 import ballerina/log;
 import ballerina/random;
 import ballerinax/salesforce;
 import ballerinax/sap.s4hana.api_sales_order_srv as salesorder;
-import ballerinax/wso2.controlplane as _;
 
-// configurable SfListenerConfig sfListenerConfig = ?;
-// configurable SfClientConfig sfClientConfig = ?;
-// configurable S4HanaClientConfig s4hanaClientConfig = ?;
+configurable SfListenerConfig sfListenerConfig = ?;
+configurable SfClientConfig sfClientConfig = ?;
+configurable S4HanaClientConfig s4hanaClientConfig = ?;
+configurable int httpPort = 8080;
 
 listener salesforce:Listener sfListener = new (
     auth = {
-        username: sfListenerConfigUsername,
-        password: sfListenerConfigPassword
+        username: sfListenerConfig.username,
+        password: sfListenerConfig.password
     },
-    isSandBox = false
+    isSandBox = sfListenerConfig.isSandbox
 );
 
 final salesforce:Client sfClient = check new ({
-    baseUrl: sfClientConfigBaseUrl,
+    baseUrl: sfClientConfig.baseUrl,
     auth: {
-        clientId: sfClientConfigClientId,
-        clientSecret: sfClientConfigClientSecret,
-        refreshToken: sfClientConfigRefreshToken,
-        refreshUrl: sfClientConfigRefreshUrl
+        clientId: sfClientConfig.clientId,
+        clientSecret: sfClientConfig.clientSecret,
+        refreshToken: sfClientConfig.refreshToken,
+        refreshUrl: sfClientConfig.refreshUrl
     }
 });
 
+listener http:Listener httpListener = check new (httpPort);
+
 final salesorder:Client salesOrderClient = check new ({
         auth: {
-            username: s4hanaClientConfigUsername,
-            password: s4hanaClientConfigPassword
+            username: s4hanaClientConfig.username,
+            password: s4hanaClientConfig.password
         }
     },
-    s4hanaClientConfigHostname
+    s4hanaClientConfig.hostname
 );
-// listener salesforce:Listener sfListener = new (
-//     auth = {
-//         username: sfListenerConfig.username,
-//         password: sfListenerConfig.password
-//     },
-//     isSandBox = false
-// );
-
-// final salesforce:Client sfClient = check new ({
-//     baseUrl: sfClientConfig.baseUrl,
-//     auth: {
-//         clientId: sfClientConfig.clientId,
-//         clientSecret: sfClientConfig.clientSecret,
-//         refreshToken: sfClientConfig.refreshToken,
-//         refreshUrl: sfClientConfig.refreshUrl
-//     }
-// });
-
-// final salesorder:Client salesOrderClient = check new ({
-//         auth: {
-//             username: s4hanaClientConfig.username,
-//             password: s4hanaClientConfig.password
-//         }
-//     },
-//     s4hanaClientConfig.hostname
-// );
 
 function init() {
-    log:printInfo("Service now to SAP service started");
+    log:printInfo("Salesforce to SAP service started");
 }
+
+service /salesforce on httpListener {
+    resource function post opportunity(@http:Payload OpportunityPayload payload) returns http:Created|http:BadRequest|http:InternalServerError {
+        log:printInfo("Received opportunity payload from Salesforce");
+
+        if !payload.isClosed {
+            log:printInfo("Opportunity is not closed. Skipping order creation.");
+            return <http:BadRequest>{body: "Opportunity is not closed"};
+        }
+
+        if !payload.isWon {
+            log:printInfo("Opportunity is not won. Skipping order creation.");
+            return <http:BadRequest>{body: "Opportunity is not won"};
+        }
+
+        if payload.items.length() == 0 {
+            log:printInfo("No items found in the opportunity. Skipping order creation.");
+            return <http:BadRequest>{body: "No items found in the opportunity"};
+        }
+
+        salesorder:CreateA_SalesOrder|error salesOrder = transformOrderData(payload.items);
+        if salesOrder is error {
+            log:printError("Error while transforming order: " + salesOrder.message());
+            return <http:InternalServerError>{body: "Error transforming order data"};
+        }
+
+        salesorder:A_SalesOrderWrapper|error aSalesOrder = salesOrderClient->createA_SalesOrder(salesOrder);
+        if aSalesOrder is error {
+            log:printError("Error while creating SAP order: " + aSalesOrder.message(), aSalesOrder);
+            return <http:InternalServerError>{body: "Error creating SAP order"};
+        }
+
+        string salesOrderId = aSalesOrder.d?.SalesOrder ?: "";
+        log:printInfo(string `Successfully created an SAP sales order with id: ${salesOrderId}`);
+        return <http:Created>{body: {salesOrderId: salesOrderId}};
+    }
+}
+
 service "/data/OpportunityChangeEvent" on sfListener {
     isolated remote function onCreate(salesforce:EventData payload) {
         log:printInfo(string `New opportunity created: ${payload.metadata?.recordId ?: ""}`);
