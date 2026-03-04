@@ -17,34 +17,11 @@
 import ballerina/http;
 import ballerina/log;
 import ballerina/random;
-import ballerinax/salesforce;
 import ballerinax/sap.s4hana.api_sales_order_srv as salesorder;
 
-configurable SfListenerConfig sfListenerConfig = ?;
-configurable SfClientConfig sfClientConfig = ?;
-configurable S4HanaClientConfig s4hanaClientConfig = ?;
 configurable int httpPort = 8080;
-
-listener salesforce:Listener sfListener = new (
-    auth = {
-        username: sfListenerConfig.username,
-        password: sfListenerConfig.password
-    },
-    isSandBox = sfListenerConfig.isSandbox
-);
-
-final salesforce:Client sfClient = check new ({
-    baseUrl: sfClientConfig.baseUrl,
-    auth: {
-        clientId: sfClientConfig.clientId,
-        clientSecret: sfClientConfig.clientSecret,
-        refreshToken: sfClientConfig.refreshToken,
-        refreshUrl: sfClientConfig.refreshUrl
-    }
-});
-
 listener http:Listener httpListener = check new (httpPort);
-
+configurable S4HanaClientConfig s4hanaClientConfig = ?;
 final salesorder:Client salesOrderClient = check new ({
         auth: {
             username: s4hanaClientConfig.username,
@@ -53,12 +30,11 @@ final salesorder:Client salesOrderClient = check new ({
     },
     s4hanaClientConfig.hostname
 );
-
 function init() {
-    log:printInfo("Salesforce to SAP service started");
+    log:printInfo("SAP integration service started");
 }
 
-service /salesforce on httpListener {
+service /sap_integration on httpListener {
     resource function post opportunity(@http:Payload OpportunityPayload payload) returns http:Created|http:BadRequest|http:InternalServerError {
         log:printInfo("Received opportunity payload from Salesforce");
 
@@ -93,68 +69,6 @@ service /salesforce on httpListener {
         log:printInfo(string `Successfully created an SAP sales order with id: ${salesOrderId}`);
         return <http:Created>{body: {salesOrderId: salesOrderId}};
     }
-}
-
-service "/data/OpportunityChangeEvent" on sfListener {
-    isolated remote function onCreate(salesforce:EventData payload) {
-        log:printInfo(string `New opportunity created: ${payload.metadata?.recordId ?: ""}`);
-    }
-
-    isolated remote function onUpdate(salesforce:EventData payload) returns error? {
-        string? opportunityId = payload.metadata?.recordId;
-        if opportunityId is () {
-            log:printError("Error while creating SAP order: invalid opportunityId from event");
-            return;
-        }
-        log:printInfo(string `Received an opportunity update event for id: ${opportunityId}`);
-
-        string isClosed = check payload.changedData["IsClosed"].ensureType();
-        if isClosed != "true" {
-            log:printInfo("Opportunity is not closed. Skipping order creation.");
-            return;
-        }
-
-        string isWon = check payload.changedData["IsWon"].ensureType();
-        if isWon != "true" {
-            log:printInfo("Opportunity is not won. Skipping order creation.");
-            return;
-        }
-
-        SfOpportunityItem[]|error retrievedItems = retrieveOpportunityItems(opportunityId);
-        if retrievedItems is error {
-            log:printError("Error while retrieving opportunity items: " + retrievedItems.message());
-            return;
-        }
-
-        salesorder:CreateA_SalesOrder|error salesOrder = transformOrderData(retrievedItems);
-        if salesOrder is error {
-            log:printError("Error while transforming order: " + salesOrder.message());
-            return;
-        }
-
-        salesorder:A_SalesOrderWrapper|error aSalesOrder = salesOrderClient->createA_SalesOrder(salesOrder);
-        if aSalesOrder is error {
-            log:printError("Error while creating SAP order: " + aSalesOrder.message(), aSalesOrder);
-        } else {
-            log:printInfo(string `Successfully created an SAP sales order with id: ${aSalesOrder.d?.SalesOrder ?: ""}`);
-        }
-    }
-
-    isolated remote function onDelete(salesforce:EventData payload) {
-        log:printInfo(string `Opportunity deleted: ${payload.metadata?.recordId ?: ""}`);
-    }
-
-    isolated remote function onRestore(salesforce:EventData payload) returns error? {
-        log:printInfo(string `Opportunity restored: ${payload.metadata?.recordId ?: ""}`);
-    }
-}
-
-isolated function retrieveOpportunityItems(string opportunityId) returns SfOpportunityItem[]|error {
-    stream<SfOpportunityItem, error?> sfOpportunityItems = check sfClient->query(
-        string `SELECT ProductCode, Name, Quantity FROM OpportunityLineItem 
-        WHERE OpportunityId='${opportunityId}'`);
-    return from SfOpportunityItem item in sfOpportunityItems
-        select item;
 }
 
 isolated function transformOrderData(SfOpportunityItem[] salesforceItems) returns salesorder:CreateA_SalesOrder|error {

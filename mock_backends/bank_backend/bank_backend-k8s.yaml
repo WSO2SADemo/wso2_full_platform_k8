@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ballerina
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app: "bank_backend"
+  name: "bank-backend-deployment"
+  namespace: ballerina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "bank_backend"
+  template:
+    metadata:
+      labels:
+        app: "bank_backend"
+    spec:
+      containers:
+      - image: "ramilu90/bank_backend:1.0.0"
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - "sleep"
+              - "15"
+        name: "bank-backend-deployment"
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+        - containerPort: 9264
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "100Mi"
+            cpu: "200m"
+        envFrom:
+        - configMapRef:
+            name: ballerina-values-bank-backend
+        - secretRef:
+            name: ballerina-bank-backend-secrets
+        volumeMounts:
+        - name: keystore-vol
+          mountPath: /home/ballerina/bre/security
+          readOnly: true
+      volumes:
+      - name: keystore-vol
+        secret:
+          secretName: ballerina-integration-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bank-backend
+  namespace: ballerina
+  labels:
+    app: "bank_backend"
+spec:
+  selector:
+    app: "bank_backend"
+  ports:
+  - name: port-8080
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: port-8081
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+  - name: management
+    port: 9264
+    targetPort: 9264
+    protocol: TCP
+---
+apiVersion: "autoscaling/v2"
+kind: "HorizontalPodAutoscaler"
+metadata:
+  labels:
+    app: "bank_backend"
+  name: "bank-backend-hp"
+  namespace: ballerina
+spec:
+  maxReplicas: 1
+  metrics:
+  - resource:
+      name: "cpu"
+      target:
+        averageUtilization: 50
+        type: "Utilization"
+    type: "Resource"
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    name: "bank-backend-deployment"

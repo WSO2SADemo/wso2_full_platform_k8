@@ -43,7 +43,7 @@ keytool -importcert \
 
  keytool -importcert \
   -alias control-cert \
-  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/integration/ballerina-integration.crt \
+  -file /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/integration/ballerina-integration.crt \
   -keystore icp/client-truststore.jks \
   -storetype JKS \
   -storepass wso2carbon \

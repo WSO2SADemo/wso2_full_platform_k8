@@ -1,0 +1,335 @@
+openapi: 3.0.1
+info:
+  title: Bank Customer
+  version: 0.1.0
+servers:
+- url: "{server}:{port}/bank/customer"
+  variables:
+    server:
+      default: http://localhost
+    port:
+      default: "8080"
+paths:
+  /account:
+    post:
+      operationId: postAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernameRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/AccountResponse'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+  /transfer:
+    post:
+      operationId: postTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/SuccessResponse'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+  /transactions:
+    post:
+      operationId: postTransactions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernameRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/Transaction'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+  /contact/update:
+    post:
+      operationId: postContactUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpdateRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/SuccessResponse'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+  /contact:
+    post:
+      operationId: postContact
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernameRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/ContactInfo'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+  /loan/apply:
+    post:
+      operationId: postLoanApply
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/LoanApplicationResponse'
+                - $ref: '#/components/schemas/ErrorResponse'
+        "400":
+          description: BadRequest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPayload'
+components:
+  schemas:
+    AccountResponse:
+      required:
+      - accountNumber
+      - currentAccountBalance
+      - savingsBalance
+      - status
+      type: object
+      properties:
+        accountNumber:
+          type: string
+        savingsBalance:
+          type: number
+          format: double
+        currentAccountBalance:
+          type: number
+          format: double
+        status:
+          type: string
+      additionalProperties: false
+    ContactInfo:
+      required:
+      - address
+      - email
+      - phone
+      type: object
+      properties:
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+      additionalProperties: false
+    ContactUpdateRequest:
+      required:
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+      additionalProperties: false
+    ErrorPayload:
+      required:
+      - message
+      - method
+      - path
+      - reason
+      - status
+      - timestamp
+      type: object
+      properties:
+        timestamp:
+          type: string
+        status:
+          type: integer
+          format: int64
+        reason:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        method:
+          type: string
+    ErrorResponse:
+      required:
+      - message
+      type: object
+      properties:
+        message:
+          type: string
+      additionalProperties: false
+    LoanApplicationResponse:
+      required:
+      - applicationId
+      - message
+      - status
+      type: object
+      properties:
+        applicationId:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+      additionalProperties: false
+    LoanRequest:
+      required:
+      - amount
+      - loanType
+      - purpose
+      - termMonths
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+        loanType:
+          type: string
+        amount:
+          type: number
+          format: double
+        termMonths:
+          type: integer
+          format: int64
+        purpose:
+          type: string
+      additionalProperties: false
+    SuccessResponse:
+      required:
+      - message
+      type: object
+      properties:
+        message:
+          type: string
+      additionalProperties: false
+    Transaction:
+      required:
+      - amount
+      - fromAccount
+      - status
+      - timestamp
+      - toAccount
+      - transactionId
+      - transactionType
+      type: object
+      properties:
+        transactionId:
+          type: string
+        transactionType:
+          type: string
+        amount:
+          type: number
+          format: double
+        fromAccount:
+          type: string
+        toAccount:
+          type: string
+        timestamp:
+          type: string
+        status:
+          type: string
+      additionalProperties: false
+    TransferRequest:
+      required:
+      - amount
+      - fromAccount
+      - toAccount
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+        fromAccount:
+          type: string
+        toAccount:
+          type: string
+        amount:
+          type: number
+          format: double
+      additionalProperties: false
+    UsernameRequest:
+      required:
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+      additionalProperties: false

@@ -1,3 +1,0 @@
-# argocd-cm-patch.yaml
-data:
-  server.insecure: "true"

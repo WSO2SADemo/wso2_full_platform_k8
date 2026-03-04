@@ -1,0 +1,10 @@
+import ballerina/os;
+configurable string mcpServerTokenURL = os:getEnv("mcpServerTokenURL");
+configurable string mcpServerClientId = os:getEnv("mcpServerClientId");
+configurable string mcpServerClientSecret = os:getEnv("mcpServerClientSecret");
+configurable string wso2ServiceUrl = os:getEnv("wso2ServiceUrl");
+configurable string wso2AccessToken = os:getEnv("wso2AccessToken");
+configurable string keystorePath = os:getEnv("keystorePath");
+configurable string keystorePassword = os:getEnv("keystorePassword");
+configurable string truststorePath = os:getEnv("truststorePath");
+configurable string truststorePassword = os:getEnv("truststorePassword");

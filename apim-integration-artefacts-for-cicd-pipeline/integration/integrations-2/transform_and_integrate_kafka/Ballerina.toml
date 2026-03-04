@@ -1,0 +1,9 @@
+[package]
+org = "ramindu"
+name = "transform_and_integrate_kafka"
+version = "0.1.0"
+distribution = "2201.13.1"
+title = "transform_and_integrate_kafka"
+
+[build-options]
+sticky = true

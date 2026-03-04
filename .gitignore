@@ -26,6 +26,15 @@ ca.pem
 packs/
 packs/**
 
+*secrets.yaml
+*secrets*.yaml
+secrets.yaml
+secrets*.yaml
+*config-map.yaml
+*config-map*.yaml
+config-map.yaml
+config-map*.yaml    
+
 control-plane/mysql-connector-j-9.5.0.jar
 gateway/mysql-connector-j-9.5.0.jar
 
@@ -57,3 +66,48 @@ selfhosted_github_runner/**
 selfhosted_github_runner/actions-runner-osx-arm64-2.331.0.tar.gz
 selfhosted_github_runner/env.sh
 selfhosted_github_runner/config.sh
+
+# React / Node.js
+node_modules/
+node_modules/**
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+.pnp
+.pnp.js
+
+# React build output
+build/
+dist/
+out/
+.next/
+.nuxt/
+.vite/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.log
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache

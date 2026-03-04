@@ -1,0 +1,18 @@
+[package]
+org = "ramindu"
+name = "insurance_agent"
+version = "0.1.0"
+distribution = "2201.13.1"
+title = "insurance_agent"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+sticky = true
+observabilityIncluded=true
+
+[[dependency]]
+repository="local"
+org="ballerina"
+name="mcp"
+version="1.0.4"

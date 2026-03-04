@@ -1,0 +1,3 @@
+configurable string caCertPath = "/Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration/resources/ca.pem";
+configurable string accessCertPath = "/Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration/resources/service.cert";
+configurable string accessKeyPath = "/Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts-for-cicd-pipeline/integration/integrations-1/vies-integration/resources/service.key";

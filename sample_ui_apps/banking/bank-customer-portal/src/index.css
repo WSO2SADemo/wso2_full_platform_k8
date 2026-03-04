@@ -1,0 +1,125 @@
+:root {
+  /* --- Colors --- */
+  --color-primary: #0a192f;   /* Deep Navy */
+  --color-bg: #f5f5f5;        /* Neutral Light Grey */
+  --color-surface: #ffffff;   /* White */
+  --color-text-main: #333333;
+  --color-text-white: #ffffff;
+  --color-border: #e0e0e0;    /* Neutral Grey */
+
+  /* --- Shapes --- */
+  --radius-main: 12px;        /* Soft Rounding */
+}
+
+/* 1. Global Reset to kill sharp blue outlines */
+*, *::before, *::after {
+  box-sizing: border-box;
+  outline: none; /* Removes default sharp blue browser focus ring */
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Components --- */
+
+/* 2. Cards: No Border, Only Shadow */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-main);
+  border: none; /* Explicitly remove any border */
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1); /* Soft, deep shadow */
+  padding: 2.5rem;
+}
+
+/* 3. Primary Button: Rounded & Solid */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-white);
+  border: none;
+  padding: 14px 28px;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 50px; /* Full Pill Shape */
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+}
+
+/* 4. Secondary Button: Rounded & Neutral */
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  padding: 10px 24px;
+  font-weight: 600;
+  border-radius: 50px; /* Full Pill Shape */
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 5. Inputs: Soft Grey Border & Rounded */
+input {
+  padding: 14px 16px;
+  border: 2px solid var(--color-border); /* Neutral Grey */
+  border-radius: var(--radius-main);     /* 12px Rounding */
+  background: var(--color-surface);
+  font-size: 1rem;
+  color: var(--color-text-main);
+  transition: border-color 0.2s ease;
+}
+
+/* Focus State: Dark Grey Border (No Blue Glow) */
+input:focus {
+  border-color: var(--color-primary); 
+}
+
+/* ... keep your existing :root and other styles ... */
+
+/* Add this to control the full page background */
+.login-page-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg); /* This uses your #f5f5f5 Grey */
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+/* ... keep your existing CSS ... */
+
+/* 🚀 FORCE OVERRIDE for Asgardeo Button Wrapper */
+.asgardeo-button, 
+.asgardeo-sign-in-button {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Ensure the button INSIDE the wrapper takes full control */
+.asgardeo-button > button,
+.asgardeo-sign-in-button > button {
+  width: 100%;
+  display: inline-block;
+}

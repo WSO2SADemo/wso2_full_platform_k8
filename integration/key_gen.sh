@@ -37,10 +37,11 @@ keytool -export \
   -storepass ballerina
 
 keytool -delete -alias actual-cp-ingress-cert -keystore integration/truststore.p12 -storepass ballerina
+keytool -delete -alias control-cert -keystore integration/truststore.p12 -storepass ballerina
 
 keytool -importcert \
   -alias actual-cp-ingress-cert \
-  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/new_keys/cp-ingress.crt \
+  -file /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/create_deployments/new_keys/cp-ingress.crt \
   -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
@@ -48,7 +49,7 @@ keytool -importcert \
 
 keytool -importcert \
   -alias control-cert \
-  -file /Users/ramindu/wso2/general_demo/is_demo_resources/k8-artefacts-apim-bi-elk/security/cp/control-cert.crt \
+  -file /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/create_deployments/new_keys/wso2carbon.crt \
   -keystore integration/truststore.p12 \
   -storetype PKCS12 \
   -storepass ballerina \
@@ -90,6 +91,6 @@ kubectl delete secret ballerina-integration-secret -n ballerina
 
 
 kubectl create secret generic ballerina-integration-secret \
-  --from-file=ballerinaKeystore.p12=integration/keystore.p12 \
-  --from-file=ballerinaTruststore.p12=integration/truststore.p12 \
+  --from-file=keystore.p12=integration/keystore.p12 \
+  --from-file=truststore.p12=integration/truststore.p12 \
   -n ballerina
