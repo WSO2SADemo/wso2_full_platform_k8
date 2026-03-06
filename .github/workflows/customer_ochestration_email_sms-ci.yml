@@ -100,7 +100,7 @@ jobs:
         run: |
           printf '%s\n' "$CONFIGMAP_YAML" \
             | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
-            | kubectl apply -f -
+            | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
