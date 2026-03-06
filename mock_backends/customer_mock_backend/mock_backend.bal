@@ -27,7 +27,7 @@ service /oas on oasListener {
 
     function init() {
         log:printInfo("Initialize mock_backends");
-        error? tagResult = observe:addTag(tagKey = "deployment_type", tagValue = "Integration");
+        // error? tagResult = observe:addTag(tagKey = "deployment_type", tagValue = "Integration");
         if tagResult is error {
             log:printError("Failed to add observability tag", tagResult);
         }
