@@ -5,7 +5,7 @@ import ballerina/data.xmldata;
 import ballerina/file;
 // import ballerina/observe;
 // import ballerinax/wso2.controlplane as _;
-import ballerinax/wso2.apim.catalog as _;
+// import ballerinax/wso2.apim.catalog as _;
 // import ballerinax/moesif as _;
 
 // ============================================================================

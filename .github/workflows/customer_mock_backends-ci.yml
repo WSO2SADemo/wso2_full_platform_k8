@@ -21,7 +21,7 @@ jobs:
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: mock_backends/customer_mock_backend
       # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.18"
+      IMAGE_TAG: "1.0.19"
 
     steps:
       - name: Checkout Code
@@ -122,13 +122,13 @@ jobs:
               # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
               # nodeId="orchestration_and_email_sms"
 
-              [ballerinax.wso2.apim.catalog]
-              serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
-              tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
-              username="${{ secrets.APIM_USERNAME }}"
-              password="${{ secrets.APIM_PASSWORD }}"
-              clientId="${{ secrets.APIM_SERV_CATALOG_CLIENT_ID }}"
-              clientSecret="${{ secrets.APIM_SERV_CATALOG_CLIENT_SECRET }}"
+              # [ballerinax.wso2.apim.catalog]
+              # serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
+              # tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
+              # username="${{ secrets.APIM_USERNAME }}"
+              # password="${{ secrets.APIM_PASSWORD }}"
+              # clientId="${{ secrets.APIM_SERV_CATALOG_CLIENT_ID }}"
+              # clientSecret="${{ secrets.APIM_SERV_CATALOG_CLIENT_SECRET }}"
           EOF
 
           echo "Applying ConfigMap..."
