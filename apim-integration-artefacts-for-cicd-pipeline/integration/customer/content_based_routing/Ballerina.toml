@@ -1,0 +1,11 @@
+[package]
+org = "ramindu"
+name = "content_based_routing"
+version = "0.1.0"
+title = "content_based_routing"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+sticky = true
+observabilityIncluded=true

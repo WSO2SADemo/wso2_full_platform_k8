@@ -64,7 +64,7 @@ echo "1c. Creating ConfigMaps"
 echo "================================================"
 
 # CoreDNS custom config (maps wso2 hostnames to nginx ingress ClusterIP)
-kubectl apply -f "$ROOT_DIR/k8_deployments/am-control-plane/coredns-custom.yaml"
+kubectl apply -f "$ROOT_DIR/create_deployments/coredns-custom.yaml"
 kubectl rollout restart deployment coredns -n kube-system
 
 # IS config map (is-values)

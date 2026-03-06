@@ -1,0 +1,25 @@
+# Exposes the RabbitMQ Management UI at http://rabbitmq.wso2.com
+# Requires:
+#   1. rabbitmq.wso2.com → 10.43.234.238 in /etc/hosts (local machine)
+#   2. rabbitmq.wso2.com → 10.43.234.238 in coredns-custom ConfigMap (in-cluster DNS)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-management-ingress
+  namespace: rabbitmq
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: rabbitmq.wso2.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672

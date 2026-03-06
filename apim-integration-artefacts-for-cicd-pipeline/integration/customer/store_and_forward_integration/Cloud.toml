@@ -1,0 +1,4 @@
+[container.image]
+repository = "ramilu90"
+name = "store_and_forward_integration"
+tag = "1.0.0"

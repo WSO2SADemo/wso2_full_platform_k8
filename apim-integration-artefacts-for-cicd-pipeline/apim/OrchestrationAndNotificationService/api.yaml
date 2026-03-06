@@ -1,0 +1,184 @@
+type: api
+version: v4.6.0
+data:
+  id: 5b51eb35-f573-425f-95df-14e98dd745cd
+  name: Orchestration and Notification Service
+  displayName: Orchestration and Notification Service
+  description: |
+    Unified API hosting both orchestration and notification services.
+    - Orchestration service handles benefit registration workflow
+    - Notification service manages email and SMS notifications
+  context: /orchestrationandnotificationservice
+  version: 1.0.0
+  provider: admin
+  lifeCycleStatus: CREATED
+  responseCachingEnabled: false
+  cacheTimeout: 300
+  hasThumbnail: false
+  isDefaultVersion: false
+  isRevision: false
+  revisionId: 0
+  enableSchemaValidation: false
+  enableSubscriberVerification: false
+  type: HTTP
+  audiences:
+   - all
+  transport:
+   - http
+   - https
+  tags: []
+  policies:
+   - Unlimited
+  organizationPolicies: []
+  authorizationHeader: Authorization
+  apiKeyHeader: ApiKey
+  securityScheme:
+   - oauth_basic_auth_api_key_mandatory
+   - oauth2
+  visibility: PUBLIC
+  visibleRoles: []
+  visibleTenants: []
+  visibleOrganizations:
+   - none
+  mediationPolicies: []
+  subscriptionAvailability: CURRENT_TENANT
+  subscriptionAvailableTenants: []
+  additionalProperties:
+   -
+    name: usesSMS
+    value: "true"
+    display: true
+   -
+    name: usesEmail
+    value: "true"
+    display: true
+  additionalPropertiesMap:
+    usesSMS__display:
+      name: usesSMS
+      value: "true"
+      display: false
+    usesEmail__display:
+      name: usesEmail
+      value: "true"
+      display: false
+  accessControl: NONE
+  accessControlRoles: []
+  businessInformation: {}
+  corsConfiguration:
+    corsConfigurationEnabled: false
+    accessControlAllowOrigins:
+     - '*'
+    accessControlAllowCredentials: false
+    accessControlAllowHeaders:
+     - authorization
+     - Access-Control-Allow-Origin
+     - Content-Type
+     - SOAPAction
+    accessControlAllowMethods:
+     - GET
+     - PUT
+     - POST
+     - DELETE
+     - PATCH
+     - OPTIONS
+  websubSubscriptionConfiguration:
+    enable: false
+    secret: ""
+    signingAlgorithm: SHA1
+    signatureHeader: x-hub-signature
+  createdTime: "1772707811000"
+  lastUpdatedTimestamp: "1772708547000"
+  lastUpdatedTime: 2026-03-05 11:02:27.0
+  endpointConfig:
+    endpoint_type: http
+    sandbox_endpoints:
+      url: http://orchestration.ballerina.svc.cluster.local:9090
+    production_endpoints:
+      url: http://orchestration.ballerina.svc.cluster.local:9090
+  endpointImplementationType: ENDPOINT
+  subtypeConfiguration:
+    subtype: DEFAULT
+  scopes:
+   -
+    scope:
+      name: privilege
+      displayName: privilege
+      description: privilege
+      bindings: []
+    shared: true
+  operations:
+   -
+    id: ""
+    target: /api/benefits/register
+    verb: POST
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes:
+     - privilege
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v2
+        policyType: common
+        policyId: ebae6280-cbca-4359-a841-ffcdec77316c
+        parameters:
+          headerValue: abcd
+          headerName: api_id
+      response: []
+      fault: []
+   -
+    id: ""
+    target: /call_service_and_notify/send
+    verb: POST
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes:
+     - privilege
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v2
+        policyType: common
+        policyId: ebae6280-cbca-4359-a841-ffcdec77316c
+        parameters:
+          headerValue: abcd
+          headerName: api_id
+      response: []
+      fault: []
+   -
+    id: ""
+    target: /call_service_and_notify/health
+    verb: GET
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    scopes: []
+    usedProductIds: []
+    operationPolicies:
+      request:
+       -
+        policyName: addHeader
+        policyVersion: v2
+        policyType: common
+        policyId: ebae6280-cbca-4359-a841-ffcdec77316c
+        parameters:
+          headerValue: abcd
+          headerName: api_id
+      response: []
+      fault: []
+  categories: []
+  keyManagers:
+   - all
+  advertiseInfo:
+    advertised: false
+    apiOwner: admin
+    vendor: WSO2
+  gatewayVendor: wso2
+  gatewayType: wso2/synapse
+  initiatedFromGateway: false
+  asyncTransportProtocols: []
+  egress: false
+  organizationId: carbon.super

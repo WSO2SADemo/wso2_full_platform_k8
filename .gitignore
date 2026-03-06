@@ -26,6 +26,7 @@ ca.pem
 packs/
 packs/**
 
+*secret.yaml
 *secrets.yaml
 *secrets*.yaml
 secrets.yaml

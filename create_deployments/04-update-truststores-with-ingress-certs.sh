@@ -8,6 +8,20 @@ set -e
 # adds them to the client-truststore so GW can trust them.
 # ========================================
 
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+
+# make sure you have updated the /etc/hosts or CoreDNS to point cp.wso2.com and is.wso2.com to the ingress IP before running this step
+
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+# IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 KEYS_DIR="$ROOT_DIR/create_deployments/new_keys"

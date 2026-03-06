@@ -1,0 +1,421 @@
+# OpenAPI Definition for Combined Services
+
+openapi: 3.0.0
+info:
+  title: Combined Orchestration and Notification Services
+  description: |
+    Unified API hosting both orchestration and notification services.
+    - Orchestration service handles benefit registration workflow
+    - Notification service manages email and SMS notifications
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:9090
+    description: Local development server
+
+paths:
+  /api/benefits/register:
+    post:
+      tags:
+        - Orchestration
+      summary: Register benefit application
+      description: |
+        Complete orchestration flow that:
+        1. Submits application to Cash Registry for calculation
+        2. Registers the calculated benefit to OAS
+        3. Verifies registration by looking up in OAS
+      operationId: registerBenefit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrchestrationRequest'
+            example:
+              personalNumber: "198001011234"
+              kassaName: "TestKassa"
+              previousMonthlySalary: 35000.00
+              workCertificates:
+                - "cert1.pdf"
+                - "cert2.pdf"
+      responses:
+        '200':
+          description: Benefit successfully calculated and registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              example:
+                success: true
+                message: "Benefit successfully calculated and registered"
+                calculation:
+                  approved: true
+                  dailyAllowance: 910.00
+                  incomeBase: "High"
+                  totalDays: 300
+                  message: "Application approved"
+                registration:
+                  success: true
+                  message: "Member registered successfully"
+                  registrationId: "REG-123456"
+                finalBenefit:
+                  personalNumber: "198001011234"
+                  kassaName: "TestKassa"
+                  isMember: true
+                  dailyAllowance: 910.00
+                  incomeBase: "High"
+                  remainingDays: 300
+                  registrationDate: "2024-01-15"
+                  lastUpdated: "2024-01-15T10:30:00Z"
+        '400':
+          description: Application not approved or invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              example:
+                success: false
+                message: "Application not approved - insufficient work certificates"
+                calculation:
+                  approved: false
+                  dailyAllowance: 0.00
+                  incomeBase: "None"
+                  totalDays: 0
+                  message: "Application not approved - insufficient work certificates"
+                registration: null
+                finalBenefit: null
+        '500':
+          description: Internal server error during orchestration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationResponse'
+              example:
+                success: false
+                message: "Failed to calculate benefit at Cash Registry"
+                calculation: null
+                registration: null
+                finalBenefit: null
+
+  /call_service_and_notify/send:
+    post:
+      tags:
+        - Notification
+      summary: Send notification via email and SMS
+      description: |
+        Orchestrates the complete notification flow:
+        1. Calls notification/servicecall for logging
+        2. Sends email notification (if enabled)
+        3. Sends SMS notification (if enabled)
+      operationId: sendNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationOrchRequest'
+            examples:
+              fullNotification:
+                summary: Send both email and SMS
+                value:
+                  message: "Your benefit application has been approved"
+                  data:
+                    applicationId: "APP-123456"
+                    amount: 910.00
+                  sendEmail: true
+                  sendSms: true
+              emailOnly:
+                summary: Send email only
+                value:
+                  message: "Your benefit application has been approved"
+                  sendEmail: true
+                  sendSms: false
+              smsOnly:
+                summary: Send SMS only
+                value:
+                  message: "Your benefit application has been approved"
+                  sendEmail: false
+                  sendSms: true
+      responses:
+        '200':
+          description: Notification processed (may include partial failures)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationOrchResponse'
+              examples:
+                success:
+                  summary: All notifications sent successfully
+                  value:
+                    success: true
+                    message: "Notification sent successfully"
+                    logId: "LOG-789012"
+                    emailSent: true
+                    smsSent: true
+                partialFailure:
+                  summary: Some notifications failed
+                  value:
+                    success: false
+                    message: "Notification completed with errors"
+                    logId: "LOG-789013"
+                    emailSent: true
+                    smsSent: false
+                    errors:
+                      - "Failed to send SMS: Invalid phone number"
+        '500':
+          description: Internal server error during notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationOrchResponse'
+              example:
+                success: false
+                message: "Failed to call notification service"
+                errors:
+                  - "Failed to call notification service: Connection timeout"
+
+  /call_service_and_notify/health:
+    get:
+      tags:
+        - Notification
+      summary: Health check for notification service
+      description: Returns the health status of the notification service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Notification Orchestration Service is running on port 9090"
+
+components:
+  schemas:
+    OrchestrationRequest:
+      type: object
+      required:
+        - personalNumber
+        - kassaName
+        - previousMonthlySalary
+        - workCertificates
+      properties:
+        personalNumber:
+          type: string
+          description: Swedish personal number (personnummer)
+          pattern: '^\d{10,12}$'
+          example: "198001011234"
+        kassaName:
+          type: string
+          description: Name of the unemployment insurance fund (a-kassa)
+          example: "TestKassa"
+        previousMonthlySalary:
+          type: number
+          format: decimal
+          description: Previous monthly salary in SEK
+          minimum: 0
+          example: 35000.00
+        workCertificates:
+          type: array
+          description: List of work certificate references
+          items:
+            type: string
+          minItems: 1
+          example:
+            - "cert1.pdf"
+            - "cert2.pdf"
+
+    OrchestrationResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the orchestration was successful
+          example: true
+        message:
+          type: string
+          description: Human-readable message about the result
+          example: "Benefit successfully calculated and registered"
+        calculation:
+          $ref: '#/components/schemas/BenefitCalculationResponse'
+        registration:
+          $ref: '#/components/schemas/RegistrationResponse'
+        finalBenefit:
+          $ref: '#/components/schemas/MemberBenefit'
+
+    BenefitCalculationResponse:
+      type: object
+      required:
+        - approved
+        - dailyAllowance
+        - incomeBase
+        - totalDays
+        - message
+      properties:
+        approved:
+          type: boolean
+          description: Whether the application was approved
+          example: true
+        dailyAllowance:
+          type: number
+          format: decimal
+          description: Daily allowance amount in SEK
+          example: 910.00
+        incomeBase:
+          type: string
+          description: Income base category
+          enum:
+            - High
+            - Medium
+            - Low
+            - None
+          example: "High"
+        totalDays:
+          type: integer
+          description: Total number of benefit days
+          minimum: 0
+          example: 300
+        message:
+          type: string
+          description: Message about the calculation result
+          example: "Application approved"
+
+    RegistrationResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the registration was successful
+          example: true
+        message:
+          type: string
+          description: Message about the registration result
+          example: "Member registered successfully"
+        registrationId:
+          type: string
+          description: Unique registration identifier
+          example: "REG-123456"
+
+    MemberBenefit:
+      type: object
+      required:
+        - personalNumber
+        - kassaName
+        - isMember
+        - dailyAllowance
+        - incomeBase
+        - remainingDays
+        - registrationDate
+        - lastUpdated
+      properties:
+        personalNumber:
+          type: string
+          description: Swedish personal number
+          example: "198001011234"
+        kassaName:
+          type: string
+          description: Name of the unemployment insurance fund
+          example: "TestKassa"
+        isMember:
+          type: boolean
+          description: Whether the person is an active member
+          example: true
+        dailyAllowance:
+          type: number
+          format: decimal
+          description: Daily allowance amount in SEK
+          example: 910.00
+        incomeBase:
+          type: string
+          description: Income base category
+          example: "High"
+        remainingDays:
+          type: integer
+          description: Number of remaining benefit days
+          minimum: 0
+          example: 300
+        registrationDate:
+          type: string
+          format: date
+          description: Date of registration
+          example: "2024-01-15"
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+
+    NotificationOrchRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: The notification message to send
+          example: "Your benefit application has been approved"
+        data:
+          type: object
+          description: Additional data to include in the notification
+          additionalProperties: true
+          example:
+            applicationId: "APP-123456"
+            amount: 910.00
+        sendEmail:
+          type: boolean
+          description: Whether to send email notification (default true)
+          default: true
+          example: true
+        sendSms:
+          type: boolean
+          description: Whether to send SMS notification (default true)
+          default: true
+          example: true
+
+    NotificationOrchResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the notification was successful
+          example: true
+        message:
+          type: string
+          description: Human-readable message about the result
+          example: "Notification sent successfully"
+        logId:
+          type: string
+          description: Log identifier from the notification service
+          example: "LOG-789012"
+        emailSent:
+          type: boolean
+          description: Whether email was sent successfully
+          example: true
+        smsSent:
+          type: boolean
+          description: Whether SMS was sent successfully
+          example: true
+        errors:
+          type: array
+          description: List of errors that occurred (if any)
+          items:
+            type: string
+          example:
+            - "Failed to send SMS: Invalid phone number"
+
+tags:
+  - name: Orchestration
+    description: Benefit registration orchestration endpoints
+  - name: Notification
+    description: Email and SMS notification endpoints

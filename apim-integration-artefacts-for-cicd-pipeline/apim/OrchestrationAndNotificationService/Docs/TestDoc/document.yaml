@@ -1,0 +1,9 @@
+type: document
+version: v4.6.0
+data:
+  documentId: 2054ea7e-b463-4a85-a008-e733f0b8703d
+  name: TestDoc
+  type: HOWTO
+  summary: testing content
+  sourceType: MARKDOWN
+  visibility: API_LEVEL

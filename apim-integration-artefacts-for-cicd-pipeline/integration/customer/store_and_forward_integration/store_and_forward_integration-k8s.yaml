@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ballerina
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: store-and-forward-integration-deployment
+  namespace: ballerina
+  labels:
+    app: store_and_forward_integration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: store_and_forward_integration
+  template:
+    metadata:
+      labels:
+        app: store_and_forward_integration
+    spec:
+      containers:
+        - name: store-and-forward-integration-deployment
+          image: ramilu90/store_and_forward_integration:1.0.0
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "15"]
+          ports:
+            - containerPort: 9085   # HTTP API
+            - containerPort: 9264   # Ballerina management / observability
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          envFrom:
+            - configMapRef:
+                name: ballerina-values-store-and-forward
+          volumeMounts:
+            - name: keystore-vol
+              mountPath: /home/ballerina/bre/security
+              readOnly: true
+      volumes:
+        - name: keystore-vol
+          secret:
+            secretName: ballerina-integration-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: store-and-forward-integration
+  namespace: ballerina
+  labels:
+    app: store_and_forward_integration
+spec:
+  type: ClusterIP
+  selector:
+    app: store_and_forward_integration
+  ports:
+    - name: http-api
+      port: 9085
+      targetPort: 9085
+      protocol: TCP
+    - name: management
+      port: 9264
+      targetPort: 9264
+      protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: store-and-forward-integration-hpa
+  namespace: ballerina
+  labels:
+    app: store_and_forward_integration
+spec:
+  minReplicas: 1
+  maxReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: store-and-forward-integration-deployment
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

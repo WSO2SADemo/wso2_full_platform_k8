@@ -85,8 +85,8 @@ else
     echo "⚠️  Warning: Could not fetch cp.wso2.com cert. Ensure the ingress is running."
 fi
 
-if [ -s cp-ingress.crt ]; then
-    echo "Importing CP Ingress Cert..."
+if [ -s is-ingress.crt ]; then
+    echo "Importing IS Ingress Cert..."
     keytool -importcert -alias is-ingress -file is-ingress.crt -keystore client-truststore.jks -storepass wso2carbon -noprompt
 else
     echo "⚠️  Warning: Could not fetch is.wso2.com cert. Ensure the ingress is running."

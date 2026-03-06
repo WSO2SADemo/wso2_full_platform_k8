@@ -1,0 +1,36 @@
+[container.image]
+repository="ramilu90"
+name="content_based_routing"
+tag="1.0.0"
+
+# -----------------------------------------------------------------------
+# ConfigMap: ballerina-values-content-based-routing
+# Fund recipient URLs + routing thresholds
+# -----------------------------------------------------------------------
+[[cloud.config.envs]]
+key_ref="fundAUrl"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="fundBUrl"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="fundCUrl"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="defaultRecipientUrl"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="highValueUrl"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="highValueThresholdStr"
+config_name="ballerina-values-content-based-routing"
+
+[[cloud.config.envs]]
+key_ref="BAL_CONFIG_DATA"
+config_name="ballerina-values-content-based-routing"

@@ -2,8 +2,10 @@ wso2:
   deployment:
     image:
       registry: docker.io
-      repository: "ramilu90/wso2acp-arm:4.6.0"
-      digest: "sha256:a179890feca7e55018d38ffc713b2188f8707317f318a42cc42965f984dffe1b"
+      # repository: "ramilu90/wso2acp-arm:4.6.0"
+      # digest: "sha256:a179890feca7e55018d38ffc713b2188f8707317f318a42cc42965f984dffe1b"
+      repository: "ramilu90/wso2acp-amd64:4.6.0"
+      digest: "sha256:370ef654237afb56a330ef0ca15b1c94431dde0a6496729dfa32fe17f8b8875c"
     resources:
       requests:
         cpu: "0.5"  # Guarantee 0.5 CPU to start

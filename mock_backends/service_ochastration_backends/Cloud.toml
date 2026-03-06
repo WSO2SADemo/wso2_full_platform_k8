@@ -1,0 +1,4 @@
+[container.image]
+repository = "ramilu90"
+name = "service_ochastration_backends"
+tag = "1.0.0"

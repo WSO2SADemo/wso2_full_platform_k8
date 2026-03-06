@@ -1,0 +1,221 @@
+name: Integration - Ochastration and Email/SMS
+
+on:
+  push:
+    paths:
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms/**'
+      - '.github/workflows/customer_ochestration_email_sms-ci.yml'
+    branches:
+      - main
+
+  # Allows manual triggering
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      BALLERINA_NAMESPACE: ballerina
+      PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms
+      # Must match Cloud.toml [container.image].tag
+      IMAGE_TAG: "1.0.7"
+      # ConfigMap is applied manually (contains sensitive data) before running this pipeline
+      CONFIG_MAP_NAME: "ballerina-values-ochastration-and-email-sms"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Debug - Print Environment Variables
+        run: |
+          echo "Current Working Directory: $(pwd)"
+          echo "PROJECT_DIR: ${{ env.PROJECT_DIR }}"
+          echo "IMAGE_TAG: ${{ env.IMAGE_TAG }}"
+
+      - name: Set up Ballerina
+        uses: ballerina-platform/setup-ballerina@v1
+        with:
+          version: 2201.13.1
+
+      - name: Cache Ballerina Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.ballerina
+          key: ballerina-deps-${{ hashFiles('apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms/Ballerina.toml') }}
+          restore-keys: |
+            ballerina-deps-
+
+      - name: Build Ballerina Project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: bal build
+
+      - name: 🔐 Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # -----------------------------------------------------------------------
+      # Push the image that Ballerina built (tag comes from Cloud.toml).
+      # IMAGE_TAG env var must match Cloud.toml [container.image].tag.
+      # -----------------------------------------------------------------------
+      - name: 📦 Push Docker Image
+        run: |
+          IMAGE_NAME="ramilu90/orchestration_and_email_sms:${{ env.IMAGE_TAG }}"
+          echo "Pushing image: ${IMAGE_NAME}"
+          docker push "${IMAGE_NAME}"
+
+      # -----------------------------------------------------------------------
+      # AKS authentication – must happen before any kubectl commands
+      # -----------------------------------------------------------------------
+      - name: 🔐 Azure Login via Service Principal
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
+
+      - name: 🚢 Set AKS Kubectl Context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      - name: 🚀 Ensure Namespace Exists
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl get namespace ${NAMESPACE}
+
+      # -----------------------------------------------------------------------
+      # ConfigMap contains sensitive SMTP/Twilio credentials and is applied
+      # manually before running this pipeline. Only verify it exists here.
+      # -----------------------------------------------------------------------
+      - name: ✅ Verify ConfigMap Exists
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          CONFIG_MAP="${{ env.CONFIG_MAP_NAME }}"
+          echo "Checking ConfigMap '${CONFIG_MAP}' in namespace '${NAMESPACE}'..."
+          if ! kubectl get configmap "${CONFIG_MAP}" -n "${NAMESPACE}" > /dev/null 2>&1; then
+            echo "❌ ConfigMap '${CONFIG_MAP}' not found."
+            echo "   Apply it manually before running this pipeline:"
+            echo "   kubectl apply -f apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms/config-map-orchestration_and_email.yaml -n ${NAMESPACE}"
+            exit 1
+          fi
+          echo "✅ ConfigMap '${CONFIG_MAP}' found."
+
+      # -----------------------------------------------------------------------
+      # The ballerina-secrets Secret (SMTP + Twilio credentials) must be
+      # applied manually before running this pipeline.
+      # -----------------------------------------------------------------------
+      - name: ✅ Verify Ballerina Secret Exists
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          SECRET_NAME="ballerina-secrets"
+          echo "Checking secret '${SECRET_NAME}' in namespace '${NAMESPACE}'..."
+          if ! kubectl get secret "${SECRET_NAME}" -n "${NAMESPACE}" > /dev/null 2>&1; then
+            echo "❌ Secret '${SECRET_NAME}' not found."
+            echo "   Create it manually before running this pipeline with smtpUsername, smtpPassword, twilioAccountSid, twilioAuthToken keys."
+            exit 1
+          fi
+          echo "✅ Secret '${SECRET_NAME}' found."
+
+      - name: 🔍 Debug - Check K8s Artifacts Directory
+        run: |
+          K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/orchestration_and_email_sms"
+          if [ -d "${K8S_ARTIFACTS_DIR}" ]; then
+            echo "${K8S_ARTIFACTS_DIR} directory exists. Contents:"
+            ls -la ${K8S_ARTIFACTS_DIR}
+          else
+            echo "Error: ${K8S_ARTIFACTS_DIR} does NOT exist after build."
+            exit 1
+          fi
+
+      # -----------------------------------------------------------------------
+      # Deploy: delete stale resources first, then apply fresh
+      # -----------------------------------------------------------------------
+      - name: Deploy Kubernetes Resources
+        run: |
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/orchestration_and_email_sms"
+
+          echo "Deleting existing resources from ${K8S_DIR}..."
+          kubectl delete -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found=true
+
+          echo "Applying new resources from ${K8S_DIR}..."
+          kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
+
+      # -----------------------------------------------------------------------
+      # Service: the Ballerina-generated YAML contains no Service resource.
+      # Apply a complete Service definition covering all listener ports.
+      #
+      # Ports exposed by orchestration_and_email_sms:
+      #   9090 – Combined API (combined_services.bal – combinedListener)
+      #          Hosts /api (benefit registration) and /call_service_and_notify (email/SMS)
+      #   9097 – Notification service port (reserved; previously integration_notification_service.bal)
+      #   9264 – Ballerina management API
+      # -----------------------------------------------------------------------
+      - name: Ensure Service & Patch Ports
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: orchestration
+            namespace: ${NAMESPACE}
+            labels:
+              app: orchestration_and_email_sms
+          spec:
+            type: ClusterIP
+            selector:
+              app: orchestration_and_email_sms
+            ports:
+              - name: combined
+                port: 9090
+                targetPort: 9090
+                protocol: TCP
+              - name: notification
+                port: 9097
+                targetPort: 9097
+                protocol: TCP
+              - name: management
+                port: 9264
+                targetPort: 9264
+                protocol: TCP
+          EOF
+
+          echo "Service applied. Current state:"
+          kubectl get svc orchestration -n ${NAMESPACE} -o wide
+
+      - name: Patch Deployment (Volume Mounts & Env)
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          DEPLOYMENT="orchestration-a-deployment"
+
+          CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
+          echo "Patching Deployment $DEPLOYMENT (Container: $CONTAINER_NAME)..."
+
+          kubectl patch deployment $DEPLOYMENT -n $NAMESPACE --patch "
+          spec:
+            template:
+              spec:
+                volumes:
+                - name: keystore-vol
+                  secret:
+                    secretName: ballerina-integration-secret
+                containers:
+                - name: $CONTAINER_NAME
+                  volumeMounts:
+                  - name: keystore-vol
+                    mountPath: /home/ballerina/bre/security
+                    readOnly: true
+          "
+
+          # Restart to pick up latest config and volume mounts
+          kubectl rollout restart deployment/$DEPLOYMENT -n $NAMESPACE
+
+          echo "Waiting for successful rollout..."
+          kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=120s

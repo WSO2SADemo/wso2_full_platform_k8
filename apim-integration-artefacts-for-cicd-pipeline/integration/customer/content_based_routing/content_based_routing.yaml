@@ -1,0 +1,172 @@
+openapi: "3.0.0"
+info:
+  title: "Content-Based Routing Service"
+  description: |
+    SOAP-over-HTTP integration service that receives benefit notifications
+    from Sweden's unemployment insurance funds, validates them against an
+    XSD schema, and routes them to the correct recipient based on SOAP Header
+    content (senderName) and Body content (benefitAmount threshold).
+  version: "1.0.0"
+  contact:
+    name: "Integration Platform"
+
+servers:
+  - url: "http://content-based-routing.ballerina.svc.cluster.local:9095"
+    description: "Internal cluster endpoint"
+
+paths:
+  /soap/routing:
+    post:
+      summary: "Distribute a benefit notification to the correct fund recipient"
+      description: |
+        Accepts a SOAP 1.1 envelope containing a BenefitNotification payload.
+
+        **Processing steps:**
+        1. Extract `senderName` and `senderId` from `<soap:Header>`
+        2. Extract `BenefitNotification` from `<soap:Body>`
+        3. Validate body against XSD schema
+        4. Route to recipient based on `senderName`
+        5. If `benefitAmount > 50000` also forward to store-and-forward service
+        6. Return SOAP acknowledgement
+
+        **Routing table:**
+        - `AFA`     → Fund11 toggleable receiver (port 9101)
+        - `Alfa`    → Notification mock backend (port 9096)
+        - `Folksam` → Notification mock backend (port 9096)
+        - default   → Notification mock backend (port 9096)
+      operationId: "routeBenefitNotification"
+      requestBody:
+        required: true
+        content:
+          text/xml:
+            schema:
+              type: string
+              format: xml
+            example: |
+              <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                             xmlns:un="http://unemployment.sweden.se/notification">
+                <soap:Header>
+                  <un:SenderHeader>
+                    <un:senderName>AFA</un:senderName>
+                    <un:senderId>AFA-001</un:senderId>
+                  </un:SenderHeader>
+                </soap:Header>
+                <soap:Body>
+                  <un:BenefitNotification>
+                    <un:personalNumber>198501011234</un:personalNumber>
+                    <un:benefitAmount>35000.00</un:benefitAmount>
+                    <un:benefitType>STANDARD</un:benefitType>
+                    <un:periodStart>2026-01-01</un:periodStart>
+                    <un:periodEnd>2026-03-31</un:periodEnd>
+                    <un:message>Benefit notification for Q1 2026</un:message>
+                  </un:BenefitNotification>
+                </soap:Body>
+              </soap:Envelope>
+      responses:
+        "200":
+          description: "Message validated, routed, and acknowledged"
+          content:
+            text/xml:
+              schema:
+                type: string
+                format: xml
+              example: |
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <DistributionAcknowledgement>
+                      <status>ACCEPTED</status>
+                      <correlationId>a1b2c3d4-e5f6-7890-abcd-ef1234567890</correlationId>
+                      <routedTo>AFA-Fund-A</routedTo>
+                      <message>Message validated and distributed successfully</message>
+                    </DistributionAcknowledgement>
+                  </soap:Body>
+                </soap:Envelope>
+        "400":
+          description: |
+            Validation failure. Returned as a SOAP Fault for:
+            - Missing senderName in SOAP Header
+            - Missing BenefitNotification element in SOAP Body
+            - XSD schema validation failure
+            - Invalid benefitAmount value
+          content:
+            text/xml:
+              schema:
+                type: string
+                format: xml
+              example: |
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <soap:Fault>
+                      <faultcode>soap:Client</faultcode>
+                      <faultstring>XSD validation failed: Element benefitAmount is required</faultstring>
+                    </soap:Fault>
+                  </soap:Body>
+                </soap:Envelope>
+        "500":
+          description: "Internal server error"
+
+  /soap/health:
+    get:
+      summary: "Health check"
+      operationId: "healthCheck"
+      responses:
+        "200":
+          description: "Service is running"
+          content:
+            text/plain:
+              example: "Content-Based Routing Service is running on port 9095"
+
+components:
+  schemas:
+    BenefitNotification:
+      description: |
+        XSD-validated payload inside the SOAP Body.
+        Namespace: http://unemployment.sweden.se/notification
+      type: object
+      required:
+        - personalNumber
+        - benefitAmount
+        - benefitType
+        - periodStart
+        - periodEnd
+      properties:
+        personalNumber:
+          type: string
+          example: "198501011234"
+        benefitAmount:
+          type: number
+          format: decimal
+          description: "Amount in SEK. Values > 50000 trigger additional high-value routing."
+          example: 35000.00
+        benefitType:
+          type: string
+          enum: [STANDARD, PARTIAL, INCOME_RELATED]
+          example: "STANDARD"
+        periodStart:
+          type: string
+          format: date
+          example: "2026-01-01"
+        periodEnd:
+          type: string
+          format: date
+          example: "2026-03-31"
+        message:
+          type: string
+          description: "Optional free-text description"
+          example: "Benefit notification for Q1 2026"
+
+    DistributionAcknowledgement:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ACCEPTED, FORWARDING_FAILED]
+        correlationId:
+          type: string
+          format: uuid
+        routedTo:
+          type: string
+          description: "Recipient name, includes HIGH-VALUE note if applicable"
+          example: "AFA-Fund-A [HIGH-VALUE: also sent to store-and-forward]"
+        message:
+          type: string
