@@ -1,6 +1,4 @@
 // Configuration for OAS and Cash Registry services
-import ballerina/os;
-
 // OAS Service Configuration
 configurable int oasServicePort = 9092;
 
