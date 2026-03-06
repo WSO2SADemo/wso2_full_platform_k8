@@ -5,7 +5,7 @@ import ballerina/http;
 import ballerina/log;
 import ballerina/email;
 import ballerinax/twilio;
-import ballerinax/wso2.apim.catalog as _;
+// import ballerinax/wso2.apim.catalog as _;
 import ballerinax/moesif as _;
 
 // Single listener for both services

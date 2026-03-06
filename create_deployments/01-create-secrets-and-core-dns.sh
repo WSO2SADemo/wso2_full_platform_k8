@@ -56,6 +56,10 @@ kubectl create secret generic ballerina-integration-secret \
   --from-file=truststore.p12="$ROOT_DIR/integration/truststore.p12" \
   -n ballerina
 
+echo "Creating ballerina-secrets in ballerina..."
+kubectl delete secret ballerina-secrets -n ballerina --ignore-not-found=true
+kubectl apply -f "$ROOT_DIR/integration/ballerina-secrets.yaml" -n ballerina
+
 echo "================================================"
 echo "1b. Creating app secrets"
 echo "================================================"
