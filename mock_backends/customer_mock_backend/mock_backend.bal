@@ -28,9 +28,9 @@ service /oas on oasListener {
     function init() {
         log:printInfo("Initialize mock_backends");
         // error? tagResult = observe:addTag(tagKey = "deployment_type", tagValue = "Integration");
-        if tagResult is error {
-            log:printError("Failed to add observability tag", tagResult);
-        }
+        // if tagResult is error {
+        //     log:printError("Failed to add observability tag", tagResult);
+        // }
     }
 
     // Register or update member benefit data (called by Cash Registries)
