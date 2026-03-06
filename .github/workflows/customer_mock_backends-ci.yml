@@ -21,7 +21,7 @@ jobs:
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: mock_backends/customer_mock_backend
       # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.20"
+      IMAGE_TAG: "1.0.21"
 
     steps:
       - name: Checkout Code
