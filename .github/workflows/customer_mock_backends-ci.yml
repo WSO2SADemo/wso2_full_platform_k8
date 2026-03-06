@@ -21,7 +21,7 @@ jobs:
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: mock_backends/customer_mock_backend
       # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.17"
+      IMAGE_TAG: "1.0.18"
 
     steps:
       - name: Checkout Code
@@ -101,19 +101,19 @@ jobs:
             namespace: $NAMESPACE
           data:
             BAL_CONFIG_DATA: |
-              [ballerina.observe]
-              tracingEnabled=true
-              tracingProvider="moesif"
-              metricsEnabled=true
-              metricsReporter="moesif"
+              # [ballerina.observe]
+              # tracingEnabled=true
+              # tracingProvider="moesif"
+              # metricsEnabled=true
+              # metricsReporter="moesif"
 
-              [ballerinax.moesif]
-              applicationId = "${{ secrets.MOESIF_APPID }}"
-              reporterBaseUrl = "https://api.moesif.net"
-              tracingReporterFlushInterval = 1000
-              tracingReporterBufferSize = 10000
-              isTraceLoggingEnabled = false
-              isPayloadLoggingEnabled = false
+              # [ballerinax.moesif]
+              # applicationId = "${{ secrets.MOESIF_APPID }}"
+              # reporterBaseUrl = "https://api.moesif.net"
+              # tracingReporterFlushInterval = 1000
+              # tracingReporterBufferSize = 10000
+              # isTraceLoggingEnabled = false
+              # isPayloadLoggingEnabled = false
 
               # [ballerinax.wso2.controlplane.dashboard]
               # url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
