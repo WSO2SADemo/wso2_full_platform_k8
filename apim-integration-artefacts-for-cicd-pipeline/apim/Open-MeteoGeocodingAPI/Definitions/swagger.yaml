@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: Open-MeteoGeocodingAPI
+  description: Search locations globally by name using the Open-Meteo geocoding service.
+  version: 1.0.0
+servers:
+ -
+  url: https://geocoding-api.open-meteo.com
+security:
+ -
+  default: []
+paths:
+  /v1/search:
+    get:
+      summary: Search location by name
+      description: Returns matching locations with coordinates and metadata.
+      parameters:
+       -
+        name: name
+        in: query
+        description: Location name or postal code to search.
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: Helsinki
+       -
+        name: count
+        in: query
+        description: Number of results to return (max 100).
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: integer
+          example: 1
+          default: 10
+       -
+        name: language
+        in: query
+        description: Language for returned location names.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: en
+       -
+        name: countryCode
+        in: query
+        description: Filter by ISO-3166 country code.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          example: FI
+       -
+        name: format
+        in: query
+        description: Response format.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          default: json
+          enum:
+           - json
+           - protobuf
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Location"
+                  generationtime_ms:
+                    type: number
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+components:
+  schemas:
+    Location:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 658225
+        name:
+          type: string
+          example: Helsinki
+        latitude:
+          type: number
+          example: 60.1699
+        longitude:
+          type: number
+          example: 24.9384
+        elevation:
+          type: number
+          example: 17
+        timezone:
+          type: string
+          example: Europe/Helsinki
+        country:
+          type: string
+          example: Finland
+        country_code:
+          type: string
+          example: FI
+        population:
+          type: integer
+          example: 631695
+        admin1:
+          type: string
+          example: Uusimaa
+    Error:
+      type: object
+      properties:
+        error:
+          type: boolean
+          example: true
+        reason:
+          type: string
+          example: Parameter count must be between 1 and 100.
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://test.com
+          scopes: {}
+x-wso2-auth-header: Authorization
+x-wso2-api-key-header: ApiKey
+x-wso2-cors:
+  corsConfigurationEnabled: false
+  accessControlAllowOrigins:
+   - '*'
+  accessControlAllowCredentials: false
+  accessControlAllowHeaders:
+   - authorization
+   - Access-Control-Allow-Origin
+   - Content-Type
+   - SOAPAction
+   - apikey
+   - Internal-Key
+  accessControlAllowMethods:
+   - GET
+   - PUT
+   - POST
+   - DELETE
+   - PATCH
+   - OPTIONS
+x-wso2-production-endpoints:
+  urls:
+   - https://geocoding-api.open-meteo.com
+  type: http
+x-wso2-sandbox-endpoints:
+  urls:
+   - https://geocoding-api.open-meteo.com
+  type: http
+x-wso2-basePath: /open-meteogeocodingapi/1.0.0
+x-wso2-transports:
+ - http
+ - https
+x-wso2-application-security:
+  security-types:
+   - oauth2
+  optional: false
+x-wso2-response-cache:
+  enabled: false
+  cacheTimeoutInSeconds: 300
