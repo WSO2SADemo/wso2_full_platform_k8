@@ -74,6 +74,16 @@ service /api on combinedListener {
     function init() {
         log:printInfo("Initialize orchestration service on combined listener");
         log:printInfo("Initialize cashRegistryUrl: " + cashRegistryUrl);
+
+        // Health check: verify connectivity to mock backend OAS service
+        http:Response|http:ClientError healthResult = oasOrchClient->get("/health");
+        if healthResult is http:ClientError {
+            log:printError("Mock backend health check failed - could not reach OAS: " + healthResult.message());
+        } else if healthResult.statusCode == 200 {
+            log:printInfo("Mock backend health check passed - connection to OAS is working");
+        } else {
+            log:printWarn(string `Mock backend health check returned unexpected status: ${healthResult.statusCode}`);
+        }
     }
 
     // Complete orchestration: Calculate benefit, register to OAS, and return final result

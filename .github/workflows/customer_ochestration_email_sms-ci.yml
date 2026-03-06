@@ -1,4 +1,4 @@
-name: Integration - Ochastration and Email/SMS
+name: Integration - Ochastrate and Notify via Email/SMS
 
 on:
   push:
@@ -22,8 +22,8 @@ jobs:
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms
       # Must match Cloud.toml [container.image].tag
       IMAGE_TAG: "1.0.7"
-      # ConfigMap is applied manually (contains sensitive data) before running this pipeline
-      CONFIG_MAP_NAME: "ballerina-values-ochastration-and-email-sms"
+      # Secrets required in GitHub → Settings → Secrets and variables → Actions:
+      #   ORCHESTRATION_CONFIGMAP_YAML  – full ConfigMap YAML with __NAMESPACE__ as placeholder
 
     steps:
       - name: Checkout Code
@@ -90,37 +90,15 @@ jobs:
           kubectl get namespace ${NAMESPACE}
 
       # -----------------------------------------------------------------------
-      # ConfigMap contains sensitive SMTP/Twilio credentials and is applied
-      # manually before running this pipeline. Only verify it exists here.
+      # ConfigMap – rendered from ORCHESTRATION_CONFIGMAP_YAML secret.
+      # The secret must contain the full ConfigMap YAML with __NAMESPACE__
+      # as the namespace placeholder.
       # -----------------------------------------------------------------------
-      - name: ✅ Verify ConfigMap Exists
+      - name: Create ConfigMap
         run: |
-          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          CONFIG_MAP="${{ env.CONFIG_MAP_NAME }}"
-          echo "Checking ConfigMap '${CONFIG_MAP}' in namespace '${NAMESPACE}'..."
-          if ! kubectl get configmap "${CONFIG_MAP}" -n "${NAMESPACE}" > /dev/null 2>&1; then
-            echo "❌ ConfigMap '${CONFIG_MAP}' not found."
-            echo "   Apply it manually before running this pipeline:"
-            echo "   kubectl apply -f apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms/config-map-orchestration_and_email.yaml -n ${NAMESPACE}"
-            exit 1
-          fi
-          echo "✅ ConfigMap '${CONFIG_MAP}' found."
-
-      # -----------------------------------------------------------------------
-      # The ballerina-secrets Secret (SMTP + Twilio credentials) must be
-      # applied manually before running this pipeline.
-      # -----------------------------------------------------------------------
-      - name: ✅ Verify Ballerina Secret Exists
-        run: |
-          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          SECRET_NAME="ballerina-secrets"
-          echo "Checking secret '${SECRET_NAME}' in namespace '${NAMESPACE}'..."
-          if ! kubectl get secret "${SECRET_NAME}" -n "${NAMESPACE}" > /dev/null 2>&1; then
-            echo "❌ Secret '${SECRET_NAME}' not found."
-            echo "   Create it manually before running this pipeline with smtpUsername, smtpPassword, twilioAccountSid, twilioAuthToken keys."
-            exit 1
-          fi
-          echo "✅ Secret '${SECRET_NAME}' found."
+          echo "${{ secrets.ORCHESTRATION_CONFIGMAP_YAML }}" \
+            | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
+            | kubectl apply -f -
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
@@ -200,6 +178,7 @@ jobs:
 
           kubectl patch deployment $DEPLOYMENT -n $NAMESPACE --patch "
           spec:
+            replicas: 1
             template:
               spec:
                 volumes:
@@ -208,6 +187,9 @@ jobs:
                     secretName: ballerina-integration-secret
                 containers:
                 - name: $CONTAINER_NAME
+                  envFrom:
+                  - configMapRef:
+                      name: ballerina-values-ochastration-and-email-sms
                   volumeMounts:
                   - name: keystore-vol
                     mountPath: /home/ballerina/bre/security
