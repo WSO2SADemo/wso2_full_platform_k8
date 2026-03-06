@@ -48,6 +48,14 @@ openssl pkcs12 -in "$KEYS_DIR/wso2carbon.p12" -nokeys -out /tmp/wso2carbon.crt -
 kubectl create secret tls is-tls --cert=/tmp/wso2carbon.crt --key=/tmp/wso2carbon.key -n iam
 rm -f /tmp/wso2carbon.key /tmp/wso2carbon.crt
 
+echo "Creating ballerina-integration-secret in ballerina..."
+kubectl delete secret ballerina-integration-secret -n ballerina --ignore-not-found=true
+kubectl create namespace ballerina --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic ballerina-integration-secret \
+  --from-file=keystore.p12="$ROOT_DIR/integration/keystore.p12" \
+  --from-file=truststore.p12="$ROOT_DIR/integration/truststore.p12" \
+  -n ballerina
+
 echo "================================================"
 echo "1b. Creating app secrets"
 echo "================================================"

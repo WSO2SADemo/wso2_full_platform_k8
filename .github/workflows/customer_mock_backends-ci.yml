@@ -226,6 +226,7 @@ jobs:
 
           kubectl patch deployment $DEPLOYMENT -n $NAMESPACE --patch "
           spec:
+            replicas: 1
             template:
               spec:
                 volumes:
