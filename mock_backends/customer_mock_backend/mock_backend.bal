@@ -3,10 +3,10 @@ import ballerina/log;
 import ballerina/io;
 import ballerina/data.xmldata;
 import ballerina/file;
-// import ballerina/observe;
+import ballerina/observe;
 // import ballerinax/wso2.controlplane as _;
 // import ballerinax/wso2.apim.catalog as _;
-// import ballerinax/moesif as _;
+import ballerinax/moesif as _;
 
 // ============================================================================
 // OAS SERVICE (Master Database) - Port 9092
@@ -27,10 +27,10 @@ service /oas on oasListener {
 
     function init() {
         log:printInfo("Initialize mock_backends");
-        // error? tagResult = observe:addTag(tagKey = "deployment_type", tagValue = "Integration");
-        // if tagResult is error {
-        //     log:printError("Failed to add observability tag", tagResult);
-        // }
+        error? tagResult = observe:addTag(tagKey = "deployment_type", tagValue = "Integration");
+        if tagResult is error {
+            log:printError("Failed to add observability tag", tagResult);
+        }
     }
 
     // Register or update member benefit data (called by Cash Registries)
