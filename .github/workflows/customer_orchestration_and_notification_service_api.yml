@@ -46,19 +46,9 @@ jobs:
           resource-group: ${{ env.AKS_RESOURCE_GROUP }}
           cluster-name: ${{ env.AKS_CLUSTER_NAME }}
 
-      # -----------------------------------------------------------------------
-      # Port-forward APIM CP service to localhost so apictl can reach it.
-      # The APIM CP service is inside the cluster (apim-cp namespace).
-      # -----------------------------------------------------------------------
-      - name: 🔀 Port-Forward APIM CP to localhost:9443
-        run: |
-          kubectl port-forward svc/acp-wso2am-acp-service 9443:9443 -n apim-cp &
-          echo "Waiting for port-forward to be ready..."
-          sleep 5
-
       - name: 🌐 Add /etc/hosts entry for cp.wso2.com
         run: |
-          echo '127.0.0.1 cp.wso2.com' | sudo tee -a /etc/hosts
+          echo '20.198.137.115 cp.wso2.com' | sudo tee -a /etc/hosts
 
       - name: 🛠️ Install apictl
         run: |
