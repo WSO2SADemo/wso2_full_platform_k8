@@ -14,19 +14,19 @@ import ballerina/os;
 //   (store-and-forward service for durable high-value delivery)
 // ============================================================================
 
-// AFA sender → Fund11 notification receiver (toggleable offline/online)
-configurable string fundAUrl = os:getEnv("fundAUrl");
+// AFA sender → DNE Online Calculator SOAP service (Add operation)
+configurable string afaRecipientUrl = os:getEnv("afaRecipientUrl");
 
-// Alfa sender → notification mock backend
-configurable string fundBUrl = os:getEnv("fundBUrl");
+// Alfa sender → DataAccess NumberToWords SOAP service
+configurable string alfaRecipientUrl = os:getEnv("alfaRecipientUrl");
 
-// Folksam sender → notification mock backend
-configurable string fundCUrl = os:getEnv("fundCUrl");
+// Folksam sender → DataAccess NumberToWords SOAP service
+configurable string folksamRecipientUrl = os:getEnv("folksamRecipientUrl");
 
-// Default recipient for unknown senders
+// Default recipient for unknown senders → DNE Online Calculator SOAP service
 configurable string defaultRecipientUrl = os:getEnv("defaultRecipientUrl");
 
-// High-value additional recipient – store-and-forward for durable delivery
+// High-value additional recipient – internal store-and-forward for durable delivery
 configurable string highValueUrl = os:getEnv("highValueUrl");
 
 // Benefit amount threshold above which high-value routing is also triggered

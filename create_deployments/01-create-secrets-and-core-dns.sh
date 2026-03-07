@@ -75,8 +75,36 @@ echo "================================================"
 echo "1c. Creating ConfigMaps"
 echo "================================================"
 
+# ── CoreDNS: check if the Nginx Ingress IP has changed ───────────────────────
+COREDNS_YAML="$ROOT_DIR/create_deployments/coredns-custom.yaml"
+CURRENT_IP=$(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' "$COREDNS_YAML" | head -1)
+
+echo ""
+echo "Current Nginx Ingress IP in coredns-custom.yaml: $CURRENT_IP"
+echo "Live Nginx Ingress LoadBalancer IP:"
+kubectl get svc -A -l app.kubernetes.io/name=ingress-nginx 2>/dev/null \
+  | grep LoadBalancer | awk '{print "  " $5}' \
+  || echo "  (could not retrieve – check manually with: kubectl get svc -A | grep ingress)"
+echo ""
+
+read -r -p "Has the Nginx Ingress IP changed from $CURRENT_IP? [y/N]: " IP_CHANGED
+case "$IP_CHANGED" in
+  [yY][eE][sS]|[yY])
+    read -r -p "Enter the new IP: " NEW_IP
+    if [ -z "$NEW_IP" ]; then
+      echo "ERROR: No IP entered. Aborting."
+      exit 1
+    fi
+    sed -i '' "s|${CURRENT_IP}|${NEW_IP}|g" "$COREDNS_YAML"
+    echo "Updated coredns-custom.yaml: $CURRENT_IP → $NEW_IP"
+    ;;
+  *)
+    echo "Keeping existing IP ($CURRENT_IP) in coredns-custom.yaml."
+    ;;
+esac
+
 # CoreDNS custom config (maps wso2 hostnames to nginx ingress ClusterIP)
-kubectl apply -f "$ROOT_DIR/create_deployments/coredns-custom.yaml"
+kubectl apply -f "$COREDNS_YAML"
 kubectl rollout restart deployment coredns -n kube-system
 
 # IS config map (is-values)

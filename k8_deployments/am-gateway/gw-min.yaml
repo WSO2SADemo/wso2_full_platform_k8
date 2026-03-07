@@ -17,6 +17,12 @@ wso2:
     # You must override these HPA values, or Kubernetes will force it back to 2
     minReplicas: 1
     maxReplicas: 1
+    env:
+      - name: MOESIF_KEY_ENV_VAR
+        valueFrom:
+          secretKeyRef:
+            name: apim-secrets    # Matches metadata.name in apim-secrets.yaml
+            key: MOESIF_API_KEY   # Matches the key in 'data' in apim-secrets.yaml
     startupProbe:
       # -- Number of seconds after the container has started before startup probes are initiated
       initialDelaySeconds: 60

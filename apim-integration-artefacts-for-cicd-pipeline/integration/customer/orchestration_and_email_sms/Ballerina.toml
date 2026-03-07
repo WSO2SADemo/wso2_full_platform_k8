@@ -7,5 +7,4 @@ title = "orchestration_and_email_sms"
 [build-options]
 cloud = "k8s"
 remoteManagement=true
-# sticky = true
 observabilityIncluded=true

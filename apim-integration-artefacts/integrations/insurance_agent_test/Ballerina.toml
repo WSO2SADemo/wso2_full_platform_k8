@@ -8,7 +8,6 @@ title = "insurance_agent"
 [build-options]
 cloud = "k8s"
 remoteManagement=true
-sticky = true
 observabilityIncluded=true
 
 [[dependency]]

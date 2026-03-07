@@ -1,22 +1,22 @@
 [container.image]
 repository="ramilu90"
 name="content_based_routing"
-tag="1.0.0"
+tag="1.0.1"
 
 # -----------------------------------------------------------------------
 # ConfigMap: ballerina-values-content-based-routing
 # Fund recipient URLs + routing thresholds
 # -----------------------------------------------------------------------
 [[cloud.config.envs]]
-key_ref="fundAUrl"
+key_ref="afaRecipientUrl"
 config_name="ballerina-values-content-based-routing"
 
 [[cloud.config.envs]]
-key_ref="fundBUrl"
+key_ref="alfaRecipientUrl"
 config_name="ballerina-values-content-based-routing"
 
 [[cloud.config.envs]]
-key_ref="fundCUrl"
+key_ref="folksamRecipientUrl"
 config_name="ballerina-values-content-based-routing"
 
 [[cloud.config.envs]]

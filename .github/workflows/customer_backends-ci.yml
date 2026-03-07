@@ -1,10 +1,10 @@
-name: Integration - Mock Backends
+name: Integration - Customer Backends
 
 on:
   push:
     paths:
-      - 'mock_backends/customer_mock_backend/**'
-      - '.github/workflows/customer_mock_backends-ci.yml'
+      - 'mock_backends/customer_backends/**'
+      - '.github/workflows/customer_backends-ci.yml'
     branches:
       - main
 
@@ -19,9 +19,9 @@ jobs:
       AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
       AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
-      PROJECT_DIR: mock_backends/customer_mock_backend
+      PROJECT_DIR: mock_backends/customer_backends
       # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.21"
+      IMAGE_TAG: "1.0.1"
 
     steps:
       - name: Checkout Code
@@ -42,7 +42,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.ballerina
-          key: ballerina-deps-${{ hashFiles('mock_backends/customer_mock_backend/Ballerina.toml') }}
+          key: ballerina-deps-${{ hashFiles('mock_backends/customer_backends/Ballerina.toml') }}
           restore-keys: |
             ballerina-deps-
 
@@ -62,7 +62,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 📦 Push Docker Image
         run: |
-          IMAGE_NAME="ramilu90/mock_backend:${{ env.IMAGE_TAG }}"
+          IMAGE_NAME="ramilu90/customer_backends:${{ env.IMAGE_TAG }}"
           echo "Pushing image: ${IMAGE_NAME}"
           docker push "${IMAGE_NAME}"
 
@@ -97,7 +97,7 @@ jobs:
           apiVersion: v1
           kind: ConfigMap
           metadata:
-            name: ballerina-values-customer-mock-backends
+            name: ballerina-values-customer-backends
             namespace: $NAMESPACE
           data:
             BAL_CONFIG_DATA: |
@@ -108,7 +108,7 @@ jobs:
               metricsReporter="moesif"
 
               [ballerinax.moesif]
-              applicationId = "${{ secrets.MOESIF_APPID }}"
+              applicationId = "${{ secrets.MOESIF_DEV_APPID }}"
               reporterBaseUrl = "https://api.moesif.net"
               tracingReporterFlushInterval = 1000
               tracingReporterBufferSize = 10000
@@ -117,21 +117,6 @@ jobs:
 
               [ballerinax.moesif.additionalAttributes]
               key1 = "value1"
-
-              # [ballerinax.wso2.controlplane.dashboard]
-              # url="https://cloud-icp.icp.svc.cluster.local:9743/dashboard/api"
-              # heartbeatInterval=10
-              # groupId="cluster1"
-              # mgtApiUrl="https://mock-backends.ballerina.svc.cluster.local:9264/management/"
-              # nodeId="orchestration_and_email_sms"
-
-              # [ballerinax.wso2.apim.catalog]
-              # serviceUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/api/am/service-catalog/v1"
-              # tokenUrl="https://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9443/oauth2/token"
-              # username="${{ secrets.APIM_USERNAME }}"
-              # password="${{ secrets.APIM_PASSWORD }}"
-              # clientId="${{ secrets.APIM_SERV_CATALOG_CLIENT_ID }}"
-              # clientSecret="${{ secrets.APIM_SERV_CATALOG_CLIENT_SECRET }}"
           EOF
 
           echo "Applying ConfigMap..."
@@ -139,7 +124,7 @@ jobs:
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
-          K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/mock_backends"
+          K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/customer_backends"
           if [ -d "${K8S_ARTIFACTS_DIR}" ]; then
             echo "${K8S_ARTIFACTS_DIR} directory exists. Contents:"
             ls -la ${K8S_ARTIFACTS_DIR}
@@ -149,11 +134,11 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # Deploy: delete stale resources first, then apply fresh (matches vies pattern)
+      # Deploy: delete stale resources first, then apply fresh
       # -----------------------------------------------------------------------
       - name: Deploy Kubernetes Resources
         run: |
-          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/mock_backends"
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/customer_backends"
 
           echo "Deleting existing resources from ${K8S_DIR}..."
           kubectl delete -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found=true
@@ -165,12 +150,18 @@ jobs:
       # Service: the Ballerina-generated YAML contains no Service resource.
       # Apply a complete Service definition covering all listener ports.
       #
-      # Ports exposed by customer_mock_backend:
-      #   9091 – Cash Registry  (mock_backend.bal  – cashRegistryListener)
-      #   9092 – OAS / Master DB (mock_backend.bal  – oasListener)
-      #   9093 – SOAP           (mock_backend.bal  – soapListener)
-      #   9094 – Employee       (mock_backend2.bal – employeeListener)
-      #   9096 – Notification   (mock_backend.bal  – notificationListener)
+      # Ports exposed by customer_backends:
+      #   9091 – Fund 1  AEA           (main.bal – fund1Listener)
+      #   9092 – Fund 2  Unionen       (main.bal – fund2Listener)
+      #   9093 – Fund 3  Akademikernas (main.bal – fund3Listener)
+      #   9094 – Fund 4  IF Metall     (main.bal – fund4Listener)
+      #   9095 – Fund 5  Kommunal      (main.bal – fund5Listener)
+      #   9096 – Fund 6  Handels       (main.bal – fund6Listener)
+      #   9097 – Fund 7  Vision        (main.bal – fund7Listener, high latency)
+      #   9098 – Fund 8  Transport     (main.bal – fund8Listener, high latency)
+      #   9099 – Fund 9  SEKO          (main.bal – fund9Listener, error)
+      #   9100 – Fund 10 Fastighets    (main.bal – fund10Listener, empty)
+      #   9101 – Fund 11 Notification  (main.bal – fund11Listener, store-and-forward)
       #   9264 – Ballerina management API
       # -----------------------------------------------------------------------
       - name: Ensure Service & Patch Ports
@@ -181,34 +172,58 @@ jobs:
           apiVersion: v1
           kind: Service
           metadata:
-            name: mock-backends
+            name: customer-backends
             namespace: ${NAMESPACE}
             labels:
-              app: mock_backends
+              app: customer_backends
           spec:
             type: ClusterIP
             selector:
-              app: mock_backends
+              app: customer_backends
             ports:
-              - name: cashregistry
+              - name: fund1-aea
                 port: 9091
                 targetPort: 9091
                 protocol: TCP
-              - name: oas
+              - name: fund2-unionen
                 port: 9092
                 targetPort: 9092
                 protocol: TCP
-              - name: soap
+              - name: fund3-akademikernas
                 port: 9093
                 targetPort: 9093
                 protocol: TCP
-              - name: employee
+              - name: fund4-ifmetall
                 port: 9094
                 targetPort: 9094
                 protocol: TCP
-              - name: notification
+              - name: fund5-kommunal
+                port: 9095
+                targetPort: 9095
+                protocol: TCP
+              - name: fund6-handels
                 port: 9096
                 targetPort: 9096
+                protocol: TCP
+              - name: fund7-vision
+                port: 9097
+                targetPort: 9097
+                protocol: TCP
+              - name: fund8-transport
+                port: 9098
+                targetPort: 9098
+                protocol: TCP
+              - name: fund9-seko
+                port: 9099
+                targetPort: 9099
+                protocol: TCP
+              - name: fund10-fastighets
+                port: 9100
+                targetPort: 9100
+                protocol: TCP
+              - name: fund11-notification
+                port: 9101
+                targetPort: 9101
                 protocol: TCP
               - name: management
                 port: 9264
@@ -217,12 +232,12 @@ jobs:
           EOF
 
           echo "Service applied. Current state:"
-          kubectl get svc mock-backends -n ${NAMESPACE} -o wide
+          kubectl get svc customer-backends -n ${NAMESPACE} -o wide
 
       - name: Patch Deployment (Volume Mounts & Env)
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          DEPLOYMENT="mock-backends-deployment"
+          DEPLOYMENT="customer-backen-deployment"
 
           CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
           echo "Patching Deployment $DEPLOYMENT (Container: $CONTAINER_NAME)..."
@@ -238,9 +253,6 @@ jobs:
                     secretName: ballerina-integration-secret
                 containers:
                 - name: $CONTAINER_NAME
-                  envFrom:
-                  - configMapRef:
-                      name: ballerina-values-customer-mock-backends
                   volumeMounts:
                   - name: keystore-vol
                     mountPath: /home/ballerina/bre/security

@@ -48,6 +48,8 @@ import ballerina/io;
 import ballerina/data.xmldata;
 import ballerina/uuid;
 import ballerina/time;
+import ballerinax/moesif as _;
+
 
 // SOAP and application XML namespaces
 xmlns "http://schemas.xmlsoap.org/soap/envelope/" as soap;
@@ -82,15 +84,15 @@ const string XSD_CONTENT = string `<?xml version="1.0" encoding="UTF-8"?>
 // Pre-created HTTP clients for routing recipients.
 // Base URLs come from ConfigMap via config.bal configurable variables.
 //
-//   fundAClient      → Fund11 toggleable receiver  (service-ochastration-backends:9101)
-//   fundBClient      → Notification mock backend   (mock-backends:9096)
-//   fundCClient      → Notification mock backend   (mock-backends:9096)
-//   defaultClient    → Notification mock backend   (mock-backends:9096)
+//   afaClient        → DNE Online Calculator SOAP  (dneonline.com/calculator.asmx)
+//   alfaClient       → DataAccess NumberToWords    (dataaccess.com/numberconversion.wso)
+//   folksamClient    → DataAccess NumberToWords    (dataaccess.com/numberconversion.wso)
+//   defaultClient    → DNE Online Calculator SOAP  (dneonline.com/calculator.asmx)
 //   highValueClient  → Store-and-forward service   (store-and-forward-integration:9085)
 // ============================================================================
-final http:Client fundAClient = check new (fundAUrl);
-final http:Client fundBClient = check new (fundBUrl);
-final http:Client fundCClient = check new (fundCUrl);
+final http:Client afaClient = check new (afaRecipientUrl);
+final http:Client alfaClient = check new (alfaRecipientUrl);
+final http:Client folksamClient = check new (folksamRecipientUrl);
 final http:Client defaultClient = check new (defaultRecipientUrl);
 final http:Client highValueClient = check new (highValueUrl);
 
@@ -114,11 +116,11 @@ function init() returns error? {
     log:printInfo("Content-Based Routing SOAP service starting on port 9095");
     log:printInfo("XSD schema written to: " + XSD_PATH);
     log:printInfo("High-value threshold: " + highValueThreshold.toString());
-    log:printInfo("Fund A (AFA):     " + fundAUrl);
-    log:printInfo("Fund B (Alfa):    " + fundBUrl);
-    log:printInfo("Fund C (Folksam): " + fundCUrl);
-    log:printInfo("Default:          " + defaultRecipientUrl);
-    log:printInfo("High-value:       " + highValueUrl);
+    log:printInfo("AFA recipient (Calculator):        " + afaRecipientUrl);
+    log:printInfo("Alfa recipient (NumberToWords):    " + alfaRecipientUrl);
+    log:printInfo("Folksam recipient (NumberToWords): " + folksamRecipientUrl);
+    log:printInfo("Default recipient (Calculator):    " + defaultRecipientUrl);
+    log:printInfo("High-value (store-and-forward):    " + highValueUrl);
 }
 
 // ============================================================================
@@ -283,59 +285,94 @@ function determineRoute(string senderName, decimal benefitAmount) returns Routin
 }
 
 // ============================================================================
-// Forward notification to primary recipient
-// Returns true on success
+// Forward notification to primary recipient via SOAP
+// Routes to a public SOAP service based on recipientName:
+//   AFA-Fund-A    → DNE Calculator (Add)      – fundAUrl
+//   Alfa-Fund-B   → DataAccess NumberToWords  – fundBUrl
+//   Folksam-Fund-C→ DataAccess NumberToWords  – fundCUrl
+//   default       → DNE Calculator (Add)      – defaultRecipientUrl
+// Returns true on HTTP 2xx from recipient
 // ============================================================================
 function forwardNotification(string recipientName, NotificationForwardPayload payload, string correlationId) returns boolean {
 
     http:Client recipientClient;
-    string recipientPath;
+    xml soapEnvelope;
+    string soapAction;
 
     match recipientName {
         "AFA-Fund-A" => {
-            // Fund11 toggleable receiver – POST /notifications
-            recipientClient = fundAClient;
-            recipientPath = "/notifications";
+            recipientClient = afaClient;
+            soapEnvelope = buildCalculatorSoap(payload);
+            soapAction = "http://tempuri.org/Add";
         }
         "Alfa-Fund-B" => {
-            // Notification mock backend – POST /notification/servicecall
-            recipientClient = fundBClient;
-            recipientPath = "/notification/servicecall";
+            recipientClient = alfaClient;
+            soapEnvelope = buildNumberToWordsSoap(payload);
+            soapAction = "";
         }
         "Folksam-Fund-C" => {
-            recipientClient = fundCClient;
-            recipientPath = "/notification/servicecall";
+            recipientClient = folksamClient;
+            soapEnvelope = buildNumberToWordsSoap(payload);
+            soapAction = "";
         }
         _ => {
             recipientClient = defaultClient;
-            recipientPath = "/notification/servicecall";
+            soapEnvelope = buildCalculatorSoap(payload);
+            soapAction = "http://tempuri.org/Add";
         }
     }
 
-    // Build notification body compatible with mock-backends /notification/servicecall
-    json notificationBody = {
-        "message": string `Content-based routing: benefit notification from ${payload.senderName}`,
-        "data": {
-            "personalNumber": payload.personalNumber,
-            "senderName": payload.senderName,
-            "senderId": payload.senderId,
-            "benefitAmount": payload.benefitAmount,
-            "benefitType": payload.benefitType,
-            "periodStart": payload.periodStart,
-            "periodEnd": payload.periodEnd,
-            "correlationId": payload.correlationId,
-            "routedTo": payload.routedTo
-        }
-    };
+    http:Request req = new;
+    req.setXmlPayload(soapEnvelope);
+    req.setHeader("Content-Type", "text/xml;charset=UTF-8");
+    if soapAction != "" {
+        req.setHeader("SOAPAction", "\"" + soapAction + "\"");
+    }
 
-    http:Response|http:ClientError result = recipientClient->post(recipientPath, notificationBody);
+    http:Response|http:ClientError result = recipientClient->post("", req);
     if result is http:ClientError {
         log:printError(string `[${correlationId}] Failed to forward to ${recipientName}: ${result.message()}`);
         return false;
     }
 
     log:printInfo(string `[${correlationId}] Forwarded to ${recipientName} – HTTP ${result.statusCode}`);
-    return true;
+    return result.statusCode < 400;
+}
+
+// ============================================================================
+// SOAP envelope builders for public recipient services
+// ============================================================================
+
+// DNE Online Calculator – Add operation
+// Sends benefitAmount as intA, intB=0; recipient echoes the validated amount.
+// Used for: AFA-Fund-A, default
+// Endpoint: http://www.dneonline.com/calculator.asmx
+function buildCalculatorSoap(NotificationForwardPayload payload) returns xml {
+    int amount = <int>payload.benefitAmount;
+    return xml `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                              xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <Add xmlns="http://tempuri.org/">
+      <intA>${amount}</intA>
+      <intB>0</intB>
+    </Add>
+  </soap:Body>
+</soap:Envelope>`;
+}
+
+// DataAccess NumberToWords – converts benefitAmount to its English word form.
+// Used for: Alfa-Fund-B, Folksam-Fund-C
+// Endpoint: https://www.dataaccess.com/webservicesserver/numberconversion.wso
+function buildNumberToWordsSoap(NotificationForwardPayload payload) returns xml {
+    int amount = <int>payload.benefitAmount;
+    return xml `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <NumberToWords xmlns="https://www.dataaccess.com/webservicesserver/">
+      <ubiNum>${amount}</ubiNum>
+    </NumberToWords>
+  </soap:Body>
+</soap:Envelope>`;
 }
 
 // ============================================================================

@@ -1,8 +1,8 @@
 [package]
 org = "ramindu"
-name = "mock_backends"
+name = "parallel_service_ochastration_integration"
 version = "0.1.0"
-title = "mock_backends"
+title = "parallel_service_ochastration_integration"
 
 [build-options]
 cloud = "k8s"

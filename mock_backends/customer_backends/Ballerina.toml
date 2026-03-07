@@ -1,8 +1,8 @@
 [package]
 org = "ramindu"
-name = "mock_backends"
+name = "customer_backends"
 version = "0.1.0"
-title = "mock_backends"
+title = "customer_backends"
 
 [build-options]
 cloud = "k8s"

@@ -1,9 +1,0 @@
-[package]
-org = "ramindu"
-name = "parallel_service_ochastration_client"
-version = "0.1.0"
-title = "parallel_service_ochastration_client"
-
-[build-options]
-cloud = "k8s"
-observabilityIncluded = true

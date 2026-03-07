@@ -7,7 +7,7 @@ Sweden's unemployment insurance funds distribute information from a **sender** t
 This integration:
 1. Exposes a **SOAP/XML endpoint** over HTTP
 2. **Validates** the incoming XML body against an XSD schema
-3. **Routes** the message to the correct fund recipient based on content in the SOAP Header (`senderName`) and Body (`benefitAmount`)
+3. **Routes** the message to the correct public SOAP service based on content in the SOAP Header (`senderName`) and Body (`benefitAmount`)
 4. Returns a **SOAP acknowledgement** to the caller
 
 ---
@@ -22,35 +22,45 @@ This integration:
   Folksam / unknown)  ───▶  │  2. XSD validate BenefitNotification body          │
   POST /soap/routing        │  3. Route based on senderName                       │
                             │  4. If amount > 50 000 SEK → also store-and-forward │
-                            └──────────────┬────────────────────────────────┬──────┘
-                                           │                                │
-                     ┌─────────────────────┼──────────────┐                │ (high-value only)
-                     │                     │              │                 │
-              senderName=AFA        senderName=Alfa  senderName=Folksam    ▼
-                     │                     │              │    store-and-forward-integration
-                     ▼                     ▼              ▼    (RabbitMQ – durable delivery)
-          Fund11 receiver        mock-backends     mock-backends
-          (toggleable online/    /notification/    /notification/
-           offline – resilience) servicecall       servicecall
-          port 9101              port 9096          port 9096
+                            └──────────────┬──────────────────────────────┬───────┘
+                                           │                              │
+                     ┌─────────────────────┼──────────────┐              │ (high-value only)
+                     │                     │              │               │
+              senderName=AFA        senderName=Alfa  senderName=Folksam  ▼
+                     │                     │              │  store-and-forward-integration
+                     ▼                     ▼              ▼  (RabbitMQ – durable delivery)
+          DNE Calculator         DataAccess           DataAccess
+          (Add operation)        NumberToWords        NumberToWords
+          dneonline.com          dataaccess.com       dataaccess.com
 ```
+
+---
+
+## Recipient SOAP Services
+
+| Sender | ConfigMap Variable | SOAP Service | Operation |
+|---|---|---|---|
+| `AFA` | `afaRecipientUrl` | DNE Online Calculator | `Add` (benefitAmount as `intA`) |
+| `Alfa` | `alfaRecipientUrl` | DataAccess NumberToWords | `NumberToWords` (benefitAmount) |
+| `Folksam` | `folksamRecipientUrl` | DataAccess NumberToWords | `NumberToWords` (benefitAmount) |
+| *(default)* | `defaultRecipientUrl` | DNE Online Calculator | `Add` (benefitAmount as `intA`) |
+
+**Additional high-value routing:**
+
+| Condition | Also routed to | ConfigMap Variable |
+|---|---|---|
+| `benefitAmount > 50 000` | Internal store-and-forward (RabbitMQ) | `highValueUrl` |
 
 ---
 
 ## Routing Table
 
-| SOAP Header `senderName` | Recipient | Backend URL |
+| SOAP Header `senderName` | Recipient | Outbound SOAP Service |
 |---|---|---|
-| `AFA` | AFA-Fund-A | `service-ochastration-backends:9101/notifications` |
-| `Alfa` | Alfa-Fund-B | `mock-backends:9096/notification/servicecall` |
-| `Folksam` | Folksam-Fund-C | `mock-backends:9096/notification/servicecall` |
-| *(anything else)* | Default | `mock-backends:9096/notification/servicecall` |
-
-**Additional routing (content-based):**
-
-| Condition | Also routed to |
-|---|---|
-| `benefitAmount > 50 000` | `store-and-forward-integration:9085/notifications/send` (RabbitMQ-backed, retry on failure) |
+| `AFA` | AFA-Fund-A | `afaRecipientUrl` → DNE Calculator (`Add`) |
+| `Alfa` | Alfa-Fund-B | `alfaRecipientUrl` → DataAccess NumberToWords |
+| `Folksam` | Folksam-Fund-C | `folksamRecipientUrl` → DataAccess NumberToWords |
+| *(anything else)* | Default | `defaultRecipientUrl` → DNE Calculator (`Add`) |
 
 ---
 
@@ -140,7 +150,7 @@ Content-Type: text/xml
 
 ---
 
-### 1. AFA sender – standard amount (routes to Fund11)
+### 1. AFA sender – standard amount (routes to DNE Calculator)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
@@ -167,11 +177,11 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `AFA-Fund-A` (Fund11, port 9101). `routedTo=AFA-Fund-A` in ACK.
+**Expected:** Routed to `AFA-Fund-A` via DNE Calculator (Add 35000+0). ACK: `routedTo=AFA-Fund-A`.
 
 ---
 
-### 2. AFA sender – HIGH-VALUE amount (routes to Fund11 + store-and-forward)
+### 2. AFA sender – HIGH-VALUE amount (routes to DNE Calculator + store-and-forward)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
@@ -198,11 +208,11 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `AFA-Fund-A` + **also** queued in store-and-forward (RabbitMQ). ACK contains `[HIGH-VALUE: also sent to store-and-forward]`.
+**Expected:** Routed to `AFA-Fund-A` (DNE Calculator) + **also** queued in store-and-forward (RabbitMQ). ACK contains `[HIGH-VALUE: also sent to store-and-forward]`.
 
 ---
 
-### 3. Alfa sender (routes to notification mock backend)
+### 3. Alfa sender (routes to DataAccess NumberToWords)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
@@ -229,11 +239,11 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `Alfa-Fund-B` (notification mock, port 9096). `routedTo=Alfa-Fund-B`.
+**Expected:** Routed to `Alfa-Fund-B` via DataAccess NumberToWords (22000 → "twenty two thousand"). ACK: `routedTo=Alfa-Fund-B`.
 
 ---
 
-### 4. Folksam sender (routes to notification mock backend)
+### 4. Folksam sender (routes to DataAccess NumberToWords)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
@@ -259,11 +269,11 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `Folksam-Fund-C`.
+**Expected:** Routed to `Folksam-Fund-C` via DataAccess NumberToWords. ACK: `routedTo=Folksam-Fund-C`.
 
 ---
 
-### 5. Unknown sender (default routing)
+### 5. Unknown sender (default routing → DNE Calculator)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
@@ -289,7 +299,7 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `Default-Recipient (sender=UnknownFund)`.
+**Expected:** Routed to `Default-Recipient (sender=UnknownFund)` via DNE Calculator.
 
 ---
 
@@ -323,31 +333,10 @@ curl -s -X POST http://localhost:9095/soap/routing \
 
 ---
 
-### 7. Resilience demo – toggle Fund11 offline then retry AFA
-
-```bash
-# 1. Toggle Fund11 (AFA recipient) offline
-curl -X POST http://localhost:9101/notifications/admin/toggle
-
-# 2. Check status
-curl http://localhost:9101/notifications/admin/status
-
-# 3. Send AFA notification – Fund11 is offline, forward will fail
-#    (use cURL from scenario 1 above)
-
-# 4. Toggle Fund11 back online
-curl -X POST http://localhost:9101/notifications/admin/toggle
-```
-
-> Note: For port 9101, port-forward `svc/service-ochastration-backends` on port 9101.
-
----
-
-### 8. Health check
+### 7. Health check
 
 ```bash
 curl http://localhost:9095/soap/health
 ```
 
 ---
-

@@ -60,6 +60,10 @@ service /lookup on fund1Listener {
         empty.setJsonPayload({});
         return empty;
     }
+
+    resource function get health() returns string {
+        return "fund1Listener Service is running on port 9091";
+    }
 }
 
 // ─── Fund 2 – Unionen (fast, ~200 ms) ────────────────────────────────────────

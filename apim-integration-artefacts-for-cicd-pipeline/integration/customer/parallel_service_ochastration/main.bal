@@ -1,5 +1,7 @@
 import ballerina/http;
 import ballerina/log;
+import ballerinax/moesif as _;
+
 
 listener http:Listener orchListener = check new http:Listener(9090);
 
@@ -13,6 +15,16 @@ service /unemployment on orchListener {
 
     function init() {
         log:printInfo("Scatter-Gather orchestration service started on port 9090");
+
+        // Health check: verify connectivity to mock backend OAS service
+        http:Response|http:ClientError healthResult = fund1Client->get("/lookup/health");
+        if healthResult is http:ClientError {
+            log:printError("Fund1 backend health check failed - could not reach OAS: " + healthResult.message());
+        } else if healthResult.statusCode == 200 {
+            log:printInfo("Fund1 backend health check passed - connection to OAS is working");
+        } else {
+            log:printWarn(string `Fund1 backend health check returned unexpected status: ${healthResult.statusCode}`);
+        }
     }
 
     resource function post lookup(@http:Payload MemberLookupRequest request)
