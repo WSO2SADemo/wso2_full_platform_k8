@@ -32,8 +32,8 @@ jobs:
 
           for file in $changed_files; do
             if [[ $file == apim-integration-artefacts-for-cicd-pipeline/apim/* ]]; then
-              # Get folder containing the file
-              folder_name=$(dirname "$file")
+              folder_name=$(dirname "$file")          # initially may include subfolder like Definitions
+              folder_name=$(dirname "$folder_name")   # move up one level to project root
               echo "Changed folder name: $folder_name"
               echo "API_PROJECT_PATH=$folder_name" >> $GITHUB_ENV
               echo "folder_found=true" >> $GITHUB_ENV
