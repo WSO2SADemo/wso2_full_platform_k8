@@ -1,0 +1,186 @@
+name: APIM - Dynamic API Deployment
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      project_folder:
+        description: "Project folder inside Apis"
+        required: true
+        type: string
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+
+    env:
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      API_PROJECT_PATH: apim-integration-artefacts-for-cicd-pipeline/apim/${{ github.event.inputs.project_folder }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Debug - Print Environment Variables
+        run: |
+          echo "Current Working Directory: $(pwd)"
+          echo "API_PROJECT_PATH: ${{ env.API_PROJECT_PATH }}"
+
+      # -----------------------------------------------------------------------
+      # Read API info dynamically from Swagger/OpenAPI
+      # -----------------------------------------------------------------------
+      - name: 📖 Read API info from Swagger
+        id: swagger_info
+        shell: pwsh
+        run: |
+          $apiPath = Join-Path $env:GITHUB_WORKSPACE $env:API_PROJECT_PATH
+
+          if (!(Test-Path $apiPath)) {
+            Write-Error "API project folder not found: $apiPath"
+            exit 1
+          }
+
+          Write-Host "Searching Swagger/OpenAPI file in:" $apiPath
+
+          $swagger = Get-ChildItem -Path $apiPath -Recurse -Include swagger.json,openapi.json,swagger.yaml,openapi.yaml | Select-Object -First 1
+
+          if (-not $swagger) {
+            Write-Error "Swagger/OpenAPI file not found"
+            exit 1
+          }
+
+          Write-Host "Swagger file found:" $swagger.FullName
+
+          if ($swagger.Extension -eq ".json") {
+            $spec = Get-Content $swagger.FullName -Raw | ConvertFrom-Json
+            $apiName = $spec.info.title
+            $apiVersion = $spec.info.version
+          } else {
+            $content = Get-Content $swagger.FullName
+            $apiName = ($content | Select-String "title:" | Select-Object -First 1).Line.Split(":")[1].Trim()
+            $apiVersion = ($content | Select-String "version:" | Select-Object -First 1).Line.Split(":")[1].Trim()
+          }
+
+          if (-not $apiName -or -not $apiVersion) {
+            Write-Error "Could not read API name/version from Swagger"
+            exit 1
+          }
+
+          Write-Host "API Name: $apiName"
+          Write-Host "API Version: $apiVersion"
+
+          echo "API_NAME=$apiName" >> $env:GITHUB_ENV
+          echo "API_VERSION=$apiVersion" >> $env:GITHUB_ENV
+
+      # -----------------------------------------------------------------------
+      # AKS authentication – needed to port-forward the APIM CP
+      # -----------------------------------------------------------------------
+      - name: 🔐 Azure Login via Service Principal
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
+
+      - name: 🚢 Set AKS Kubectl Context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      - name: 🌐 Add /etc/hosts entry for cp.wso2.com
+        run: |
+          echo '20.198.137.115 cp.wso2.com' | sudo tee -a /etc/hosts
+
+      - name: 🛠️ Install apictl
+        run: |
+          wget -q https://github.com/wso2/product-apim-tooling/releases/download/v4.6.0/apictl-4.6.0-linux-amd64.tar.gz
+          tar -xzf apictl-4.6.0-linux-amd64.tar.gz
+          chmod +x apictl/apictl
+          sudo mv apictl/apictl /usr/local/bin/
+
+      - name: ⚙️ Configure APIM Environment
+        run: |
+          apictl remove env prod --verbose 2>/dev/null || true
+          apictl add env prod --apim https://cp.wso2.com
+
+      - name: 🔐 Login to APIM CP
+        run: |
+          apictl login prod -u ${{ secrets.APIM_USERNAME }} -p ${{ secrets.APIM_PASSWORD }} --insecure
+
+      # -----------------------------------------------------------------------
+      # Check if the API already exists to decide create vs update
+      # -----------------------------------------------------------------------
+      - name: 🔍 Check if API Exists in APIM
+        id: check_api
+        run: |
+          echo "🔍 Checking for existing API..."
+
+          RAW_OUTPUT=$(apictl get apis -e prod -q name:"${{ env.API_NAME }}" --insecure --format json 2>/dev/null)
+
+          echo "-------------- DEBUG: RAW OUTPUT START --------------"
+          echo "$RAW_OUTPUT"
+          echo "-------------- DEBUG: RAW OUTPUT END ----------------"
+
+          CLEAN_JSON=$(echo "$RAW_OUTPUT" | sed -n '/^{/,$p')
+          EXISTING_API=$(echo "$CLEAN_JSON" | jq -r '.count // 0')
+
+          echo "Parsed Count: $EXISTING_API"
+
+          if [ "$EXISTING_API" -gt "0" ]; then
+            echo "✅ API found. A new revision will be created."
+            echo "api_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ API not found. A new API will be created."
+            echo "api_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # -----------------------------------------------------------------------
+      # Import (create or update) the API
+      # -----------------------------------------------------------------------
+      - name: 🚀 Import API to APIM
+        run: |
+          API_PROJECT_PATH="${GITHUB_WORKSPACE}/${{ env.API_PROJECT_PATH }}"
+
+          echo "📂 Project Path: $API_PROJECT_PATH"
+
+          if [ -d "$API_PROJECT_PATH" ]; then
+            echo "✅ Directory found."
+          else
+            echo "❌ Directory NOT found at $API_PROJECT_PATH"
+            exit 1
+          fi
+
+          if [ "${{ steps.check_api.outputs.api_exists }}" == "true" ]; then
+            echo "🚀 Updating existing API and creating a new Revision..."
+          else
+            echo "🆕 Creating fresh API..."
+          fi
+
+          apictl import api -f "$API_PROJECT_PATH" -e prod --preserve-provider=false --update --insecure
+
+      # -----------------------------------------------------------------------
+      # Verify the API is present in APIM after import
+      # -----------------------------------------------------------------------
+      - name: ✅ Verify API Import
+        run: |
+          found=false
+          for i in {1..3}; do
+            echo "Attempt $i: Checking for ${{ env.API_NAME }}..."
+
+            if apictl get apis -e prod --insecure | grep -q "${{ env.API_NAME }}"; then
+              echo "✅ API is present in Publisher"
+              found=true
+              break
+            fi
+
+            echo "⚠️ API not found yet. Waiting 2 seconds..."
+            sleep 2
+          done
+
+          if [ "$found" = false ]; then
+            echo "❌ API not found in Publisher after 3 attempts."
+            echo "Available APIs:"
+            apictl get apis -e prod --insecure
+            exit 1
+          fi
