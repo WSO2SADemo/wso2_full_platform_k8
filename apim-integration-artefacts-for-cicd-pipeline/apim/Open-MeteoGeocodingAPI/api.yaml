@@ -38,6 +38,22 @@ data:
   visibleOrganizations:
    - none
   mediationPolicies: []
+  apiPolicies:
+    request:
+     -
+      policyName: APIMInputlog
+      policyVersion: v1
+      policyType: api
+      policyId: 0b7cf31e-5319-42f0-b48e-37c743879d82
+      parameters: {}
+    response:
+     -
+      policyName: APIMOutputlog
+      policyVersion: v1
+      policyType: api
+      policyId: 75f03142-318f-4346-9ae7-2e51f68a079a
+      parameters: {}
+    fault: []
   subscriptionAvailability: CURRENT_TENANT
   subscriptionAvailableTenants: []
   additionalProperties: []
@@ -70,14 +86,14 @@ data:
     signingAlgorithm: SHA1
     signatureHeader: x-hub-signature
   createdTime: "1772806597546"
-  lastUpdatedTimestamp: "1772806629206"
-  lastUpdatedTime: 2026-03-06 15:17:09.206
+  lastUpdatedTimestamp: "1772909924267"
+  lastUpdatedTime: 2026-03-07 19:58:44.267
   endpointConfig:
     endpoint_type: http
     sandbox_endpoints:
       url: https://geocoding-api.open-meteo.com
     production_endpoints:
-      url: https://geocoding-api.open-meteo.com
+      url: https://geocoding-api.open-meteo.comsearch/v1/search/?name=Helsinki&count=1&language=en&countryCode=FI&format=json
   endpointImplementationType: ENDPOINT
   subtypeConfiguration:
     subtype: DEFAULT

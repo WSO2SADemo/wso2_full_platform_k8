@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="APIM_Output_Log" statistics="enable" trace="enable" xmlns="http://ws.apache.org/ns/synapse">
+    <property expression="$trp:pid" name="WSO2id" scope="default" type="STRING"/>
+    <property expression="get-property('axis2', 'HTTP_SC')" name="HTTP_STATUS_CODE" scope="default" type="STRING"/>
+	<property name="RequestStartEpoch" expression="get-property('RequestStartEpoch')" scope="default"/>
+	<property name="RequestEndEpoch" expression="get-property('SYSTEM_TIME')" scope="default"/>
+	<property name="RequestDuration" expression="get-property('RequestEndEpoch') - get-property('RequestStartEpoch')"/>
+    <filter regex="false" source="boolean(get-property('WSO2id'))">
+        <then>
+            <property expression="get-property('MessageID')" name="WSO2id" scope="default" type="STRING"/>
+            <filter regex="^([2][0-9][0-9]$)" source="$ctx:HTTP_STATUS_CODE">
+                <then>
+                    <log level="custom">
+                        <property name="WSO2ID" value="doesnt_exist"/>
+                        <property expression="get-property('transport', 'Content-Type')" name="Content-Type"/>
+                        <property expression="get-property('axis2', 'HTTP_METHOD')" name="Http_Method"/>
+                        <property expression="fn:substring-after(get-property('SYNAPSE_REST_API'),'--')" name="API_NAME" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="$ctx:api.ut.userName" name="UserName"/>
+                        <property expression="$ctx:API_NAME" name="ApiName"/>
+                        <property expression="$ctx:tenant.info.domain" name="TenantName"/>
+                        <property expression="$ctx:REST_FULL_REQUEST_PATH" name="REST_FULL_REQUEST_PATH"/>
+                        <property expression="$ctx:ENDPOINT_ADDRESS" name="ENDPOINT_ADDRESS"/>
+                        <property expression="get-property('axis2', 'HTTP_SC')" name="HTTP_STATUS_CODE"/>
+                        <property expression="get-property('WSO2id')" name="WSO2ID" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="get-property('RequestDuration')" name="RequestDuration"/>
+                        <property expression="get-property('transport','PyServiceLatencyMs')" name="BackendDuration"/>
+						<property expression="get-property('Resource')" name="Resource"/>
+                    </log>
+                </then>
+                <else>
+                    <log level="full">
+                        <property name="WSO2ID" value="doesnt_exist"/>
+                        <property expression="get-property('transport', 'Content-Type')" name="Content-Type"/>
+                        <property expression="get-property('axis2', 'HTTP_METHOD')" name="Http_Method"/>
+                        <property expression="fn:substring-after(get-property('SYNAPSE_REST_API'),'--')" name="API_NAME" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="$ctx:api.ut.userName" name="UserName"/>
+                        <property expression="$ctx:API_NAME" name="ApiName"/>
+                        <property expression="$ctx:tenant.info.domain" name="TenantName"/>
+                        <property expression="$ctx:REST_FULL_REQUEST_PATH" name="REST_FULL_REQUEST_PATH"/>
+                        <property expression="$ctx:ENDPOINT_ADDRESS" name="ENDPOINT_ADDRESS"/>
+                        <property expression="get-property('axis2', 'HTTP_SC')" name="HTTP_STATUS_CODE"/>
+                        <property expression="get-property('WSO2id')" name="WSO2ID" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="get-property('RequestDuration')" name="RequestDuration"/>
+                        <property expression="get-property('transport','PyServiceLatencyMs')" name="BackendDuration"/>
+						<property expression="get-property('Resource')" name="Resource"/>
+                    </log>
+                </else>
+            </filter>
+        </then>
+        <else>
+            <filter regex="^([2][0-9][0-9]$)" source="$ctx:HTTP_STATUS_CODE">
+                <then>
+                    <log level="custom">
+                        <property name="WSO2ID" value="exists"/>
+                        <property expression="get-property('transport', 'Content-Type')" name="Content-Type"/>
+                        <property expression="get-property('axis2', 'HTTP_METHOD')" name="Http_Method"/>
+                        <property expression="fn:substring-after(get-property('SYNAPSE_REST_API'),'--')" name="API_NAME" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="$ctx:api.ut.userName" name="UserName"/>
+                        <property expression="$ctx:API_NAME" name="ApiName"/>
+                        <property expression="$ctx:tenant.info.domain" name="TenantName"/>
+                        <property expression="$ctx:REST_FULL_REQUEST_PATH" name="REST_FULL_REQUEST_PATH"/>
+                        <property expression="$ctx:ENDPOINT_ADDRESS" name="ENDPOINT_ADDRESS"/>
+                        <property expression="get-property('axis2', 'HTTP_SC')" name="HTTP_STATUS_CODE"/>
+                        <property expression="get-property('WSO2id')" name="WSO2ID" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="get-property('RequestDuration')" name="RequestDuration"/>
+                        <property expression="get-property('transport','PyServiceLatencyMs')" name="BackendDuration"/>
+						<property expression="get-property('Resource')" name="Resource"/>
+                    </log>
+                </then>
+                <else>
+                    <log level="full">
+                        <property name="WSO2ID" value="exists"/>
+                        <property expression="get-property('transport', 'Content-Type')" name="Content-Type"/>
+                        <property expression="get-property('axis2', 'HTTP_METHOD')" name="Http_Method"/>
+                        <property expression="fn:substring-after(get-property('SYNAPSE_REST_API'),'--')" name="API_NAME" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="$ctx:api.ut.userName" name="UserName"/>
+                        <property expression="$ctx:API_NAME" name="ApiName"/>
+                        <property expression="$ctx:tenant.info.domain" name="TenantName"/>
+                        <property expression="$ctx:REST_FULL_REQUEST_PATH" name="REST_FULL_REQUEST_PATH"/>
+                        <property expression="$ctx:ENDPOINT_ADDRESS" name="ENDPOINT_ADDRESS"/>
+                        <property expression="get-property('axis2', 'HTTP_SC')" name="HTTP_STATUS_CODE"/>
+                        <property expression="get-property('WSO2id')" name="WSO2ID" xmlns:ns="http://org.apache.synapse/xsd"/>
+                        <property expression="get-property('RequestDuration')" name="RequestDuration"/>
+                        <property expression="get-property('transport','PyServiceLatencyMs')" name="BackendDuration"/>
+						<property expression="get-property('Resource')" name="Resource"/>
+                    </log>
+                </else>
+            </filter>
+        </else>
+    </filter>
+    <property action="remove" name="pid" scope="transport"/>
+</sequence>

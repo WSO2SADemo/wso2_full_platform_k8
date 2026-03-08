@@ -172,7 +172,7 @@ x-wso2-cors:
    - OPTIONS
 x-wso2-production-endpoints:
   urls:
-   - https://geocoding-api.open-meteo.com
+   - https://geocoding-api.open-meteo.comsearch/v1/search/?name=Helsinki&count=1&language=en&countryCode=FI&format=json
   type: http
 x-wso2-sandbox-endpoints:
   urls:
