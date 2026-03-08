@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Open-MeteoGeocodingAPI
-  description: Search locations globally by name using the Open-Meteo geocoding service.
+  description: Search locations globally by name using the Open-Meteo geocoding service..
   version: 1.0.0
 servers:
  -
