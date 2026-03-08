@@ -136,48 +136,78 @@ jobs:
           apictl login prod -u ${{ secrets.APIM_USERNAME }} -p ${{ secrets.APIM_PASSWORD }} --insecure
 
       # -----------------------------------------------------------------------
-      # Check if API exists
+      # Check if the API already exists to decide create vs update
       # -----------------------------------------------------------------------
       - name: 🔍 Check if API Exists in APIM
         id: check_api
         run: |
+          echo "🔍 Checking for existing API..."
+
           RAW_OUTPUT=$(apictl get apis -e prod -q name:"${{ env.API_NAME }}" --insecure --format json 2>/dev/null)
-          EXISTING_API=$(echo "$RAW_OUTPUT" | jq -r '.count // 0')
+
+          echo "-------------- DEBUG: RAW OUTPUT START --------------"
+          echo "$RAW_OUTPUT"
+          echo "-------------- DEBUG: RAW OUTPUT END ----------------"
+
+          CLEAN_JSON=$(echo "$RAW_OUTPUT" | sed -n '/^{/,$p')
+          EXISTING_API=$(echo "$CLEAN_JSON" | jq -r '.count // 0')
+
+          echo "Parsed Count: $EXISTING_API"
 
           if [ "$EXISTING_API" -gt "0" ]; then
+            echo "✅ API found. A new revision will be created."
             echo "api_exists=true" >> $GITHUB_OUTPUT
           else
+            echo "⚠️ API not found. A new API will be created."
             echo "api_exists=false" >> $GITHUB_OUTPUT
+          fi
 
       # -----------------------------------------------------------------------
-      # Import API
+      # Import (create or update) the API
       # -----------------------------------------------------------------------
       - name: 🚀 Import API to APIM
         run: |
           API_PROJECT_PATH="${GITHUB_WORKSPACE}/${{ env.API_PROJECT_PATH }}"
 
-          if [ "${{ steps.check_api.outputs.api_exists }}" == "true" ]; then
-            echo "Updating existing API..."
+          echo "📂 Project Path: $API_PROJECT_PATH"
+
+          if [ -d "$API_PROJECT_PATH" ]; then
+            echo "✅ Directory found."
           else
-            echo "Creating fresh API..."
+            echo "❌ Directory NOT found at $API_PROJECT_PATH"
+            exit 1
+          fi
+
+          if [ "${{ steps.check_api.outputs.api_exists }}" == "true" ]; then
+            echo "🚀 Updating existing API and creating a new Revision..."
+          else
+            echo "🆕 Creating fresh API..."
           fi
 
           apictl import api -f "$API_PROJECT_PATH" -e prod --preserve-provider=false --update --insecure
 
       # -----------------------------------------------------------------------
-      # Verify API
+      # Verify the API is present in APIM after import
       # -----------------------------------------------------------------------
       - name: ✅ Verify API Import
         run: |
           found=false
           for i in {1..3}; do
+            echo "Attempt $i: Checking for ${{ env.API_NAME }}..."
+
             if apictl get apis -e prod --insecure | grep -q "${{ env.API_NAME }}"; then
+              echo "✅ API is present in Publisher"
               found=true
               break
             fi
+
+            echo "⚠️ API not found yet. Waiting 2 seconds..."
             sleep 2
           done
 
           if [ "$found" = false ]; then
-            echo "API not found after 3 attempts."
+            echo "❌ API not found in Publisher after 3 attempts."
+            echo "Available APIs:"
+            apictl get apis -e prod --insecure
             exit 1
+          fi
