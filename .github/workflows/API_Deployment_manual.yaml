@@ -16,7 +16,7 @@ jobs:
     env:
       AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
       AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
-      API_PROJECT_PATH: Apis/${{ github.event.inputs.project_folder }}
+      API_PROJECT_PATH: apim-integration-artefacts-for-cicd-pipeline/apim/${{ github.event.inputs.project_folder }}
 
     steps:
       - name: Checkout Code
