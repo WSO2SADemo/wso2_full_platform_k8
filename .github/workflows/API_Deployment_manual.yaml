@@ -1,14 +1,7 @@
-name: APIM - MeteoGeocodingAPI
+name: APIM - Dynamic API Deployment
 
 on:
-  # push:
-  #   paths:
-  #     - 'apim-integration-artefacts-for-cicd-pipeline/apim/Open-MeteoGeocodingAPI/**'
-  #     - '.github/workflows/MeteoGeocodingAPI.yml'
-  #   branches:
-  #     - POC
-
-  # Allows manual triggering
+  # Manual trigger
   workflow_dispatch:
     inputs:
       project_folder:
@@ -23,8 +16,7 @@ jobs:
     env:
       AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
       AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
-      API_PROJECT_PATH: apim-integration-artefacts-for-cicd-pipeline/apim/Open-MeteoGeocodingAPI
-      API_NAME: "Open-MeteoGeocodingAPI"
+      API_PROJECT_PATH: Apis/${{ github.event.inputs.project_folder }}
 
     steps:
       - name: Checkout Code
@@ -34,7 +26,52 @@ jobs:
         run: |
           echo "Current Working Directory: $(pwd)"
           echo "API_PROJECT_PATH: ${{ env.API_PROJECT_PATH }}"
-          echo "API_NAME: ${{ env.API_NAME }}"
+
+      # -----------------------------------------------------------------------
+      # Read API info dynamically from Swagger/OpenAPI
+      # -----------------------------------------------------------------------
+      - name: 📖 Read API info from Swagger
+        id: swagger_info
+        shell: pwsh
+        run: |
+          $apiPath = Join-Path $env:GITHUB_WORKSPACE $env:API_PROJECT_PATH
+
+          if (!(Test-Path $apiPath)) {
+            Write-Error "API project folder not found: $apiPath"
+            exit 1
+          }
+
+          Write-Host "Searching Swagger/OpenAPI file in:" $apiPath
+
+          $swagger = Get-ChildItem -Path $apiPath -Recurse -Include swagger.json,openapi.json,swagger.yaml,openapi.yaml | Select-Object -First 1
+
+          if (-not $swagger) {
+            Write-Error "Swagger/OpenAPI file not found"
+            exit 1
+          }
+
+          Write-Host "Swagger file found:" $swagger.FullName
+
+          if ($swagger.Extension -eq ".json") {
+            $spec = Get-Content $swagger.FullName -Raw | ConvertFrom-Json
+            $apiName = $spec.info.title
+            $apiVersion = $spec.info.version
+          } else {
+            $content = Get-Content $swagger.FullName
+            $apiName = ($content | Select-String "title:" | Select-Object -First 1).Line.Split(":")[1].Trim()
+            $apiVersion = ($content | Select-String "version:" | Select-Object -First 1).Line.Split(":")[1].Trim()
+          }
+
+          if (-not $apiName -or -not $apiVersion) {
+            Write-Error "Could not read API name/version from Swagger"
+            exit 1
+          }
+
+          Write-Host "API Name: $apiName"
+          Write-Host "API Version: $apiVersion"
+
+          echo "API_NAME=$apiName" >> $env:GITHUB_ENV
+          echo "API_VERSION=$apiVersion" >> $env:GITHUB_ENV
 
       # -----------------------------------------------------------------------
       # AKS authentication – needed to port-forward the APIM CP
@@ -79,7 +116,7 @@ jobs:
         run: |
           echo "🔍 Checking for existing API..."
 
-          RAW_OUTPUT=$(apictl get apis -e prod -q name:"Orchestration and Notification Service" --insecure --format json 2>/dev/null)
+          RAW_OUTPUT=$(apictl get apis -e prod -q name:"${{ env.API_NAME }}" --insecure --format json 2>/dev/null)
 
           echo "-------------- DEBUG: RAW OUTPUT START --------------"
           echo "$RAW_OUTPUT"
@@ -129,9 +166,9 @@ jobs:
         run: |
           found=false
           for i in {1..3}; do
-            echo "Attempt $i: Checking for Orchestration and Notification Service..."
+            echo "Attempt $i: Checking for ${{ env.API_NAME }}..."
 
-            if apictl get apis -e prod --insecure | grep -q "Orchestration and Notification Service"; then
+            if apictl get apis -e prod --insecure | grep -q "${{ env.API_NAME }}"; then
               echo "✅ API is present in Publisher"
               found=true
               break
