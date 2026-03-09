@@ -50,7 +50,7 @@ jobs:
 
       - name: Build Ballerina Project
         working-directory: ${{ env.PROJECT_DIR }}
-        run: bal build --cloud k8s
+        run: bal build --cloud k8s -v
       
       - name: 🐳 List local Docker images
         run: |
