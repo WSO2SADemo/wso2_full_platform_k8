@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: MeteoAPI
-  version: 1.0.0
+  version: 1.1.0
 servers:
  -
   url: /
@@ -88,7 +88,7 @@ x-wso2-sandbox-endpoints:
   urls:
    - https://api.open-meteo.com/v1
   type: http
-x-wso2-basePath: /MeteoAPI/1.0.0
+x-wso2-basePath: /MeteoAPI/1.1.0
 x-wso2-transports:
  - http
  - https
