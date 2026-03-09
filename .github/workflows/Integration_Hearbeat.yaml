@@ -50,7 +50,7 @@ jobs:
 
       - name: Build Ballerina Project
         working-directory: ${{ env.PROJECT_DIR }}
-        run: bal build
+        run: bal build --cloud
 
       - name: 🔐 Docker Login
         uses: docker/login-action@v3
