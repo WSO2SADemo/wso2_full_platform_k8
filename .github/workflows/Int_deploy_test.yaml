@@ -1,0 +1,179 @@
+name: Integration - Heartbeat Service CI/CD - TEST
+
+on:
+  push:
+    paths:
+      - 'apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat/**'
+      - '.github/workflows/Int_deploy_test.yaml'
+    branches:
+      - POC
+
+  # Allows manual triggering
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      BALLERINA_NAMESPACE: ballerina
+      PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat
+      # Must match Cloud.toml [container.image].tag
+      IMAGE_TAG: "1.0.66"
+      # Secrets required in GitHub → Settings → Secrets and variables → Actions:
+      #   ORCHESTRATION_CONFIGMAP_YAML  – full ConfigMap YAML with __NAMESPACE__ as placeholder
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Debug - Print Environment Variables
+        run: |
+          echo "Current Working Directory: $(pwd)"
+          echo "PROJECT_DIR: ${{ env.PROJECT_DIR }}"
+          echo "IMAGE_TAG: ${{ env.IMAGE_TAG }}"
+
+      - name: Set up Ballerina
+        uses: ballerina-platform/setup-ballerina@v1
+        with:
+          version: 2201.13.1
+
+      - name: Cache Ballerina Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.ballerina
+          key: ballerina-deps-${{ hashFiles('apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat/Ballerina.toml') }}
+          restore-keys: |
+            ballerina-deps-
+
+      - name: Build Ballerina Project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: bal build --cloud k8s
+      
+      - name: 🐳 List local Docker images
+        run: |
+          echo "Local Docker images on runner:"
+          docker images
+      
+      # - name: Tag Docker Image
+      #   run: |
+      #     echo "Local Docker images before tagging:"
+      #     docker images
+
+      #     echo "Tagging ballerina_heartbeat:latest -> ramilu90/ballerina_heartbeat:1.0.66"
+      #     docker tag ballerina_heartbeat:latest ramilu90/ballerina_heartbeat:1.0.66
+
+      #     echo "Local Docker images after tagging:"
+      #     docker images
+
+      # - name: 🔐 Docker Login
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # # -----------------------------------------------------------------------
+      # # Push the image that Ballerina built (tag comes from Cloud.toml).
+      # # IMAGE_TAG env var must match Cloud.toml [container.image].tag.
+      # # -----------------------------------------------------------------------
+      # - name: 📦 Push Docker Image
+      #   run: |
+      #     IMAGE_NAME="ramilu90/ballerina_heartbeat:${{ env.IMAGE_TAG }}"
+      #     echo "Pushing image: ${IMAGE_NAME}"
+      #     docker push "${IMAGE_NAME}"
+
+      # # -----------------------------------------------------------------------
+      # # AKS authentication – must happen before any kubectl commands
+      # # -----------------------------------------------------------------------
+      # - name: 🔐 Azure Login via Service Principal
+      #   uses: azure/login@v2
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+      #     enable-AzPSSession: true
+
+      # - name: 🚢 Set AKS Kubectl Context
+      #   uses: azure/aks-set-context@v3
+      #   with:
+      #     resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+      #     cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+
+      # - name: 🚀 Ensure Namespace Exists
+      #   run: |
+      #     NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+      #     kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+      #     kubectl get namespace ${NAMESPACE}
+
+      # # -----------------------------------------------------------------------
+      # # ConfigMap – rendered from ORCHESTRATION_CONFIGMAP_YAML secret.
+      # # The secret must contain the full ConfigMap YAML with __NAMESPACE__
+      # # as the namespace placeholder.
+      # # -----------------------------------------------------------------------
+      # - name: Create ConfigMap
+      #   env:
+      #     CONFIGMAP_YAML: ${{ secrets.ORCHESTRATION_CONFIGMAP_YAML }}
+      #   run: |
+      #     printf '%s\n' "$CONFIGMAP_YAML" \
+      #       | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
+      #       | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
+
+      # - name: 🔍 Debug - Check K8s Artifacts Directory
+      #   run: |
+      #     K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/ballerina_heartbeat"
+      #     if [ -d "${K8S_ARTIFACTS_DIR}" ]; then
+      #       echo "${K8S_ARTIFACTS_DIR} directory exists. Contents:"
+      #       ls -la ${K8S_ARTIFACTS_DIR}
+      #     else
+      #       echo "Error: ${K8S_ARTIFACTS_DIR} does NOT exist after build."
+      #       exit 1
+      #     fi
+
+      # # -----------------------------------------------------------------------
+      # # Deploy: delete stale resources first, then apply fresh
+      # # -----------------------------------------------------------------------
+      # - name: Deploy Kubernetes Resources
+      #   run: |
+      #     K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/ballerina_heartbeat"
+
+      #     echo "Deleting existing resources from ${K8S_DIR}..."
+      #     kubectl delete -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found=true
+
+      #     echo "Applying new resources from ${K8S_DIR}..."
+      #     kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
+
+      # # -----------------------------------------------------------------------
+      # # Service: the Ballerina-generated YAML contains no Service resource.
+      # # Apply a complete Service definition covering all listener ports.
+      # #
+      # # Ports exposed by orchestration_and_email_sms:
+      # #   9090 – Combined API (combined_services.bal – combinedListener)
+      # #          Hosts /api (benefit registration) and /call_service_and_notify (email/SMS)
+      # #   9097 – Notification service port (reserved; previously integration_notification_service.bal)
+      # #   9264 – Ballerina management API
+      # # -----------------------------------------------------------------------
+      # - name: Ensure Service & Patch Ports
+      #   run: |
+      #     NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+
+      #     kubectl apply -f - <<EOF
+      #     apiVersion: v1
+      #     kind: Service
+      #     metadata:
+      #       name: heartbeat-service       # unique name
+      #       namespace: ballerina          # use the same namespace or a new one
+      #       labels:
+      #         app: heartbeat-service
+      #     spec:
+      #       type: ClusterIP               # internal cluster service
+      #       selector:
+      #         app: heartbeat-service      # matches pods with this label
+      #       ports:
+      #         - name: http
+      #           port: 9090                # port other services will call
+      #           targetPort: 9090          # port your container listens on
+      #     EOF
+
+      #     echo "Service applied. Current state:"
+      #     kubectl get svc heartbeat-service -n ${NAMESPACE} -o wide
+

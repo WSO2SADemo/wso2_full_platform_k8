@@ -6,7 +6,7 @@ on:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat/**'
       - '.github/workflows/Integration_Hearbeat.yaml'
     branches:
-      - POC
+      - POCaaa
 
   # Allows manual triggering
   workflow_dispatch:
