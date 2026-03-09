@@ -56,6 +56,17 @@ jobs:
         run: |
           echo "Local Docker images on runner:"
           docker images
+      
+      - name: Tag Docker Image
+        run: |
+          echo "Local Docker images before tagging:"
+          docker images
+
+          echo "Tagging ballerina_heartbeat:latest -> ramilu90/ballerina_heartbeat:1.6.6"
+          docker tag ballerina_heartbeat:latest ramilu90/ballerina_heartbeat:1.6.6
+
+          echo "Local Docker images after tagging:"
+          docker images
 
       - name: 🔐 Docker Login
         uses: docker/login-action@v3
