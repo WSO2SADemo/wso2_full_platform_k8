@@ -51,6 +51,11 @@ jobs:
       - name: Build Ballerina Project
         working-directory: ${{ env.PROJECT_DIR }}
         run: bal build
+      
+      - name: 🐳 List local Docker images
+        run: |
+          echo "Local Docker images on runner:"
+          docker images
 
       - name: 🔐 Docker Login
         uses: docker/login-action@v3
