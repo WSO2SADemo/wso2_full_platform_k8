@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.ballerina
-          key: ballerina-deps-${{ hashFiles('apim-integration-artefacts-for-cicd-pipeline/integration/customer/orchestration_and_email_sms/Ballerina.toml') }}
+          key: ballerina-deps-${{ hashFiles('apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat/Ballerina.toml') }}
           restore-keys: |
             ballerina-deps-
 
