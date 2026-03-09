@@ -163,11 +163,11 @@ jobs:
             name: ballerina-heartbeat       # unique name
             namespace: ballerina          # use the same namespace or a new one
             labels:
-              app: ballerina-heartbeat
+              app: ballerina_heartbeat
           spec:
             type: ClusterIP               # internal cluster service
             selector:
-              app: ballerina-heartbeat      # matches pods with this label
+              app: ballerina_heartbeat      # matches pods with this label
             ports:
               - name: http
                 port: 9090                # port other services will call
@@ -175,5 +175,5 @@ jobs:
           EOF
 
           echo "Service applied. Current state:"
-          kubectl get svc ballerina-heartbeat -n ${NAMESPACE} -o wide
+          kubectl get svc ballerina_heartbeat -n ${NAMESPACE} -o wide
 
