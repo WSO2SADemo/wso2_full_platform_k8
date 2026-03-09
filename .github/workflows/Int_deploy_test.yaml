@@ -6,7 +6,7 @@ on:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/TEST/ballerina_heartbeat/**'
       - '.github/workflows/Int_deploy_test.yaml'
     branches:
-      - POC
+      - POCddd
 
   # Allows manual triggering
   workflow_dispatch:
