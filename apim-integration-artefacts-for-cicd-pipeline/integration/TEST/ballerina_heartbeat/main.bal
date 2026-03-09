@@ -10,7 +10,7 @@ service /heartbeat on httpDefaultListener {
             json response = {
                 status: "Ballerina is running"
             };
-            log:printInfo("Heartbeat endpoint called");
+            log:printInfo("Heartbeat endpoint called, test");
             log:printInfo("Response payload: " + response.toJsonString());
             return response;
 
