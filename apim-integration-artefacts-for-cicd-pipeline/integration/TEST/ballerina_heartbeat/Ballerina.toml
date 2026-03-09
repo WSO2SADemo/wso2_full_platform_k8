@@ -6,7 +6,7 @@ distribution = "2201.13.1"
 title = "Ballerina_Heartbeat"
 
 [build-options]
-cloud = "k8s"
+cloud="k8s"
 remoteManagement=true
 # sticky = true
 observabilityIncluded=true
