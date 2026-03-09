@@ -62,8 +62,8 @@ jobs:
           echo "Local Docker images before tagging:"
           docker images
 
-          echo "Tagging ballerina_heartbeat:latest -> ramilu90/ballerina_heartbeat:1.6.6"
-          docker tag ballerina_heartbeat:latest ramilu90/ballerina_heartbeat:1.6.6
+          echo "Tagging ballerina_heartbeat:latest -> ramilu90/ballerina_heartbeat:1.0.66"
+          docker tag ballerina_heartbeat:latest ramilu90/ballerina_heartbeat:1.0.66
 
           echo "Local Docker images after tagging:"
           docker images
