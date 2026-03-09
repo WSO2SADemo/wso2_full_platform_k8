@@ -1,0 +1,15 @@
+type: operation_policy_specification
+version: v4.6.0
+data:
+  category: Mediation
+  name: APIMOutputlog
+  version: v1
+  displayName: APIM_Output_log
+  description: ""
+  applicableFlows:
+   - response
+  supportedGateways:
+   - Synapse
+  supportedApiTypes:
+   - HTTP
+  policyAttributes: []
