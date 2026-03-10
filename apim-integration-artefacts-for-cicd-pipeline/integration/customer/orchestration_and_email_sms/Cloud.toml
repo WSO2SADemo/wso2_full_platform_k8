@@ -21,44 +21,44 @@ secret_name="ballerina-secrets"
 
 [[cloud.config.envs]]
 key_ref="smtpHost"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="smtpPortStr"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="emailFrom"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="emailTo"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="twilioFromNumber"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="twilioToNumber"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="smtpUsername"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="oasUrl"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="cashRegistryUrl"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="notificationUrl"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
 
 [[cloud.config.envs]]
 key_ref="BAL_CONFIG_DATA"
-config_name="ballerina-values-ochastration-and-email-sms"
+config_name="ballerina-values-orchestration-and-email-sms"
