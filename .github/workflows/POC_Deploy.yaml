@@ -117,15 +117,21 @@ jobs:
           printf '%s\n' "$CONFIGMAP_YAML" \
             | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
             | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
-            
+
       # -----------------------------------------------------------------------
       # Inject ENVIRONMENT from ConfigMap into Deployment YAML
       # -----------------------------------------------------------------------
       - name: Inject ENVIRONMENT from ConfigMap into Deployment
         run: |
           K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment"
-          DEPLOYMENT_YAML="${K8S_DIR}/poc-deployment_deployment.yaml"
+          DEPLOYMENT_YAML=$(find "$K8S_DIR" -name '*_deployment.yaml' | head -n1)
 
+          if [ ! -f "$DEPLOYMENT_YAML" ]; then
+            echo "Error: Deployment YAML not found in $K8S_DIR"
+            exit 1
+          fi
+
+          # Inject envFrom only if not already present
           if ! grep -q "envFrom:" "$DEPLOYMENT_YAML"; then
             sed -i '/containers:/,/ports:/ a \
                 \ \ \ \ envFrom:\n\
