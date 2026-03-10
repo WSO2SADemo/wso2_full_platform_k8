@@ -110,13 +110,13 @@ jobs:
       # The secret must contain the full ConfigMap YAML with __NAMESPACE__
       # as the namespace placeholder.
       # -----------------------------------------------------------------------
-      # - name: Create ConfigMap
-      #   env:
-      #     CONFIGMAP_YAML: ${{ secrets.ORCHESTRATION_CONFIGMAP_YAML }}
-      #   run: |
-      #     printf '%s\n' "$CONFIGMAP_YAML" \
-      #       | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
-      #       | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
+      - name: Create ConfigMap
+        env:
+          CONFIGMAP_YAML: ${{ secrets.POC_CONFIGMAP_YAML }}
+        run: |
+          printf '%s\n' "$CONFIGMAP_YAML" \
+            | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
+            | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
