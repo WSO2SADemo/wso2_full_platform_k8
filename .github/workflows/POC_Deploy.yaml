@@ -117,6 +117,21 @@ jobs:
           printf '%s\n' "$CONFIGMAP_YAML" \
             | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
             | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
+            
+      # -----------------------------------------------------------------------
+      # Inject ENVIRONMENT from ConfigMap into Deployment YAML
+      # -----------------------------------------------------------------------
+      - name: Inject ENVIRONMENT from ConfigMap into Deployment
+        run: |
+          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment"
+          DEPLOYMENT_YAML="${K8S_DIR}/poc-deployment_deployment.yaml"
+
+          if ! grep -q "envFrom:" "$DEPLOYMENT_YAML"; then
+            sed -i '/containers:/,/ports:/ a \
+                \ \ \ \ envFrom:\n\
+                \ \ \ \ \ \ - configMapRef:\n\
+                \ \ \ \ \ \ \ \ name: poc-env-config' "$DEPLOYMENT_YAML"
+          fi
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
@@ -128,7 +143,7 @@ jobs:
             echo "Error: ${K8S_ARTIFACTS_DIR} does NOT exist after build."
             exit 1
           fi
-
+      
       # -----------------------------------------------------------------------
       # Deploy: delete stale resources first, then apply fresh
       # -----------------------------------------------------------------------
