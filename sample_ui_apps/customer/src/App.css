@@ -1,0 +1,6 @@
+/* App-level overrides — global styles live in index.css */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

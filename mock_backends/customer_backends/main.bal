@@ -255,6 +255,10 @@ service /notifications on fund11Listener {
         log:printInfo("Fund 11 – Notification Receiver started on port 9101");
     }
 
+    resource function get health() returns string {
+        return "Fund 11 – Notification Receiver is running on port 9101";
+    }
+
     // Receive notification from store-and-forward integration
     resource function post .(IncomingNotification notification)
             returns NotificationAck|http:ServiceUnavailable {

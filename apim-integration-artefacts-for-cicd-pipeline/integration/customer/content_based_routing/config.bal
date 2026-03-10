@@ -3,32 +3,22 @@ import ballerina/os;
 // ============================================================================
 // Routing recipient URLs
 //
-// Routing table (senderName in SOAP Header → recipient):
-//   "AFA"     → fundAUrl  (Fund11 toggleable receiver – shows resilience demo)
-//   "Alfa"    → fundBUrl  (notification mock backend)
-//   "Folksam" → fundCUrl  (notification mock backend)
-//   <other>   → defaultRecipientUrl
-//
-// Additional routing:
-//   benefitAmount > highValueThreshold → ALSO forward to highValueUrl
-//   (store-and-forward service for durable high-value delivery)
+// Routing table (senderName in SOAP Header + benefitAmount):
+//   "AFA",     any amount           → afaRecipientUrl     (DNE Calculator Add)
+//   "Folksam", amount > threshold   → afaRecipientUrl     (DNE Calculator Multiply)
+//   "Folksam", amount ≤ threshold   → folksamRecipientUrl (Oorsprong CountryInfo)
+//   any other sender                → alfaRecipientUrl    (LearnWebServices Hello)
 // ============================================================================
 
 // AFA sender → DNE Online Calculator SOAP service (Add operation)
 configurable string afaRecipientUrl = os:getEnv("afaRecipientUrl");
 
-// Alfa sender → DataAccess NumberToWords SOAP service
+// Default / other senders → LearnWebServices Hello SOAP service
 configurable string alfaRecipientUrl = os:getEnv("alfaRecipientUrl");
 
-// Folksam sender → DataAccess NumberToWords SOAP service
+// Folksam sender (low-value) → Oorsprong CountryInfo SOAP service
 configurable string folksamRecipientUrl = os:getEnv("folksamRecipientUrl");
 
-// Default recipient for unknown senders → DNE Online Calculator SOAP service
-configurable string defaultRecipientUrl = os:getEnv("defaultRecipientUrl");
-
-// High-value additional recipient – internal store-and-forward for durable delivery
-configurable string highValueUrl = os:getEnv("highValueUrl");
-
-// Benefit amount threshold above which high-value routing is also triggered
+// Benefit amount threshold above which Folksam routes to Calculator Multiply
 // Stored as string in ConfigMap, parsed at startup
 configurable string highValueThresholdStr = os:getEnv("highValueThresholdStr");

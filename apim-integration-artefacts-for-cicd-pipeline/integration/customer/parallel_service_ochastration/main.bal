@@ -1,6 +1,7 @@
 import ballerina/http;
 import ballerina/log;
 import ballerinax/moesif as _;
+import ballerinax/wso2.icp as _;
 
 
 listener http:Listener orchListener = check new http:Listener(9090);

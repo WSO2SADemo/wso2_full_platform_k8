@@ -258,12 +258,26 @@ remote_tracer.properties.hostname = {{ .Values.wso2.apim.configurations.openTrac
 remote_tracer.properties.port = {{ .Values.wso2.apim.configurations.openTracer.properties.port | quote }}
 {{- end }}
 
-{{- if .Values.wso2.apim.configurations.openTelemetry.enabled }}
+{{- $otel := .Values.wso2.apim.configurations.openTelemetry }}
+{{- if or $otel.enabled $otel.logTracerEnabled }}
 [apim.open_telemetry]
-remote_tracer.enable = {{ .Values.wso2.apim.configurations.openTelemetry.enabled }}
-remote_tracer.name = {{ .Values.wso2.apim.configurations.openTelemetry.name | quote }}
-remote_tracer.hostname = {{ .Values.wso2.apim.configurations.openTelemetry.hostname | quote }}
-remote_tracer.port = {{ .Values.wso2.apim.configurations.openTelemetry.port | quote }}
+remote_tracer.enable = {{ $otel.enabled | default false }}
+{{- if $otel.enabled }}
+remote_tracer.name = {{ $otel.name | quote }}
+{{- if $otel.url }}
+remote_tracer.url = {{ $otel.url | quote }}
+{{- else }}
+remote_tracer.hostname = {{ $otel.hostname | quote }}
+remote_tracer.port = {{ $otel.port | quote }}
+{{- end }}
+{{- end }}
+log_tracer.enable = {{ $otel.logTracerEnabled | default false }}
+{{- range $otel.properties }}
+
+[[apim.open_telemetry.remote_tracer.properties]]
+name = {{ .name | quote }}
+value = {{ .value | quote }}
+{{- end }}
 {{- end }}
 
 [transport.passthru_https.sender.parameters]

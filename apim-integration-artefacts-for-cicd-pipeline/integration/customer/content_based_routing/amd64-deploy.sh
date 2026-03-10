@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.1"
+IMAGE_TAG="1.0.6"
 
 echo "================================================"
 echo "  Deploy content_based_routing"
@@ -12,8 +12,8 @@ echo "================================================"
 echo ""
 echo "--- Building Ballerina project ---"
 cd "$SCRIPT_DIR"
-bal clean
-bal build
+/Users/ramindu/Downloads/ballerina-2201.13.2/bin/bal clean
+/Users/ramindu/Downloads/ballerina-2201.13.2/bin/bal build
 
 echo ""
 echo "--- Docker login ---"

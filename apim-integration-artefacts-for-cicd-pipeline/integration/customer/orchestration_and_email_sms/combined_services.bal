@@ -7,6 +7,8 @@ import ballerina/email;
 import ballerinax/twilio;
 // import ballerinax/wso2.apim.catalog as _;
 import ballerinax/moesif as _;
+import ballerinax/wso2.icp as _;
+
 
 // Single listener for both services
 listener http:Listener combinedListener = check new (9090);

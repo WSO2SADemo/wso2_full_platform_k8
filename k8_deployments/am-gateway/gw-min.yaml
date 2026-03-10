@@ -71,6 +71,14 @@ wso2:
         urls:
           - "acp-wso2am-acp-1-service.apim-cp.svc.cluster.local"
           # - "acp-wso2am-acp-2-service.apim-cp.svc.cluster.local" < if replica factor is more than 1
+      openTelemetry:
+        enabled: true
+        name: "otlp"
+        url: "https://api.moesif.net/v1/traces"
+        logTracerEnabled: true
+        properties:
+          - name: "X-Moesif-Application-Id"
+            value: "$env{MOESIF_KEY_ENV_VAR}"
       transport:
         passthru_https:
           sender:

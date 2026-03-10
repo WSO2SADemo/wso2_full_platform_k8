@@ -1,7 +1,7 @@
 [container.image]
 repository = "ramilu90"
 name = "parallel_service_ochastration_integration"
-tag = "1.0.2"
+tag = "1.0.3"
 
 [[cloud.config.envs]]
 key_ref = "fund1Url"

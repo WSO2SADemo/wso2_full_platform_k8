@@ -1,0 +1,10 @@
+[package]
+org = "ramindu"
+name = "purchase_service_orchestration_pipeline"
+version = "0.1.0"
+title = "purchase_service_orchestration_pipeline"
+
+[build-options]
+cloud = "k8s"
+remoteManagement=true
+observabilityIncluded=true

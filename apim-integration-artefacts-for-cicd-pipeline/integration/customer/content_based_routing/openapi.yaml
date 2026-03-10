@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Content-Based Routing SOAP Integration
+  description: >
+    Receives SOAP/XML benefit notifications from Swedish unemployment funds,
+    validates against an XSD schema, and routes to the correct recipient based
+    on the senderName in the SOAP header. Messages exceeding the high-value
+    threshold are additionally forwarded to the store-and-forward service for
+    durable delivery.
+
+    Routing table:
+      - senderName = "AFA"     → AFA-Fund-A (DNE Calculator SOAP)
+      - senderName = "Alfa"    → Alfa-Fund-B (DataAccess NumberToWords SOAP)
+      - senderName = "Folksam" → Folksam-Fund-C (DataAccess NumberToWords SOAP)
+      - default                → Default recipient (DNE Calculator SOAP)
+      - benefitAmount > threshold → ALSO forwarded to store-and-forward service
+  version: 1.0.0
+servers:
+  - url: http://content-based-routing.ballerina.svc.cluster.local:9095
+    description: In-cluster endpoint
+
+paths:
+  /soap/routing:
+    post:
+      summary: Route a SOAP benefit notification
+      description: >
+        Accepts a SOAP envelope containing a BenefitNotification payload.
+        Steps performed:
+          1. Extract senderName and senderId from SOAP Header
+          2. Extract BenefitNotification element from SOAP Body
+          3. Validate BenefitNotification against XSD schema
+          4. Route to the correct recipient based on senderName
+          5. If benefitAmount exceeds threshold, also forward to store-and-forward
+          6. Return a SOAP acknowledgement to the caller
+      operationId: routeSoapNotification
+      requestBody:
+        required: true
+        content:
+          text/xml:
+            schema:
+              type: string
+              description: SOAP 1.1 Envelope with SenderHeader and BenefitNotification body
+            example: |
+              <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                             xmlns:un="http://unemployment.sweden.se/notification">
+                <soap:Header>
+                  <un:SenderHeader>
+                    <un:senderName>AFA</un:senderName>
+                    <un:senderId>AFA-001</un:senderId>
+                  </un:SenderHeader>
+                </soap:Header>
+                <soap:Body>
+                  <un:BenefitNotification>
+                    <un:personalNumber>198501011234</un:personalNumber>
+                    <un:benefitAmount>35000.00</un:benefitAmount>
+                    <un:benefitType>STANDARD</un:benefitType>
+                    <un:periodStart>2026-01-01</un:periodStart>
+                    <un:periodEnd>2026-03-31</un:periodEnd>
+                    <un:message>Benefit notification for Q1 2026</un:message>
+                  </un:BenefitNotification>
+                </soap:Body>
+              </soap:Envelope>
+      responses:
+        '200':
+          description: SOAP acknowledgement — message validated and routed
+          content:
+            text/xml:
+              schema:
+                type: string
+                description: SOAP envelope containing DistributionAcknowledgement
+              example: |
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <DistributionAcknowledgement>
+                      <status>ACCEPTED</status>
+                      <correlationId>a1b2c3d4-e5f6-...</correlationId>
+                      <routedTo>AFA-Fund-A</routedTo>
+                      <message>Message validated and distributed successfully</message>
+                    </DistributionAcknowledgement>
+                  </soap:Body>
+                </soap:Envelope>
+        '400':
+          description: Invalid SOAP request — missing fields or XSD validation failure
+          content:
+            text/xml:
+              schema:
+                type: string
+                description: SOAP Fault envelope
+              example: |
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <soap:Fault>
+                      <faultcode>soap:Client</faultcode>
+                      <faultstring>Missing &lt;un:senderName&gt; in SOAP Header</faultstring>
+                    </soap:Fault>
+                  </soap:Body>
+                </soap:Envelope>
+        '500':
+          description: Internal routing error
+          content:
+            text/xml:
+              schema:
+                type: string
+                description: SOAP Fault envelope
+
+  /soap/health:
+    get:
+      summary: Health check
+      description: Returns a plain-text confirmation that the service is running.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Content-Based Routing Service is running on port 9095"
+
+components:
+  schemas:
+    BenefitNotification:
+      type: object
+      description: >
+        Fields extracted from the un:BenefitNotification SOAP body element.
+        Validated against the embedded XSD schema before routing.
+      required:
+        - personalNumber
+        - benefitAmount
+        - benefitType
+        - periodStart
+        - periodEnd
+      properties:
+        personalNumber:
+          type: string
+          description: Swedish personal identity number
+          example: "198501011234"
+        benefitAmount:
+          type: number
+          format: decimal
+          description: Gross benefit amount in SEK
+          example: 35000.00
+        benefitType:
+          type: string
+          description: Type of unemployment benefit
+          example: "STANDARD"
+        periodStart:
+          type: string
+          format: date
+          description: Start of the benefit period (YYYY-MM-DD)
+          example: "2026-01-01"
+        periodEnd:
+          type: string
+          format: date
+          description: End of the benefit period (YYYY-MM-DD)
+          example: "2026-03-31"
+        message:
+          type: string
+          description: Optional free-text note
+          example: "Benefit notification for Q1 2026"
+
+    SenderHeader:
+      type: object
+      description: Fields extracted from the un:SenderHeader SOAP header element
+      required:
+        - senderName
+      properties:
+        senderName:
+          type: string
+          description: Fund identifier driving the routing decision
+          enum: [AFA, Alfa, Folksam]
+          example: "AFA"
+        senderId:
+          type: string
+          description: Sender reference ID
+          example: "AFA-001"
+
+    RoutingDecision:
+      type: object
+      description: Internal routing outcome (reflected in the SOAP ACK)
+      properties:
+        recipientName:
+          type: string
+          description: Name of the primary recipient the message was forwarded to
+          enum: [AFA-Fund-A, Alfa-Fund-B, Folksam-Fund-C, Default-Recipient]
+          example: "AFA-Fund-A"
+        isHighValue:
+          type: boolean
+          description: Whether the message was also forwarded to the store-and-forward service
+          example: false

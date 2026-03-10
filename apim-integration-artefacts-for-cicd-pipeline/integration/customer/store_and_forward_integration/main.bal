@@ -3,12 +3,40 @@ import ballerina/log;
 import ballerina/time;
 import ballerina/uuid;
 import ballerinax/rabbitmq;
+import ballerinax/moesif as _;
+import ballerinax/wso2.icp as _;
 
 // ─── Module init: declare all RabbitMQ queues before listeners start ──────────
 
 function init() returns error? {
     check setupQueues();
     log:printInfo("Store-and-Forward module initialised – queues ready");
+    
+    log:printInfo("✓ RabbitMQ connection successful");
+
+    // Verify backend connection
+    error? backendHealth = verifyBackendConnection();
+    if backendHealth is error {
+        log:printWarn("Backend health check failed: " + backendHealth.message());
+    } else {
+        log:printInfo("✓ Backend connection successful");
+    }
+    
+    // Start the consumer in a separate worker thread
+    worker consumerWorker {
+        error? result = startConsumer();
+        if result is error {
+            log:printError("Consumer worker failed: " + result.message());
+        }
+    }
+}
+
+// Verify backend connection by calling health endpoint
+function verifyBackendConnection() returns error? {
+    http:Response response = check backendClient->get("/notifications/health");
+    if response.statusCode < 200 || response.statusCode >= 300 {
+        return error(string `Backend health check returned status: ${response.statusCode}`);
+    }
 }
 
 // ─── HTTP Service (port 9085) ─────────────────────────────────────────────────
@@ -74,7 +102,7 @@ service / on httpListener {
     // ── MANUAL RETRY ──────────────────────────────────────────────────────────
     // Takes the oldest message from the in-memory DLQ store, resets its retry
     // counter, and re-publishes it to the main queue for another delivery attempt.
-    resource function post notifications/retry() returns RetryResult {
+    resource function post notifications/'retry() returns RetryResult {
         lock {
             if dlqMessages.length() == 0 {
                 return {
@@ -90,8 +118,12 @@ service / on httpListener {
             // Reset the retry counter so the message gets the full 3 automatic
             // retries again from this new delivery attempt.
             NotificationMessage retryMsg = {
-                ...msg,
+                messageId: msg.messageId,
+                personId: msg.personId,
+                notificationType: msg.notificationType,
+                data: msg.data,
                 retryCount: 0,
+                createdAt: msg.createdAt,
                 lastAttemptAt: ""
             };
 
@@ -101,7 +133,7 @@ service / on httpListener {
             });
 
             if result is rabbitmq:Error {
-                dlqMessages[msg.messageId] = msg; // restore on failure
+                dlqMessages[msg.messageId] = msg.cloneReadOnly(); // restore on failure
                 log:printError("Manual retry failed to enqueue: " + result.message());
                 return {
                     status: "ERROR",
@@ -122,11 +154,15 @@ service / on httpListener {
     // ── DLQ STATUS ────────────────────────────────────────────────────────────
     // Returns all messages currently awaiting manual retry.
     resource function get notifications/dlq\-status() returns DlqStatus {
+        int messageCount = 0;
+        NotificationMessage[] messageList = [];
         lock {
-            return {
-                count: dlqMessages.length(),
-                messages: dlqMessages.toArray()
-            };
+            messageCount = dlqMessages.length();
+            messageList = dlqMessages.toArray().clone();
         }
+        return {
+            count: messageCount,
+            messages: messageList
+        };
     }
 }

@@ -1,0 +1,54 @@
+# Copyright (c) 2026, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+#
+# WSO2 Inc. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# ConfigMap for ICP deployment.toml — overrides the default localhost URLs
+# baked into the Docker image with the correct external hostname (icp.wso2.com).
+# Mounted over conf/deployment.toml in the ICP pod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: icp-conf
+  namespace: icp
+data:
+  deployment.toml: |
+    # ICP Server Configuration — Kubernetes overlay
+    # Overrides the baked-in deployment.toml from the Docker image.
+
+    schedulerIntervalSeconds = 30
+    logLevel = "INFO"
+    enableAuditLogging = true
+    enableMetrics = true
+
+    authBackendUrl = "https://localhost:9447"
+    frontendJwtHMACSecret = "default-secret-key-at-least-32-characters-long-for-hs256"
+
+    # ── Frontend backend URLs ─────────────────────────────────────────────────
+    # These are written into www/config.json at startup so the browser knows
+    # where to call the backend APIs. Must use the external hostname, not localhost.
+    backendGraphqlEndpoint = "https://icp.wso2.com/graphql"
+    backendAuthBaseUrl = "https://icp.wso2.com/auth"
+    backendObservabilityEndpoint = "https://icp.wso2.com/icp/observability"
+
+    [icp_server.secrets]
+
+    [icp_server.storage]
+
+    [[ballerina.log.modules]]
+    name = "wso2/icp_server"
+    level = "INFO"
+
+    [ballerina.http.traceLogAdvancedConfig]
+    console = false

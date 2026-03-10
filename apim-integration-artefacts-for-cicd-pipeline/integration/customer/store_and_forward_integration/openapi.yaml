@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Store-and-Forward Notification Integration
+  description: >
+    Accepts notifications from callers and durably delivers them to a backend
+    via RabbitMQ. Provides automatic retries and a manual DLQ retry API.
+  version: 1.0.2
+servers:
+  - url: http://store-and-forward-integration.ballerina.svc.cluster.local:9085
+    description: In-cluster endpoint
+
+paths:
+  /notifications/send:
+    post:
+      summary: Queue a notification for delivery
+      description: >
+        Accepts a notification payload, wraps it in a message envelope, and
+        publishes it to the main RabbitMQ queue. Returns 202 immediately —
+        the caller does not wait for backend delivery. Automatic retries occur
+        if the backend is unavailable.
+      operationId: sendNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+            example:
+              personId: "P-12345"
+              notificationType: "BENEFIT_UPDATE"
+              data:
+                amount: 35000
+                period: "2026-Q1"
+      responses:
+        '202':
+          description: Message accepted and queued for delivery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedResponse'
+              example:
+                messageId: "550e8400-e29b-41d4-a716-446655440000"
+                status: "QUEUED"
+                message: "Message accepted and queued for delivery. Automatic retries will occur if the backend is unavailable."
+                timestamp: "2026-03-08T08:00:00.000Z"
+        '500':
+          description: RabbitMQ unavailable — message could not be queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/retry:
+    post:
+      summary: Manually retry the oldest DLQ message
+      description: >
+        Takes the oldest message from the in-memory dead-letter queue (DLQ),
+        resets its retry counter to 0, and re-publishes it to the main queue
+        for another full round of delivery attempts.
+      operationId: retryDlqMessage
+      responses:
+        '200':
+          description: Retry result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryResult'
+              examples:
+                requeued:
+                  summary: Message requeued successfully
+                  value:
+                    status: "REQUEUED"
+                    message: "Message moved back to main queue for delivery"
+                    messageId: "550e8400-e29b-41d4-a716-446655440000"
+                empty:
+                  summary: DLQ is empty
+                  value:
+                    status: "DLQ_EMPTY"
+                    message: "No messages pending manual retry"
+                    messageId: null
+                error:
+                  summary: Failed to requeue
+                  value:
+                    status: "ERROR"
+                    message: "Failed to requeue: connection refused"
+                    messageId: "550e8400-e29b-41d4-a716-446655440000"
+
+  /notifications/dlq-status:
+    get:
+      summary: List messages awaiting manual retry
+      description: >
+        Returns all messages currently in the in-memory DLQ store that have
+        exhausted their automatic retries and are awaiting manual retry.
+      operationId: getDlqStatus
+      responses:
+        '200':
+          description: Current DLQ contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DlqStatus'
+              example:
+                count: 1
+                messages:
+                  - messageId: "550e8400-e29b-41d4-a716-446655440000"
+                    personId: "P-12345"
+                    notificationType: "BENEFIT_UPDATE"
+                    data:
+                      amount: 35000
+                    retryCount: 3
+                    createdAt: "2026-03-08T07:00:00.000Z"
+                    lastAttemptAt: "2026-03-08T07:05:00.000Z"
+
+components:
+  schemas:
+    NotificationRequest:
+      type: object
+      required:
+        - personId
+        - notificationType
+        - data
+      properties:
+        personId:
+          type: string
+          description: Identifier of the person this notification concerns
+          example: "P-12345"
+        notificationType:
+          type: string
+          description: Category of notification
+          enum: [STATUS_CHANGE, BENEFIT_UPDATE, REGISTRATION]
+          example: "BENEFIT_UPDATE"
+        data:
+          type: object
+          description: Arbitrary notification payload
+          additionalProperties: true
+
+    NotificationMessage:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        personId:
+          type: string
+        notificationType:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        retryCount:
+          type: integer
+          description: "0 = first attempt, 1-3 = automatic retries"
+          minimum: 0
+          maximum: 3
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp when first queued
+        lastAttemptAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of most recent delivery attempt
+
+    QueuedResponse:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED]
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    RetryResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [REQUEUED, DLQ_EMPTY, ERROR]
+        message:
+          type: string
+        messageId:
+          type: string
+          format: uuid
+          nullable: true
+
+    DlqStatus:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Number of messages awaiting manual retry
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationMessage'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string

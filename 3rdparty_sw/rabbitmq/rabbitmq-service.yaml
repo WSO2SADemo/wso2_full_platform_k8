@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq-headless
-  namespace: rabbitmq
+  namespace: ballerina
   labels:
     app: rabbitmq
 spec:
@@ -17,13 +17,13 @@ spec:
       port: 15672
 ---
 # ClusterIP service – use this hostname inside the cluster
-# AMQP  : amqp://admin:admin123@rabbitmq.rabbitmq.svc.cluster.local:5672
-# Mgmt  : http://rabbitmq.rabbitmq.svc.cluster.local:15672
+# AMQP  : amqp://admin:admin123@rabbitmq.ballerina.svc.cluster.local:5672
+# Mgmt  : http://rabbitmq.ballerina.svc.cluster.local:15672
 apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq
-  namespace: rabbitmq
+  namespace: ballerina
   labels:
     app: rabbitmq
 spec:

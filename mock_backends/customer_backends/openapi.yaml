@@ -1,0 +1,435 @@
+openapi: 3.0.3
+info:
+  title: Customer Backends – Mock Unemployment Fund Services
+  description: >
+    Mock backend services simulating 10 Swedish unemployment fund lookup APIs
+    (Funds 1–10, ports 9091–9100) and one store-and-forward notification
+    receiver (Fund 11, port 9101).
+
+    Each fund service exposes an identical lookup API at GET /lookup but runs
+    on its own port. Funds differ in latency, error behaviour, and which person
+    IDs are registered.
+
+    | Fund | Name           | Port | Behaviour                               |
+    |------|----------------|------|-----------------------------------------|
+    | 1    | AEA            | 9091 | Fast (~100 ms)                          |
+    | 2    | Unionen        | 9092 | Fast (~200 ms)                          |
+    | 3    | Akademikernas  | 9093 | Fast (~150 ms)                          |
+    | 4    | IF Metall      | 9094 | Fast (~300 ms)                          |
+    | 5    | Kommunal       | 9095 | Fast (~250 ms)                          |
+    | 6    | Handels        | 9096 | Fast (~400 ms)                          |
+    | 7    | Vision         | 9097 | High latency (3.5 s) – exceeds timeout  |
+    | 8    | Transport      | 9098 | High latency (4.0 s) – exceeds timeout  |
+    | 9    | SEKO           | 9099 | Always returns HTTP 500 error           |
+    | 10   | Fastighets     | 9100 | Always returns empty 200 OK             |
+    | 11   | Notification Receiver | 9101 | Store-and-forward backend        |
+  version: 1.0.0
+
+# ── Servers (one per fund; all fund-lookup services share the same path shape) ─
+servers:
+  - url: http://localhost:9091
+    description: "Fund 1 – AEA (fast ~100 ms)"
+  - url: http://localhost:9092
+    description: "Fund 2 – Unionen (fast ~200 ms)"
+  - url: http://localhost:9093
+    description: "Fund 3 – Akademikernas (fast ~150 ms)"
+  - url: http://localhost:9094
+    description: "Fund 4 – IF Metall (fast ~300 ms)"
+  - url: http://localhost:9095
+    description: "Fund 5 – Kommunal (fast ~250 ms)"
+  - url: http://localhost:9096
+    description: "Fund 6 – Handels (fast ~400 ms)"
+  - url: http://localhost:9097
+    description: "Fund 7 – Vision (high latency 3.5 s)"
+  - url: http://localhost:9098
+    description: "Fund 8 – Transport (high latency 4.0 s)"
+  - url: http://localhost:9099
+    description: "Fund 9 – SEKO (always 500)"
+  - url: http://localhost:9100
+    description: "Fund 10 – Fastighets (always empty)"
+  - url: http://localhost:9101
+    description: "Fund 11 – Notification Receiver (store-and-forward backend)"
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Fund 1–10: Member lookup ────────────────────────────────────────────────
+  /lookup:
+    get:
+      summary: Look up fund membership by person ID
+      description: >
+        Returns membership information for the given Swedish person ID if that
+        person is registered with this fund. Returns an empty JSON object `{}`
+        when the person is not found (200 OK).
+
+        **Funds 7 & 8** will not respond within the normal client timeout (2.9 s).
+
+        **Fund 9** always returns HTTP 500 regardless of the person ID.
+
+        **Fund 10** always returns `{}` regardless of the person ID.
+
+        Applies to: Funds 1–10 (ports 9091–9100).
+      operationId: lookupMember
+      tags:
+        - Fund Lookup (ports 9091–9100)
+      parameters:
+        - name: personId
+          in: query
+          required: true
+          description: Swedish person ID (e.g. SE199001011234)
+          schema:
+            type: string
+            example: "SE199001011234"
+      responses:
+        '200':
+          description: >
+            Member found – returns MemberInfo. If the person is not registered
+            with this fund, returns an empty object `{}`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MemberInfo'
+                  - $ref: '#/components/schemas/EmptyObject'
+              examples:
+                memberFound:
+                  summary: Person is registered with this fund
+                  value:
+                    fund: "AEA"
+                    personId: "SE199001011234"
+                    status: "ACTIVE"
+                    registeredSince: "2015-06-01"
+                    memberType: "FULL"
+                notFound:
+                  summary: Person not registered (empty response)
+                  value: {}
+        '500':
+          description: >
+            Internal server error – fund unavailable (Fund 9 – SEKO always
+            returns this response).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundErrorResponse'
+              example:
+                error: "Service temporarily unavailable"
+                code: "FUND_UNAVAILABLE"
+                fund: "SEKO"
+
+  /lookup/health:
+    get:
+      summary: Health check (Fund 1 – AEA only)
+      description: >
+        Returns a plain-text health message. Available on Fund 1 (port 9091).
+      operationId: lookupHealth
+      tags:
+        - Fund Lookup (ports 9091–9100)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "fund1Listener Service is running on port 9091"
+
+  # ── Fund 11: Notification Receiver ─────────────────────────────────────────
+  /notifications/health:
+    get:
+      summary: Health check for the notification receiver
+      description: >
+        Returns a plain-text health message.
+        Applies to: Fund 11 – Notification Receiver (port 9101).
+      operationId: notificationsHealth
+      tags:
+        - Notification Receiver (port 9101)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Fund 11 – Notification Receiver is running on port 9101"
+
+  /notifications:
+    post:
+      summary: Receive a notification from the store-and-forward integration
+      description: >
+        Accepts a notification message envelope delivered by the integration
+        layer. Returns 200 with an acknowledgement when online, or 503 when
+        the service window is active (toggled offline via the admin endpoint).
+
+        Applies to: Fund 11 – Notification Receiver (port 9101).
+      operationId: receiveNotification
+      tags:
+        - Notification Receiver (port 9101)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncomingNotification'
+            example:
+              messageId: "550e8400-e29b-41d4-a716-446655440000"
+              personId: "SE199001011234"
+              notificationType: "BENEFIT_UPDATE"
+              data:
+                amount: 35000
+                period: "2026-Q1"
+              retryCount: 0
+              createdAt: "2026-03-08T08:00:00.000Z"
+              lastAttemptAt: "2026-03-08T08:00:00.000Z"
+      responses:
+        '200':
+          description: Notification received and acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAck'
+              example:
+                status: "RECEIVED"
+                messageId: "550e8400-e29b-41d4-a716-446655440000"
+                receivedAt: "2026-03-08T08:00:00.000Z"
+        '503':
+          description: >
+            Service window in progress – system is temporarily offline.
+            Toggle back online via POST /notifications/admin/toggle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+              example:
+                error: "Service window in progress – system temporarily offline"
+                code: "SERVICE_WINDOW"
+
+  /notifications/admin/toggle:
+    post:
+      summary: Toggle notification receiver online / offline
+      description: >
+        Flips the service availability flag. When offline, POST /notifications
+        returns 503 to simulate a service window / outage. Call again to
+        restore service.
+
+        Applies to: Fund 11 – Notification Receiver (port 9101).
+      operationId: toggleNotificationService
+      tags:
+        - Notification Receiver – Admin (port 9101)
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                nowOffline:
+                  summary: Toggled to offline (service window active)
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+                nowOnline:
+                  summary: Toggled back to online
+                  value:
+                    available: true
+                    state: "ONLINE"
+
+  /notifications/admin/status:
+    get:
+      summary: Check notification receiver availability
+      description: >
+        Returns the current online/offline state of the notification receiver
+        without changing it.
+
+        Applies to: Fund 11 – Notification Receiver (port 9101).
+      operationId: getNotificationServiceStatus
+      tags:
+        - Notification Receiver – Admin (port 9101)
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                online:
+                  summary: Service is online
+                  value:
+                    available: true
+                    state: "ONLINE"
+                offline:
+                  summary: Service window active
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+
+# ── Schemas ────────────────────────────────────────────────────────────────────
+components:
+  schemas:
+
+    MemberInfo:
+      type: object
+      description: Membership record returned when a person is registered with a fund.
+      required:
+        - fund
+        - personId
+        - status
+        - registeredSince
+        - memberType
+      properties:
+        fund:
+          type: string
+          description: Name of the unemployment fund
+          example: "AEA"
+        personId:
+          type: string
+          description: Swedish person ID
+          example: "SE199001011234"
+        status:
+          type: string
+          description: Membership status
+          enum: [ACTIVE, INACTIVE]
+          example: "ACTIVE"
+        registeredSince:
+          type: string
+          format: date
+          description: Date the person registered with this fund (YYYY-MM-DD)
+          example: "2015-06-01"
+        memberType:
+          type: string
+          description: Type of membership
+          enum: [FULL, PART_TIME, STUDENT]
+          example: "FULL"
+
+    EmptyObject:
+      type: object
+      description: >
+        Empty JSON object returned when the person is not registered with
+        this fund. All properties are absent.
+      additionalProperties: false
+
+    FundErrorResponse:
+      type: object
+      description: Error response returned by funds that are in error state (e.g. Fund 9 – SEKO).
+      required:
+        - error
+        - code
+        - fund
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Service temporarily unavailable"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "FUND_UNAVAILABLE"
+        fund:
+          type: string
+          description: Name of the fund that returned the error
+          example: "SEKO"
+
+    IncomingNotification:
+      type: object
+      description: >
+        Message envelope delivered by the store-and-forward integration to
+        the notification receiver backend.
+      required:
+        - messageId
+        - personId
+        - notificationType
+        - data
+        - retryCount
+        - createdAt
+        - lastAttemptAt
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique message identifier assigned by the integration
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        personId:
+          type: string
+          description: Identifier of the person the notification concerns
+          example: "SE199001011234"
+        notificationType:
+          type: string
+          description: Category of notification
+          enum: [STATUS_CHANGE, BENEFIT_UPDATE, REGISTRATION]
+          example: "BENEFIT_UPDATE"
+        data:
+          type: object
+          description: Arbitrary notification payload
+          additionalProperties: true
+          example:
+            amount: 35000
+            period: "2026-Q1"
+        retryCount:
+          type: integer
+          description: "Number of delivery attempts so far (0 = first attempt)"
+          minimum: 0
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp when the message was first queued
+          example: "2026-03-08T08:00:00.000Z"
+        lastAttemptAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of the most recent delivery attempt
+          example: "2026-03-08T08:00:00.000Z"
+
+    NotificationAck:
+      type: object
+      description: Acknowledgement returned to the integration on successful delivery.
+      required:
+        - status
+        - messageId
+        - receivedAt
+      properties:
+        status:
+          type: string
+          enum: [RECEIVED]
+          example: "RECEIVED"
+        messageId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        receivedAt:
+          type: string
+          format: date-time
+          description: Timestamp echoed from lastAttemptAt
+          example: "2026-03-08T08:00:00.000Z"
+
+    ServiceWindowError:
+      type: object
+      description: Returned when the notification receiver is toggled offline.
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          example: "Service window in progress – system temporarily offline"
+        code:
+          type: string
+          enum: [SERVICE_WINDOW]
+          example: "SERVICE_WINDOW"
+
+    ToggleResponse:
+      type: object
+      description: Current availability state of the notification receiver.
+      required:
+        - available
+        - state
+      properties:
+        available:
+          type: boolean
+          description: true = online, false = offline (service window active)
+          example: true
+        state:
+          type: string
+          description: Human-readable state label
+          example: "ONLINE"

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: rabbitmq
-  namespace: rabbitmq
+  namespace: ballerina
   labels:
     app: rabbitmq
 spec:
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: rabbitmq:3.13-management
+          image: rabbitmq:4-management
           ports:
             - name: amqp
               containerPort: 5672
@@ -28,18 +28,18 @@ spec:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
                 secretKeyRef:
-                  name: rabbitmq-secret
-                  key: RABBITMQ_DEFAULT_USER
+                  name: rabbitmq-credentials
+                  key: username
             - name: RABBITMQ_DEFAULT_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rabbitmq-secret
-                  key: RABBITMQ_DEFAULT_PASS
+                  name: rabbitmq-credentials
+                  key: password
             - name: RABBITMQ_ERLANG_COOKIE
               valueFrom:
                 secretKeyRef:
-                  name: rabbitmq-secret
-                  key: RABBITMQ_ERLANG_COOKIE
+                  name: rabbitmq-credentials
+                  key: erlang-cookie
             - name: RABBITMQ_CONFIG_FILE
               value: /etc/rabbitmq/rabbitmq.conf
             - name: RABBITMQ_ENABLED_PLUGINS_FILE

@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.1"
+IMAGE_TAG="1.0.3"
 
 echo "================================================"
 echo "  Deploy customer_backends"
@@ -90,6 +90,18 @@ spec:
       port: 9101
       targetPort: 9101
       protocol: TCP
+    - name: order-customer-profile
+      port: 9110
+      targetPort: 9110
+      protocol: TCP
+    - name: order-inventory
+      port: 9111
+      targetPort: 9111
+      protocol: TCP
+    - name: order-pricing
+      port: 9112
+      targetPort: 9112
+      protocol: TCP
     - name: management
       port: 9264
       targetPort: 9264
@@ -147,4 +159,12 @@ echo "  Fund 11    : Notification Receiver – port 9101"
 echo "    POST /notifications               – receive notification from store-and-forward"
 echo "    POST /notifications/admin/toggle  – toggle online/offline (simulate outage)"
 echo "    GET  /notifications/admin/status  – check availability"
+echo ""
+echo "  Order Pipeline backends:"
+echo "  Customer Profile Service  – port 9110"
+echo "    GET  /customer/profile/{customerId}  (CUST-001 GOLD / CUST-002 SILVER / CUST-003 BRONZE)"
+echo "  Inventory Service         – port 9111"
+echo "    POST /inventory/check   (PROD-A1 Laptop / PROD-B2 Mouse / PROD-C3 Hub (OOS) / PROD-D4 Monitor)"
+echo "  Pricing Service           – port 9112"
+echo "    POST /pricing/calculate (tier discount + warehouse shipping + credit-limit payment terms)"
 echo "================================================"

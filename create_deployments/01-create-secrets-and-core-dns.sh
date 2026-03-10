@@ -51,9 +51,13 @@ rm -f /tmp/wso2carbon.key /tmp/wso2carbon.crt
 echo "Creating ballerina-integration-secret in ballerina..."
 kubectl delete secret ballerina-integration-secret -n ballerina --ignore-not-found=true
 kubectl create namespace ballerina --dry-run=client -o yaml | kubectl apply -f -
+# Both key name conventions are included: some integrations use keystore.p12/truststore.p12
+# and others use ballerinaKeystore.p12/ballerinaTruststore.p12
 kubectl create secret generic ballerina-integration-secret \
   --from-file=keystore.p12="$ROOT_DIR/integration/keystore.p12" \
   --from-file=truststore.p12="$ROOT_DIR/integration/truststore.p12" \
+  --from-file=ballerinaKeystore.p12="$ROOT_DIR/integration/keystore.p12" \
+  --from-file=ballerinaTruststore.p12="$ROOT_DIR/integration/truststore.p12" \
   -n ballerina
 
 echo "Creating ballerina-secrets in ballerina..."
@@ -83,7 +87,7 @@ echo ""
 echo "Current Nginx Ingress IP in coredns-custom.yaml: $CURRENT_IP"
 echo "Live Nginx Ingress LoadBalancer IP:"
 kubectl get svc -A -l app.kubernetes.io/name=ingress-nginx 2>/dev/null \
-  | grep LoadBalancer | awk '{print "  " $5}' \
+  | grep LoadBalancer | awk '{print "  " $3}' \
   || echo "  (could not retrieve – check manually with: kubectl get svc -A | grep ingress)"
 echo ""
 

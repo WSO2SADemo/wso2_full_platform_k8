@@ -1,0 +1,334 @@
+# Copyright (c) 2026, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+#
+# WSO2 Inc. licenses this file to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Release ICP Distribution
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Triggers on version tags like v2.0.0, v2.0.1, etc.
+      - "v*.*.*-alpha*" # Triggers on alpha tags like v2.0.0-alpha, v2.0.0-alpha.1
+      - "v*.*.*-beta*" # Triggers on beta tags like v2.0.0-beta, v2.0.0-beta.1
+      - "v*.*.*-rc*" # Triggers on release candidate tags like v2.0.0-rc.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., 2.0.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Dry run (build only, no release)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-release:
+    name: Build and Release ICP Distribution
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for changelog generation
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Ballerina
+        uses: ballerina-platform/setup-ballerina@v1.1.0
+        with:
+          version: 2201.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          pnpm install
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+
+          # Validate version format (SemVer 2.0.0 compliant)
+          # Official regex from semver.org
+          SEMVER_REGEX='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+
+          if ! [[ "$VERSION" =~ $SEMVER_REGEX ]]; then
+            echo "ERROR: Invalid version format: $VERSION"
+            echo "Expected format: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-prerelease or MAJOR.MINOR.PATCH-prerelease+build"
+            echo "Examples: 2.0.0, 2.0.0-alpha, 2.0.0-beta.1, 2.0.0-rc.2, 2.0.0-alpha.beta+build.123"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${VERSION}"
+
+          # Auto-detect if this is a pre-release based on version string
+          # Any version with a hyphen (prerelease suffix) is considered a pre-release per semver
+          if [[ "$VERSION" =~ - ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "Detected pre-release version"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "Detected stable release version"
+          fi
+
+      - name: Update version in gradle.properties
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Escape special characters for sed (/, &, \)
+          ESCAPED_VERSION=$(echo "$VERSION" | sed 's/[\/&]/\\&/g')
+
+          # Update gradle.properties (build.gradle reads from here)
+          sed -i "s/^project\\.version=.*/project.version=${ESCAPED_VERSION}/" gradle.properties
+
+          # Verify changes
+          echo "=== gradle.properties ==="
+          grep project.version gradle.properties
+          echo "Version will be: ${VERSION}"
+
+      - name: Build distribution package
+        run: ./gradlew clean build
+        env:
+          CI: true
+
+      - name: Verify distribution package
+        run: |
+          DIST_FILE="build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip"
+          if [ -f "$DIST_FILE" ]; then
+            echo "✓ Distribution package found: $DIST_FILE"
+            ls -lh "$DIST_FILE"
+            unzip -l "$DIST_FILE" | head -20
+          else
+            echo "✗ Distribution package not found: $DIST_FILE"
+            echo "Available files in build/distribution:"
+            ls -la build/distribution/ || echo "Directory does not exist"
+            exit 1
+          fi
+
+      - name: Extract distribution for scanning
+        run: |
+          DIST_FILE="build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip"
+          EXTRACT_DIR="build/distribution/extracted"
+          mkdir -p "$EXTRACT_DIR"
+          unzip -q "$DIST_FILE" -d "$EXTRACT_DIR"
+          echo "Extracted to: $EXTRACT_DIR"
+          ls -la "$EXTRACT_DIR"
+
+      - name: Install Trivy
+        run: |
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: "build/distribution/extracted"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Trivy security gate (block on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: "build/distribution/extracted"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          skip-setup-trivy: true
+
+      - name: Generate Trivy report (table format)
+        uses: aquasecurity/trivy-action@0.30.0
+        if: always()
+        with:
+          scan-type: "fs"
+          scan-ref: "build/distribution/extracted"
+          format: "table"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Upload Trivy scan results as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-scan-results-${{ steps.version.outputs.version }}
+          path: trivy-results.sarif
+          retention-days: 30
+
+      - name: Clean up extracted files
+        if: always()
+        run: rm -rf build/distribution/extracted
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## WSO2 Integration Control Plane v${{ steps.version.outputs.version }}
+
+          ### What's New
+
+          This release includes the following components:
+          - **Backend (ICP Server)**: Ballerina-based GraphQL API service
+          - **Frontend**: React + TypeScript application
+          - **Database Support**: MySQL, PostgreSQL, MSSQL, H2
+
+          ### Download & Installation
+
+          1. Download the `wso2-integrator-icp-${{ steps.version.outputs.version }}.zip` file below
+          2. Extract the archive: `unzip wso2-integrator-icp-${{ steps.version.outputs.version }}.zip`
+          3. Navigate to the bin directory: `cd wso2-integrator-icp-${{ steps.version.outputs.version }}/bin`
+          4. Run the server:
+             - Linux/macOS: `./icp.sh start`
+             - Windows: `icp.bat start`
+
+          ### System Requirements
+
+          - Java 17 or higher
+          - Supported databases: MySQL 8.0+, PostgreSQL 12+, MSSQL 2019+, or H2 (embedded)
+          - Minimum 2GB RAM
+          - 1GB disk space
+
+          ### Documentation
+
+          For detailed documentation, please refer to the [README.md](https://github.com/wso2/integration-control-plane/blob/main/README.md)
+
+          ### Quick Start
+
+          ```bash
+          # Default credentials
+          Username: admin
+          Password: admin
+
+          # Access the application
+          Frontend: http://localhost:5173
+          GraphQL API: https://localhost:9446/graphql
+          ```
+          EOF
+
+          echo "Release notes generated successfully"
+
+      - name: Calculate checksums
+        run: |
+          cd build/distribution
+          sha256sum wso2-integrator-icp-${{ steps.version.outputs.version }}.zip > wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.sha256
+          md5sum wso2-integrator-icp-${{ steps.version.outputs.version }}.zip > wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.md5
+          echo "Checksums:"
+          cat wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.sha256
+          cat wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.md5
+
+      - name: Dry Run Summary
+        if: inputs.dry_run
+        run: |
+          echo "## 🔍 Dry Run - No Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This was a dry run. The following would have been released:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Pre-release**: ${{ inputs.prerelease || steps.version.outputs.is_prerelease == 'true' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Ready" >> $GITHUB_STEP_SUMMARY
+          echo "✓ Distribution ZIP ($(du -h build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip | cut -f1))" >> $GITHUB_STEP_SUMMARY
+          echo "✓ SHA256 checksum" >> $GITHUB_STEP_SUMMARY
+          echo "✓ MD5 checksum" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To create the actual release, run without dry_run option.**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload artifacts for dry run
+        if: inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: icp-distribution-${{ steps.version.outputs.version }}
+          path: |
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.sha256
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.md5
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: WSO2 Integration Control Plane v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.sha256
+            build/distribution/wso2-integrator-icp-${{ steps.version.outputs.version }}.zip.md5
+          draft: false
+          prerelease: ${{ inputs.prerelease || steps.version.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "## ✅ Release Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Distribution Package**: wso2-integrator-icp-${{ steps.version.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL**: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Published" >> $GITHUB_STEP_SUMMARY
+          echo "✓ Distribution ZIP" >> $GITHUB_STEP_SUMMARY
+          echo "✓ SHA256 checksum" >> $GITHUB_STEP_SUMMARY
+          echo "✓ MD5 checksum" >> $GITHUB_STEP_SUMMARY
