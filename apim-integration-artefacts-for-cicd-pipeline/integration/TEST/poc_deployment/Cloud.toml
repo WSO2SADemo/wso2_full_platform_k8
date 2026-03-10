@@ -1,4 +1,4 @@
 [container.image]
 repository = "ramilu90"
-name = "name = "poc_deployment"
+name = "poc_deployment"
 tag = "1.0.68"
