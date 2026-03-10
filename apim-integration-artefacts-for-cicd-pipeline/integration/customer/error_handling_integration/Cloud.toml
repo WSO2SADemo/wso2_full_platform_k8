@@ -1,7 +1,23 @@
 [container.image]
 repository = "ramilu90"
 name = "purchase_service_orchestration_pipeline"
-tag = "1.0.1"
+tag = "1.0.4"
+
+[[cloud.secret.envs]]
+key_ref = "RABBITMQ_USER"
+secret_name = "rabbitmq-credentials"
+
+[[cloud.secret.envs]]
+key_ref = "RABBITMQ_PASSWORD"
+secret_name = "rabbitmq-credentials"
+
+[[cloud.config.envs]]
+key_ref = "rabbitmqHost"
+config_name = "ballerina-values-error-handling-flow"
+
+[[cloud.config.envs]]
+key_ref = "rabbitmqPort"
+config_name = "ballerina-values-error-handling-flow"
 
 [[cloud.config.envs]]
 key_ref = "customerServiceUrl"

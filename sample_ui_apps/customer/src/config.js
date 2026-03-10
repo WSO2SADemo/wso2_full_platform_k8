@@ -15,4 +15,17 @@ export const CFG = {
   mockBase: import.meta.env.DEV ? '/gw-proxy/customernotificationbackendsmock/1.0.0'      : 'https://gw.wso2.com/customernotificationbackendsmock/1.0.0',
   // TODO: update the APIM context path once the parallel orchestration API is published
   psoBase:  import.meta.env.DEV ? '/gw-proxy/unemploymentfundorchestration/1.0.0'        : 'https://gw.wso2.com/unemploymentfundorchestration/1.0.0',
+
+  // Order Pipeline – Service Orchestration (error_handling_integration, port 9086)
+  opBase:          import.meta.env.DEV ? '/gw-proxy/purchaseserviceorchestrationpipeline/1.0.0'    : 'https://gw.wso2.com/purchaseserviceorchestrationpipeline/1.0.0',
+  // Order Pipeline – individual mock backend APIs (one APIM API per service)
+  opCustomerBase:  import.meta.env.DEV ? '/gw-proxy/customerprofileservice/1.0.0'                  : 'https://gw.wso2.com/customerprofileservice/1.0.0',
+  opPricingBase:   import.meta.env.DEV ? '/gw-proxy/pricingservice/1.0.0'                          : 'https://gw.wso2.com/pricingservice/1.0.0',
+  opPurchaseBase:  import.meta.env.DEV ? '/gw-proxy/purchaseservice/1.0.0'                         : 'https://gw.wso2.com/purchaseservice/1.0.0',
+
+  // RabbitMQ Management API – ingress at rabbitmq.wso2.com (must be in /etc/hosts)
+  // Dev: proxied via Vite to avoid CORS. Prod: direct in-cluster URL.
+  rmqBase: import.meta.env.DEV ? '/rmq-proxy' : 'http://rabbitmq.wso2.com',
+  rmqUser: 'wso2-rmq-admin',
+  rmqPass: 'R@bbitMQ#W$O2!2024Secure',
 };

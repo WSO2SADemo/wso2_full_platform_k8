@@ -5,12 +5,14 @@ import { Header } from './components/Header';
 import { ContentBasedRouting } from './components/ContentBasedRouting';
 import { StoreAndForward } from './components/StoreAndForward';
 import { ParallelOrchestration } from './components/ParallelOrchestration';
+import { OrderPipeline } from './components/OrderPipeline';
 import './App.css';
 
 const TABS = [
   { id: 'cbr', label: 'Content-Based Routing (SOAP)' },
   { id: 'sf',  label: 'Store & Forward' },
   { id: 'pso', label: 'Parallel Orchestration' },
+  { id: 'op',  label: 'Error Handling' },
 ];
 
 // Module-level flag — survives StrictMode double-invoke (unlike useRef)
@@ -88,6 +90,7 @@ export default function App() {
         {activeTab === 'cbr' && <ContentBasedRouting />}
         {activeTab === 'sf'  && <StoreAndForward />}
         {activeTab === 'pso' && <ParallelOrchestration />}
+        {activeTab === 'op'  && <OrderPipeline />}
       </main>
     </div>
   );

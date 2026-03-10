@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Customer Profile Service
+  description: >
+    Mock backend for Pipeline Step 1 of the Order Fulfillment demo.
+
+    Returns the customer tier (GOLD/SILVER/BRONZE), credit limit, and shipping
+    address for a given customer ID. The orchestration integration uses the
+    `tier` field to derive the `customerSegment` (PREMIUM/STANDARD/BASIC)
+    forwarded to the Pricing Service, and `creditLimit` to determine payment
+    terms (NET-30 vs PREPAID).
+
+    | Customer ID | Name             | Tier   | Credit Limit |
+    |-------------|------------------|--------|--------------|
+    | CUST-001    | Alice Svensson   | GOLD   | 50 000 SEK   |
+    | CUST-002    | Bob Lindqvist    | SILVER | 20 000 SEK   |
+    | CUST-003    | Carol Andersson  | BRONZE |  5 000 SEK   |
+
+    Admin endpoints allow toggling the service offline to simulate a service
+    window during demos. When offline every profile request returns HTTP 503.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9110
+    description: Customer Profile Service (local)
+
+paths:
+
+  /customer/profile/{customerId}:
+    get:
+      summary: Get customer profile by ID
+      description: >
+        Returns customer tier, credit limit, and shipping address.
+        Returns HTTP 404 when the customer ID is not in the database.
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: getCustomerProfile
+      tags:
+        - Customer Profile
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Customer identifier (e.g. CUST-001)
+          schema:
+            type: string
+            example: "CUST-001"
+      responses:
+        '200':
+          description: Customer profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+              examples:
+                goldCustomer:
+                  summary: GOLD tier customer
+                  value:
+                    customerId: "CUST-001"
+                    name: "Alice Svensson"
+                    tier: "GOLD"
+                    creditLimit: 50000
+                    shippingAddress: "Kungsgatan 1, Stockholm"
+                silverCustomer:
+                  summary: SILVER tier customer
+                  value:
+                    customerId: "CUST-002"
+                    name: "Bob Lindqvist"
+                    tier: "SILVER"
+                    creditLimit: 20000
+                    shippingAddress: "Drottninggatan 5, Gothenburg"
+                bronzeCustomer:
+                  summary: BRONZE tier customer
+                  value:
+                    customerId: "CUST-003"
+                    name: "Carol Andersson"
+                    tier: "BRONZE"
+                    creditLimit: 5000
+                    shippingAddress: "Storgatan 12, Malmo"
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+              example:
+                error: "Customer not found"
+                customerId: "CUST-999"
+        '503':
+          description: Service window active – service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+              example:
+                error: "Service temporarily unavailable"
+                code: "SERVICE_WINDOW"
+
+  /customer/admin/toggle:
+    post:
+      summary: Toggle service online / offline
+      description: >
+        Flips the availability flag. When offline, all profile requests return
+        HTTP 503. Call again to restore the service.
+      operationId: toggleCustomerProfileService
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                nowOffline:
+                  summary: Toggled to offline
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+                nowOnline:
+                  summary: Toggled back to online
+                  value:
+                    available: true
+                    state: "ONLINE"
+
+  /customer/admin/status:
+    get:
+      summary: Check service availability
+      description: Returns the current online/offline state without changing it.
+      operationId: getCustomerProfileStatus
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                online:
+                  summary: Service is online
+                  value:
+                    available: true
+                    state: "ONLINE"
+                offline:
+                  summary: Service window active
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+
+  /customer/health:
+    get:
+      summary: Health check
+      operationId: customerProfileHealth
+      tags:
+        - Customer Profile
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Customer Profile Service is running on port 9110"
+
+components:
+  schemas:
+
+    CustomerProfile:
+      type: object
+      description: >
+        Customer record. The orchestration integration maps `tier` to
+        `customerSegment` (GOLD→PREMIUM, SILVER→STANDARD, BRONZE→BASIC)
+        before calling the Pricing Service.
+      required:
+        - customerId
+        - name
+        - tier
+        - creditLimit
+        - shippingAddress
+      properties:
+        customerId:
+          type: string
+          example: "CUST-001"
+        name:
+          type: string
+          example: "Alice Svensson"
+        tier:
+          type: string
+          description: Customer tier – drives discount and delivery lead-time
+          enum: [GOLD, SILVER, BRONZE]
+          example: "GOLD"
+        creditLimit:
+          type: number
+          format: decimal
+          description: >
+            Credit limit in SEK. Passed to the Pricing Service to determine
+            payment terms: grandTotal ≤ creditLimit → NET-30, otherwise PREPAID.
+          example: 50000
+        shippingAddress:
+          type: string
+          example: "Kungsgatan 1, Stockholm"
+
+    NotFoundError:
+      type: object
+      required: [error, customerId]
+      properties:
+        error:
+          type: string
+          example: "Customer not found"
+        customerId:
+          type: string
+          example: "CUST-999"
+
+    ServiceWindowError:
+      type: object
+      description: Returned when the service is toggled offline.
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Service temporarily unavailable"
+        code:
+          type: string
+          enum: [SERVICE_WINDOW]
+          example: "SERVICE_WINDOW"
+
+    ToggleResponse:
+      type: object
+      required: [available, state]
+      properties:
+        available:
+          type: boolean
+          description: true = online, false = offline (service window active)
+          example: true
+        state:
+          type: string
+          description: Human-readable state label
+          example: "ONLINE"

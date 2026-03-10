@@ -1,0 +1,751 @@
+openapi: 3.0.3
+info:
+  title: Order Pipeline – Mock Backend Services
+  description: >
+    Mock backend services for the E-Commerce Order Fulfillment pipeline demo.
+
+    Four sequential services are called by the Service Orchestration integration
+    (error_handling_integration, port 9086):
+
+    | Step | Service              | Port | Path                            |
+    |------|----------------------|------|---------------------------------|
+    | 1    | Customer Profile     | 9110 | GET /customer/profile/{id}      |
+    | 2    | Inventory            | 9111 | POST /inventory/checkStock      |
+    | 3    | Pricing              | 9112 | POST /pricing/calculate         |
+    | 4    | Purchase             | 9113 | POST /purchase/confirm          |
+
+    Each service exposes admin endpoints for toggling availability to simulate
+    service-window outages during demos:
+
+      POST /{service}/admin/toggle  – flip online / offline
+      GET  /{service}/admin/status  – read current state
+
+    When toggled offline a service returns HTTP 503 with code `SERVICE_WINDOW`.
+    Toggle it back online to restore normal operation.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9110
+    description: "Step 1 – Customer Profile Service"
+  - url: http://localhost:9111
+    description: "Step 2 – Inventory Service"
+  - url: http://localhost:9112
+    description: "Step 3 – Pricing Service"
+  - url: http://localhost:9113
+    description: "Step 4 – Purchase Service"
+
+# ── Paths ──────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Step 1: Customer Profile Service (port 9110) ────────────────────────────
+
+  /customer/profile/{customerId}:
+    get:
+      summary: Get customer profile
+      description: >
+        Returns customer tier (GOLD/SILVER/BRONZE), credit limit and shipping
+        address for the given customer ID. The integration uses `tier` to derive
+        the `customerSegment` (PREMIUM/STANDARD/BASIC) forwarded to the Pricing
+        Service, and `creditLimit` to determine payment terms.
+
+        Returns HTTP 404 when the customer is not found.
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: getCustomerProfile
+      tags:
+        - Customer Profile (port 9110)
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: Customer identifier (e.g. CUST-001)
+          schema:
+            type: string
+            example: "CUST-001"
+      responses:
+        '200':
+          description: Customer profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+              examples:
+                goldCustomer:
+                  summary: GOLD tier customer
+                  value:
+                    customerId: "CUST-001"
+                    name: "Alice Svensson"
+                    tier: "GOLD"
+                    creditLimit: 50000
+                    shippingAddress: "Kungsgatan 1, Stockholm"
+                bronzeCustomer:
+                  summary: BRONZE tier customer
+                  value:
+                    customerId: "CUST-003"
+                    name: "Carol Andersson"
+                    tier: "BRONZE"
+                    creditLimit: 5000
+                    shippingAddress: "Storgatan 12, Malmo"
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+              example:
+                error: "Customer not found"
+                customerId: "CUST-999"
+        '503':
+          description: Service window active – Customer Profile Service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+
+  /customer/admin/toggle:
+    post:
+      summary: Toggle Customer Profile Service online / offline
+      description: >
+        Flips the availability flag of the Customer Profile Service.
+        When offline, GET /customer/profile/{customerId} returns HTTP 503.
+        Call again to restore service.
+      operationId: toggleCustomerProfileService
+      tags:
+        - Customer Profile – Admin (port 9110)
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                nowOffline:
+                  summary: Toggled to offline
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+                nowOnline:
+                  summary: Toggled back to online
+                  value:
+                    available: true
+                    state: "ONLINE"
+
+  /customer/admin/status:
+    get:
+      summary: Check Customer Profile Service availability
+      description: Returns the current online/offline state without changing it.
+      operationId: getCustomerProfileStatus
+      tags:
+        - Customer Profile – Admin (port 9110)
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /customer/health:
+    get:
+      summary: Health check for Customer Profile Service
+      operationId: customerProfileHealth
+      tags:
+        - Customer Profile (port 9110)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Customer Profile Service is running on port 9110"
+
+  # ── Step 2: Inventory Service (port 9111) ───────────────────────────────────
+
+  /inventory/checkStock:
+    post:
+      summary: Check stock availability for a list of products
+      description: >
+        Checks stock levels for each requested product. Returns two lists:
+        `available` (stock >= requested quantity) and `unavailable`.
+
+        Reservation priority is set by customer tier: GOLD = 5, SILVER = 3,
+        BRONZE = 1.
+
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: checkInventory
+      tags:
+        - Inventory (port 9111)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryCheckRequest'
+            example:
+              items:
+                - productId: "PROD-A1"
+                  quantity: 1
+                - productId: "PROD-B2"
+                  quantity: 2
+              customerTier: "GOLD"
+      responses:
+        '200':
+          description: Inventory check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCheckResponse'
+        '503':
+          description: Service window active – Inventory Service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+
+  /inventory/admin/toggle:
+    post:
+      summary: Toggle Inventory Service online / offline
+      description: >
+        Flips the availability flag of the Inventory Service.
+        When offline, POST /inventory/checkStock returns HTTP 503.
+      operationId: toggleInventoryService
+      tags:
+        - Inventory – Admin (port 9111)
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /inventory/admin/status:
+    get:
+      summary: Check Inventory Service availability
+      operationId: getInventoryStatus
+      tags:
+        - Inventory – Admin (port 9111)
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /inventory/health:
+    get:
+      summary: Health check for Inventory Service
+      operationId: inventoryHealth
+      tags:
+        - Inventory (port 9111)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Inventory Service is running on port 9111"
+
+  # ── Step 3: Pricing Service (port 9112) ─────────────────────────────────────
+
+  /pricing/calculate:
+    post:
+      summary: Calculate pricing with tier-based discounts
+      description: >
+        Calculates line-item pricing, applies a tier-based discount, adds a
+        flat shipping fee (99 SEK), and determines payment terms (NET-30 when
+        grand total ≤ credit limit, otherwise PREPAID).
+
+        Customer segment → discount: PREMIUM = 15%, STANDARD = 10%, BASIC = 5%.
+
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: calculatePricing
+      tags:
+        - Pricing (port 9112)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingRequest'
+            example:
+              items:
+                - productId: "PROD-A1"
+                  quantity: 1
+              customerSegment: "PREMIUM"
+              creditLimit: 50000
+      responses:
+        '200':
+          description: Pricing calculation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingResponse'
+              example:
+                lineItems:
+                  - productId: "PROD-A1"
+                    quantity: 1
+                    unitPrice: 12999.00
+                    lineTotal: 12999.00
+                baseTotal: 12999.00
+                discountPercentage: 15.0
+                discountAmount: 1949.85
+                finalTotal: 11049.15
+                shippingFee: 99.00
+                grandTotal: 11148.15
+                paymentTerms: "NET-30"
+                currency: "SEK"
+        '503':
+          description: Service window active – Pricing Service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+
+  /pricing/admin/toggle:
+    post:
+      summary: Toggle Pricing Service online / offline
+      description: >
+        Flips the availability flag of the Pricing Service.
+        When offline, POST /pricing/calculate returns HTTP 503.
+      operationId: togglePricingService
+      tags:
+        - Pricing – Admin (port 9112)
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /pricing/admin/status:
+    get:
+      summary: Check Pricing Service availability
+      operationId: getPricingStatus
+      tags:
+        - Pricing – Admin (port 9112)
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /pricing/health:
+    get:
+      summary: Health check for Pricing Service
+      operationId: pricingHealth
+      tags:
+        - Pricing (port 9112)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Pricing Service is running on port 9112"
+
+  # ── Step 4: Purchase Service (port 9113) ────────────────────────────────────
+
+  /purchase/confirm:
+    post:
+      summary: Confirm a purchase and generate tracking
+      description: >
+        Validates the order total, generates a purchase ID and tracking
+        reference, and calculates the expected delivery date based on customer
+        tier (GOLD = 3 days, SILVER = 7 days, BRONZE = 14 days).
+
+        Returns HTTP 400 when grandTotal ≤ 0.
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: confirmPurchase
+      tags:
+        - Purchase (port 9113)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseConfirmRequest'
+      responses:
+        '200':
+          description: Purchase confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseConfirmResponse'
+              example:
+                purchaseId: "PUR-A1B2C3D4"
+                status: "CONFIRMED"
+                deliveryDate: "2026-03-13"
+                trackingRef: "TRK-E5F6G7H8"
+        '400':
+          description: Invalid order data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  customerId:
+                    type: string
+                  grandTotal:
+                    type: number
+        '503':
+          description: Service window active – Purchase Service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+
+  /purchase/admin/toggle:
+    post:
+      summary: Toggle Purchase Service online / offline
+      description: >
+        Flips the availability flag of the Purchase Service.
+        When offline, POST /purchase/confirm returns HTTP 503.
+      operationId: togglePurchaseService
+      tags:
+        - Purchase – Admin (port 9113)
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /purchase/admin/status:
+    get:
+      summary: Check Purchase Service availability
+      operationId: getPurchaseStatus
+      tags:
+        - Purchase – Admin (port 9113)
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+
+  /purchase/health:
+    get:
+      summary: Health check for Purchase Service
+      operationId: purchaseHealth
+      tags:
+        - Purchase (port 9113)
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Purchase Service is running on port 9113"
+
+# ── Schemas ────────────────────────────────────────────────────────────────────
+components:
+  schemas:
+
+    CustomerProfile:
+      type: object
+      required: [customerId, name, tier, creditLimit, shippingAddress]
+      properties:
+        customerId:
+          type: string
+          example: "CUST-001"
+        name:
+          type: string
+          example: "Alice Svensson"
+        tier:
+          type: string
+          description: Customer tier – drives discount and delivery lead-time
+          enum: [GOLD, SILVER, BRONZE]
+          example: "GOLD"
+        creditLimit:
+          type: number
+          format: decimal
+          description: Credit limit in SEK – drives payment terms (NET-30 vs PREPAID)
+          example: 50000
+        shippingAddress:
+          type: string
+          example: "Kungsgatan 1, Stockholm"
+
+    InventoryCheckRequest:
+      type: object
+      required: [items, customerTier]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InventoryRequestItem'
+        customerTier:
+          type: string
+          enum: [GOLD, SILVER, BRONZE]
+          example: "GOLD"
+
+    InventoryRequestItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    InventoryCheckResponse:
+      type: object
+      required: [available, unavailable, primaryWarehouseId, canFulfill]
+      properties:
+        available:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryLineItem'
+        unavailable:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryLineItem'
+        primaryWarehouseId:
+          type: string
+          example: "WH-STOCKHOLM"
+        canFulfill:
+          type: boolean
+          description: true when all requested items are in stock
+
+    InventoryLineItem:
+      type: object
+      required: [productId, name, requestedQuantity, availableQuantity, warehouseId, reservationPriority]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        name:
+          type: string
+          example: "Laptop Pro"
+        requestedQuantity:
+          type: integer
+          example: 1
+        availableQuantity:
+          type: integer
+          example: 15
+        warehouseId:
+          type: string
+          example: "WH-STOCKHOLM"
+        reservationPriority:
+          type: integer
+          description: "GOLD=5, SILVER=3, BRONZE=1, unavailable=0"
+          example: 5
+
+    PricingRequest:
+      type: object
+      required: [items, customerSegment, creditLimit]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PricingRequestItem'
+        customerSegment:
+          type: string
+          description: >
+            Mapped by the integration from customer tier:
+            GOLD → PREMIUM, SILVER → STANDARD, BRONZE → BASIC
+          enum: [PREMIUM, STANDARD, BASIC]
+          example: "PREMIUM"
+        creditLimit:
+          type: number
+          format: decimal
+          example: 50000
+
+    PricingRequestItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    PricingResponse:
+      type: object
+      required: [lineItems, baseTotal, discountPercentage, discountAmount, finalTotal, shippingFee, grandTotal, paymentTerms, currency]
+      properties:
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/PricingLineItem'
+        baseTotal:
+          type: number
+          format: decimal
+          example: 12999.00
+        discountPercentage:
+          type: number
+          format: decimal
+          description: Applied discount percentage (e.g. 15.0 = 15%)
+          example: 15.0
+        discountAmount:
+          type: number
+          format: decimal
+          example: 1949.85
+        finalTotal:
+          type: number
+          format: decimal
+          description: Total after discount, before shipping
+          example: 11049.15
+        shippingFee:
+          type: number
+          format: decimal
+          example: 99.00
+        grandTotal:
+          type: number
+          format: decimal
+          description: Final total including shipping
+          example: 11148.15
+        paymentTerms:
+          type: string
+          enum: [NET-30, PREPAID]
+          example: "NET-30"
+        currency:
+          type: string
+          example: "SEK"
+
+    PricingLineItem:
+      type: object
+      required: [productId, quantity, unitPrice, lineTotal]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: decimal
+          example: 12999.00
+        lineTotal:
+          type: number
+          format: decimal
+          example: 12999.00
+
+    PurchaseConfirmRequest:
+      type: object
+      required: [lineItems, grandTotal, paymentTerms, currency, customerId, customerTier]
+      properties:
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseLineItem'
+        grandTotal:
+          type: number
+          format: decimal
+          example: 11148.15
+        paymentTerms:
+          type: string
+          enum: [NET-30, PREPAID]
+          example: "NET-30"
+        currency:
+          type: string
+          example: "SEK"
+        customerId:
+          type: string
+          example: "CUST-001"
+        customerTier:
+          type: string
+          enum: [GOLD, SILVER, BRONZE]
+          example: "GOLD"
+
+    PurchaseLineItem:
+      type: object
+      required: [productId, quantity, unitPrice, lineTotal]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: decimal
+          example: 12999.00
+        lineTotal:
+          type: number
+          format: decimal
+          example: 12999.00
+
+    PurchaseConfirmResponse:
+      type: object
+      required: [purchaseId, status, deliveryDate, trackingRef]
+      properties:
+        purchaseId:
+          type: string
+          description: Generated purchase identifier
+          example: "PUR-A1B2C3D4"
+        status:
+          type: string
+          enum: [CONFIRMED, REJECTED]
+          example: "CONFIRMED"
+        deliveryDate:
+          type: string
+          format: date
+          description: >
+            Expected delivery date (ISO-8601). Lead time by tier:
+            GOLD = 3 days, SILVER = 7 days, BRONZE = 14 days.
+          example: "2026-03-13"
+        trackingRef:
+          type: string
+          description: Shipment tracking reference
+          example: "TRK-E5F6G7H8"
+
+    ToggleResponse:
+      type: object
+      description: Current availability state of a backend service.
+      required: [available, state]
+      properties:
+        available:
+          type: boolean
+          description: true = online, false = offline (service window active)
+          example: true
+        state:
+          type: string
+          description: Human-readable state label
+          example: "ONLINE"
+
+    ServiceWindowError:
+      type: object
+      description: Returned when a backend service is toggled offline.
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Service temporarily unavailable"
+        code:
+          type: string
+          enum: [SERVICE_WINDOW]
+          example: "SERVICE_WINDOW"
+
+    NotFoundError:
+      type: object
+      required: [error, customerId]
+      properties:
+        error:
+          type: string
+          example: "Customer not found"
+        customerId:
+          type: string
+          example: "CUST-999"

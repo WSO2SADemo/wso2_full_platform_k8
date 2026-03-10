@@ -1,0 +1,342 @@
+openapi: 3.0.3
+info:
+  title: Pricing Service
+  description: >
+    Mock backend for Pipeline Step 3 of the Order Fulfillment demo.
+
+    Calculates line-item pricing for a list of products, applies a
+    segment-based discount, adds a flat shipping fee (99 SEK), and determines
+    payment terms based on whether the grand total fits within the customer's
+    credit limit.
+
+    **Customer segment → discount mapping** (set by the integration, which maps
+    the customer tier from the Customer Profile Service):
+
+    | Segment  | Tier mapped from | Discount |
+    |----------|-----------------|----------|
+    | PREMIUM  | GOLD            | 15%      |
+    | STANDARD | SILVER          | 10%      |
+    | BASIC    | BRONZE          |  5%      |
+
+    **Payment terms:** grandTotal ≤ creditLimit → NET-30, otherwise PREPAID.
+
+    **Product catalogue (prices in SEK):**
+
+    | Product ID | Name           | Unit Price  |
+    |------------|----------------|-------------|
+    | PROD-A1    | Laptop Pro     | 12 999.00   |
+    | PROD-B2    | Wireless Mouse |    299.00   |
+    | PROD-C3    | USB-C Hub      |    449.00   |
+    | PROD-D4    | Monitor 27in   |  5 999.00   |
+
+    Admin endpoints allow toggling the service offline to simulate a service
+    window during demos. When offline every pricing request returns HTTP 503.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9112
+    description: Pricing Service (local)
+
+paths:
+
+  /pricing/calculate:
+    post:
+      summary: Calculate pricing with tier-based discounts
+      description: >
+        Computes unit prices and line totals for each item, applies the
+        segment-based discount to the subtotal, adds a flat 99 SEK shipping
+        fee, and determines payment terms.
+
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: calculatePricing
+      tags:
+        - Pricing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingRequest'
+            examples:
+              premiumCustomer:
+                summary: PREMIUM segment (GOLD tier, 15% discount)
+                value:
+                  items:
+                    - productId: "PROD-A1"
+                      quantity: 1
+                  customerSegment: "PREMIUM"
+                  creditLimit: 50000
+              standardCustomerMultiItem:
+                summary: STANDARD segment with multiple items
+                value:
+                  items:
+                    - productId: "PROD-B2"
+                      quantity: 2
+                    - productId: "PROD-D4"
+                      quantity: 1
+                  customerSegment: "STANDARD"
+                  creditLimit: 20000
+      responses:
+        '200':
+          description: Pricing calculation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingResponse'
+              examples:
+                premiumResult:
+                  summary: PREMIUM customer – Laptop Pro
+                  value:
+                    lineItems:
+                      - productId: "PROD-A1"
+                        quantity: 1
+                        unitPrice: 12999.00
+                        lineTotal: 12999.00
+                    baseTotal: 12999.00
+                    discountPercentage: 15.0
+                    discountAmount: 1949.85
+                    finalTotal: 11049.15
+                    shippingFee: 99.00
+                    grandTotal: 11148.15
+                    paymentTerms: "NET-30"
+                    currency: "SEK"
+                basicResult:
+                  summary: BASIC customer – Wireless Mouse x2
+                  value:
+                    lineItems:
+                      - productId: "PROD-B2"
+                        quantity: 2
+                        unitPrice: 299.00
+                        lineTotal: 598.00
+                    baseTotal: 598.00
+                    discountPercentage: 5.0
+                    discountAmount: 29.90
+                    finalTotal: 568.10
+                    shippingFee: 99.00
+                    grandTotal: 667.10
+                    paymentTerms: "NET-30"
+                    currency: "SEK"
+        '503':
+          description: Service window active – service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+              example:
+                error: "Service temporarily unavailable"
+                code: "SERVICE_WINDOW"
+
+  /pricing/admin/toggle:
+    post:
+      summary: Toggle service online / offline
+      description: >
+        Flips the availability flag. When offline, all pricing requests return
+        HTTP 503. Call again to restore the service.
+      operationId: togglePricingService
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                nowOffline:
+                  summary: Toggled to offline
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+                nowOnline:
+                  summary: Toggled back to online
+                  value:
+                    available: true
+                    state: "ONLINE"
+
+  /pricing/admin/status:
+    get:
+      summary: Check service availability
+      description: Returns the current online/offline state without changing it.
+      operationId: getPricingStatus
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                online:
+                  summary: Service is online
+                  value:
+                    available: true
+                    state: "ONLINE"
+                offline:
+                  summary: Service window active
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+
+  /pricing/health:
+    get:
+      summary: Health check
+      operationId: pricingHealth
+      tags:
+        - Pricing
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Pricing Service is running on port 9112"
+
+components:
+  schemas:
+
+    PricingRequest:
+      type: object
+      required: [items, customerSegment, creditLimit]
+      properties:
+        items:
+          type: array
+          description: Products and quantities to price
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PricingRequestItem'
+        customerSegment:
+          type: string
+          description: >
+            Customer segment mapped by the orchestration integration from the
+            customer tier: GOLD → PREMIUM, SILVER → STANDARD, BRONZE → BASIC.
+          enum: [PREMIUM, STANDARD, BASIC]
+          example: "PREMIUM"
+        creditLimit:
+          type: number
+          format: decimal
+          description: >
+            Customer credit limit in SEK, passed through from the Customer
+            Profile Service. Determines payment terms:
+            grandTotal ≤ creditLimit → NET-30, otherwise PREPAID.
+          example: 50000
+
+    PricingRequestItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    PricingResponse:
+      type: object
+      required:
+        - lineItems
+        - baseTotal
+        - discountPercentage
+        - discountAmount
+        - finalTotal
+        - shippingFee
+        - grandTotal
+        - paymentTerms
+        - currency
+      properties:
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/PricingLineItem'
+        baseTotal:
+          type: number
+          format: decimal
+          description: Sum of all line totals before discount
+          example: 12999.00
+        discountPercentage:
+          type: number
+          format: decimal
+          description: "Discount percentage: PREMIUM=15, STANDARD=10, BASIC=5"
+          example: 15.0
+        discountAmount:
+          type: number
+          format: decimal
+          description: Calculated discount (baseTotal × discountPercentage / 100)
+          example: 1949.85
+        finalTotal:
+          type: number
+          format: decimal
+          description: Total after discount, before shipping fee
+          example: 11049.15
+        shippingFee:
+          type: number
+          format: decimal
+          description: Flat shipping fee (always 99.00 SEK)
+          example: 99.00
+        grandTotal:
+          type: number
+          format: decimal
+          description: Final total including shipping fee (finalTotal + shippingFee)
+          example: 11148.15
+        paymentTerms:
+          type: string
+          description: >
+            NET-30 when grandTotal ≤ creditLimit; PREPAID otherwise.
+          enum: [NET-30, PREPAID]
+          example: "NET-30"
+        currency:
+          type: string
+          description: Currency code (always SEK for this mock)
+          example: "SEK"
+
+    PricingLineItem:
+      type: object
+      required: [productId, quantity, unitPrice, lineTotal]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: decimal
+          description: Unit price from the product catalogue (SEK)
+          example: 12999.00
+        lineTotal:
+          type: number
+          format: decimal
+          description: unitPrice × quantity
+          example: 12999.00
+
+    ServiceWindowError:
+      type: object
+      description: Returned when the service is toggled offline.
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Service temporarily unavailable"
+        code:
+          type: string
+          enum: [SERVICE_WINDOW]
+          example: "SERVICE_WINDOW"
+
+    ToggleResponse:
+      type: object
+      required: [available, state]
+      properties:
+        available:
+          type: boolean
+          description: true = online, false = offline (service window active)
+          example: true
+        state:
+          type: string
+          description: Human-readable state label
+          example: "ONLINE"

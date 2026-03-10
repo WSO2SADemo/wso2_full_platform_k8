@@ -104,6 +104,8 @@ public type PricingResponse record {|
 
 listener http:Listener customerProfileListener = check new http:Listener(9110);
 
+boolean customerProfileServiceOnline = true;
+
 final map<CustomerProfile> & readonly customerDatabase = {
     "CUST-001": {
         customerId: "CUST-001",
@@ -134,7 +136,13 @@ service /customer on customerProfileListener {
         log:printInfo("Customer Profile Service started on port 9110");
     }
 
-    resource function get profile/[string customerId]() returns CustomerProfile|http:NotFound {
+    resource function get profile/[string customerId]() returns CustomerProfile|http:NotFound|http:ServiceUnavailable {
+        if !customerProfileServiceOnline {
+            log:printWarn(string `Customer Profile Service unavailable – request rejected for customerId=${customerId}`);
+            return <http:ServiceUnavailable>{
+                body: {'error: "Service temporarily unavailable", code: "SERVICE_WINDOW"}
+            };
+        }
         CustomerProfile? profile = customerDatabase[customerId];
         if profile is CustomerProfile {
             log:printInfo(string `Customer profile found: ${customerId} tier=${profile.tier} creditLimit=${profile.creditLimit}`);
@@ -146,6 +154,18 @@ service /customer on customerProfileListener {
         };
     }
 
+    resource function post admin/toggle() returns json {
+        customerProfileServiceOnline = !customerProfileServiceOnline;
+        string state = customerProfileServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        log:printInfo("Customer Profile Service toggled → " + state);
+        return {available: customerProfileServiceOnline, state: state};
+    }
+
+    resource function get admin/status() returns json {
+        string state = customerProfileServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        return {available: customerProfileServiceOnline, state: state};
+    }
+
     resource function get health() returns string {
         return "Customer Profile Service is running on port 9110";
     }
@@ -154,6 +174,8 @@ service /customer on customerProfileListener {
 // ─── Pipeline Step 2: Inventory Service (port 9111) ──────────────────────────
 
 listener http:Listener inventoryListener = check new http:Listener(9111);
+
+boolean inventoryServiceOnline = true;
 
 final map<ProductStock> & readonly stockDatabase = {
     "PROD-A1": {productId: "PROD-A1", name: "Laptop Pro", stock: 15, warehouseId: "WH-STOCKHOLM"},
@@ -178,7 +200,14 @@ service /inventory on inventoryListener {
     }
 
     resource function post checkStock(@http:Payload InventoryCheckRequest request)
-            returns InventoryCheckResponse {
+            returns InventoryCheckResponse|http:ServiceUnavailable {
+
+        if !inventoryServiceOnline {
+            log:printWarn("Inventory Service unavailable – request rejected");
+            return <http:ServiceUnavailable>{
+                body: {'error: "Service temporarily unavailable", code: "SERVICE_WINDOW"}
+            };
+        }
 
         InventoryLineItem[] available = [];
         InventoryLineItem[] unavailable = [];
@@ -231,6 +260,18 @@ service /inventory on inventoryListener {
         };
     }
 
+    resource function post admin/toggle() returns json {
+        inventoryServiceOnline = !inventoryServiceOnline;
+        string state = inventoryServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        log:printInfo("Inventory Service toggled → " + state);
+        return {available: inventoryServiceOnline, state: state};
+    }
+
+    resource function get admin/status() returns json {
+        string state = inventoryServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        return {available: inventoryServiceOnline, state: state};
+    }
+
     resource function get health() returns string {
         return "Inventory Service is running on port 9111";
     }
@@ -239,6 +280,8 @@ service /inventory on inventoryListener {
 // ─── Pipeline Step 3: Pricing Service (port 9112) ────────────────────────────
 
 listener http:Listener pricingListener = check new http:Listener(9112);
+
+boolean pricingServiceOnline = true;
 
 final map<decimal> & readonly productPrices = {
     "PROD-A1": 12999.00d,
@@ -264,7 +307,14 @@ service /pricing on pricingListener {
     }
 
     resource function post calculate(@http:Payload PricingRequest request)
-            returns PricingResponse {
+            returns PricingResponse|http:ServiceUnavailable {
+
+        if !pricingServiceOnline {
+            log:printWarn("Pricing Service unavailable – request rejected");
+            return <http:ServiceUnavailable>{
+                body: {'error: "Service temporarily unavailable", code: "SERVICE_WINDOW"}
+            };
+        }
 
         decimal baseTotal = 0d;
         PricingLineItem[] lineItems = [];
@@ -307,6 +357,18 @@ service /pricing on pricingListener {
         };
     }
 
+    resource function post admin/toggle() returns json {
+        pricingServiceOnline = !pricingServiceOnline;
+        string state = pricingServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        log:printInfo("Pricing Service toggled → " + state);
+        return {available: pricingServiceOnline, state: state};
+    }
+
+    resource function get admin/status() returns json {
+        string state = pricingServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        return {available: pricingServiceOnline, state: state};
+    }
+
     resource function get health() returns string {
         return "Pricing Service is running on port 9112";
     }
@@ -339,6 +401,8 @@ public type PurchaseConfirmResponse record {|
 
 listener http:Listener purchaseListener = check new http:Listener(9113);
 
+boolean purchaseServiceOnline = true;
+
 // Delivery lead-time by tier (calendar days)
 function deliveryDays(string tier) returns int {
     match tier {
@@ -360,7 +424,14 @@ service /purchase on purchaseListener {
     // Delivery date is calculated from today + tier-based lead time.
     // Payment terms PREPAID orders above credit limit are rejected.
     resource function post confirm(@http:Payload PurchaseConfirmRequest request)
-            returns PurchaseConfirmResponse|http:BadRequest {
+            returns PurchaseConfirmResponse|http:BadRequest|http:ServiceUnavailable {
+
+        if !purchaseServiceOnline {
+            log:printWarn(string `Purchase Service unavailable – request rejected for customer=${request.customerId}`);
+            return <http:ServiceUnavailable>{
+                body: {'error: "Service temporarily unavailable", code: "SERVICE_WINDOW"}
+            };
+        }
 
         if request.grandTotal <= 0d {
             log:printWarn(string `Purchase rejected – invalid grandTotal=${request.grandTotal} customer=${request.customerId}`);
@@ -388,6 +459,18 @@ service /purchase on purchaseListener {
             deliveryDate: deliveryDate,
             trackingRef:  trackingRef
         };
+    }
+
+    resource function post admin/toggle() returns json {
+        purchaseServiceOnline = !purchaseServiceOnline;
+        string state = purchaseServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        log:printInfo("Purchase Service toggled → " + state);
+        return {available: purchaseServiceOnline, state: state};
+    }
+
+    resource function get admin/status() returns json {
+        string state = purchaseServiceOnline ? "ONLINE" : "OFFLINE (service window active)";
+        return {available: purchaseServiceOnline, state: state};
     }
 
     resource function get health() returns string {

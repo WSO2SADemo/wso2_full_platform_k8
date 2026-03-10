@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.3"
+IMAGE_TAG="1.0.5"
 
 echo "================================================"
 echo "  Deploy customer_backends"
@@ -102,6 +102,10 @@ spec:
       port: 9112
       targetPort: 9112
       protocol: TCP
+    - name: order-purchase
+      port: 9113
+      targetPort: 9113
+      protocol: TCP
     - name: management
       port: 9264
       targetPort: 9264
@@ -166,5 +170,7 @@ echo "    GET  /customer/profile/{customerId}  (CUST-001 GOLD / CUST-002 SILVER 
 echo "  Inventory Service         – port 9111"
 echo "    POST /inventory/check   (PROD-A1 Laptop / PROD-B2 Mouse / PROD-C3 Hub (OOS) / PROD-D4 Monitor)"
 echo "  Pricing Service           – port 9112"
-echo "    POST /pricing/calculate (tier discount + warehouse shipping + credit-limit payment terms)"
+echo "    POST /pricing/calculate  (tier discount + shipping + credit-limit payment terms)"
+echo "  Purchase Service          – port 9113"
+echo "    POST /purchase/confirm   (GOLD=3d / SILVER=7d / BRONZE=14d delivery)"
 echo "================================================"

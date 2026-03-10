@@ -448,3 +448,273 @@ textarea.response-body {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ── Order Pipeline ── */
+.pipeline-services-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.pipeline-services-header h3 { margin-bottom: 0; }
+
+.pipeline-services-list { display: flex; flex-direction: column; gap: 0; }
+
+.pipeline-step-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+
+.pipeline-step-arrow {
+  text-align: center;
+  color: var(--orange);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0;
+  line-height: 1;
+}
+
+.pipeline-service-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--gray);
+  border-radius: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pipeline-service-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pipeline-service-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pipeline-service-port {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'Courier New', monospace;
+}
+
+.pipeline-service-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pipeline-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pipeline-item-row select,
+.pipeline-item-row input {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  background: #fafafa;
+  font-family: inherit;
+}
+
+.pipeline-item-row select:focus,
+.pipeline-item-row input:focus { border-color: var(--orange); background: #fff; }
+
+.pipeline-result-card {
+  margin-top: 20px;
+  padding: 20px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  border-left: 4px solid var(--success);
+}
+
+.pipeline-result-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.badge-status-success {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--success);
+  color: #fff;
+}
+
+.pipeline-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.pipeline-result-field { display: flex; flex-direction: column; gap: 4px; }
+
+.pipeline-result-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.pipeline-result-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+}
+
+/* ── Order Pipeline two-column layout ── */
+.op-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 0 24px;
+  align-items: start;
+}
+
+.op-left  { min-width: 0; }
+.op-right { min-width: 0; display: flex; flex-direction: column; gap: 0; }
+
+@media (max-width: 1100px) {
+  .op-layout { grid-template-columns: 1fr; }
+  .op-left  { order: 2; }
+  .op-right { order: 1; }
+}
+
+/* Stacked queue cards (single column inside the left panel) */
+.queue-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Queue Monitor ── */
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .queue-grid { grid-template-columns: 1fr; }
+}
+
+.queue-card {
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queue-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.queue-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.queue-count-badge {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 28px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.queue-count-error {
+  background: #fde8e8;
+  color: var(--error);
+}
+
+.queue-count-warn {
+  background: #fff3e0;
+  color: var(--warn);
+}
+
+.queue-count-zero {
+  background: #e8f5e9;
+  color: var(--success);
+}
+
+.queue-name-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.queue-empty {
+  font-size: 12px;
+  color: var(--success);
+  padding: 4px 0;
+}
+
+.queue-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.queue-message-item {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text);
+}
+
+/* ── Live indicator ── */
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse-live 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}

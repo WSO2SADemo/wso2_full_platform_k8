@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: Inventory Service
+  description: >
+    Mock backend for Pipeline Step 2 of the Order Fulfillment demo.
+
+    Checks stock availability for a list of products and returns two lists:
+    `available` (sufficient stock) and `unavailable` (insufficient or unknown
+    products). Reservation priority is derived from customer tier so that GOLD
+    customers receive the highest priority allocation.
+
+    | Product ID | Name           | Stock | Warehouse      |
+    |------------|----------------|-------|----------------|
+    | PROD-A1    | Laptop Pro     | 15    | WH-STOCKHOLM   |
+    | PROD-B2    | Wireless Mouse | 200   | WH-STOCKHOLM   |
+    | PROD-C3    | USB-C Hub      | 0     | WH-GOTHENBURG  |
+    | PROD-D4    | Monitor 27in   | 8     | WH-STOCKHOLM   |
+
+    Reservation priority by tier: GOLD = 5, SILVER = 3, BRONZE = 1.
+    PROD-C3 always lands in `unavailable` (0 stock).
+
+    Admin endpoints allow toggling the service offline to simulate a service
+    window during demos. When offline every stock check returns HTTP 503.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9111
+    description: Inventory Service (local)
+
+paths:
+
+  /inventory/checkStock:
+    post:
+      summary: Check stock availability for a list of products
+      description: >
+        Compares requested quantities against the mock stock database.
+        Products with sufficient stock are listed under `available`;
+        products with insufficient stock or unknown IDs appear under
+        `unavailable`.
+
+        Returns HTTP 503 when the service is toggled offline.
+      operationId: checkInventory
+      tags:
+        - Inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryCheckRequest'
+            examples:
+              goldCustomerOrder:
+                summary: GOLD customer checking two products
+                value:
+                  items:
+                    - productId: "PROD-A1"
+                      quantity: 1
+                    - productId: "PROD-B2"
+                      quantity: 2
+                  customerTier: "GOLD"
+              outOfStockProduct:
+                summary: Order including an out-of-stock product
+                value:
+                  items:
+                    - productId: "PROD-A1"
+                      quantity: 1
+                    - productId: "PROD-C3"
+                      quantity: 1
+                  customerTier: "SILVER"
+      responses:
+        '200':
+          description: Inventory check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCheckResponse'
+              examples:
+                allAvailable:
+                  summary: All products in stock
+                  value:
+                    available:
+                      - productId: "PROD-A1"
+                        name: "Laptop Pro"
+                        requestedQuantity: 1
+                        availableQuantity: 15
+                        warehouseId: "WH-STOCKHOLM"
+                        reservationPriority: 5
+                      - productId: "PROD-B2"
+                        name: "Wireless Mouse"
+                        requestedQuantity: 2
+                        availableQuantity: 200
+                        warehouseId: "WH-STOCKHOLM"
+                        reservationPriority: 5
+                    unavailable: []
+                    primaryWarehouseId: "WH-STOCKHOLM"
+                    canFulfill: true
+                partiallyAvailable:
+                  summary: One product out of stock
+                  value:
+                    available:
+                      - productId: "PROD-A1"
+                        name: "Laptop Pro"
+                        requestedQuantity: 1
+                        availableQuantity: 15
+                        warehouseId: "WH-STOCKHOLM"
+                        reservationPriority: 3
+                    unavailable:
+                      - productId: "PROD-C3"
+                        name: "USB-C Hub"
+                        requestedQuantity: 1
+                        availableQuantity: 0
+                        warehouseId: "WH-GOTHENBURG"
+                        reservationPriority: 0
+                    primaryWarehouseId: "WH-STOCKHOLM"
+                    canFulfill: false
+        '503':
+          description: Service window active – service is offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceWindowError'
+              example:
+                error: "Service temporarily unavailable"
+                code: "SERVICE_WINDOW"
+
+  /inventory/admin/toggle:
+    post:
+      summary: Toggle service online / offline
+      description: >
+        Flips the availability flag. When offline, all stock check requests
+        return HTTP 503. Call again to restore the service.
+      operationId: toggleInventoryService
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current state after toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                nowOffline:
+                  summary: Toggled to offline
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+                nowOnline:
+                  summary: Toggled back to online
+                  value:
+                    available: true
+                    state: "ONLINE"
+
+  /inventory/admin/status:
+    get:
+      summary: Check service availability
+      description: Returns the current online/offline state without changing it.
+      operationId: getInventoryStatus
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Current availability state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleResponse'
+              examples:
+                online:
+                  summary: Service is online
+                  value:
+                    available: true
+                    state: "ONLINE"
+                offline:
+                  summary: Service window active
+                  value:
+                    available: false
+                    state: "OFFLINE (service window active)"
+
+  /inventory/health:
+    get:
+      summary: Health check
+      operationId: inventoryHealth
+      tags:
+        - Inventory
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Inventory Service is running on port 9111"
+
+components:
+  schemas:
+
+    InventoryCheckRequest:
+      type: object
+      required: [items, customerTier]
+      properties:
+        items:
+          type: array
+          description: Products and quantities to check
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InventoryRequestItem'
+        customerTier:
+          type: string
+          description: >
+            Customer tier used to set reservation priority for available items.
+            GOLD = 5, SILVER = 3, BRONZE = 1.
+          enum: [GOLD, SILVER, BRONZE]
+          example: "GOLD"
+
+    InventoryRequestItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    InventoryCheckResponse:
+      type: object
+      required: [available, unavailable, primaryWarehouseId, canFulfill]
+      properties:
+        available:
+          type: array
+          description: Products with sufficient stock
+          items:
+            $ref: '#/components/schemas/InventoryLineItem'
+        unavailable:
+          type: array
+          description: Products with insufficient stock or unknown product IDs
+          items:
+            $ref: '#/components/schemas/InventoryLineItem'
+        primaryWarehouseId:
+          type: string
+          description: Warehouse ID of the last available product processed
+          example: "WH-STOCKHOLM"
+        canFulfill:
+          type: boolean
+          description: true when every requested item is in the `available` list
+
+    InventoryLineItem:
+      type: object
+      required: [productId, name, requestedQuantity, availableQuantity, warehouseId, reservationPriority]
+      properties:
+        productId:
+          type: string
+          example: "PROD-A1"
+        name:
+          type: string
+          example: "Laptop Pro"
+        requestedQuantity:
+          type: integer
+          example: 1
+        availableQuantity:
+          type: integer
+          description: Current stock level (0 means out of stock)
+          example: 15
+        warehouseId:
+          type: string
+          example: "WH-STOCKHOLM"
+        reservationPriority:
+          type: integer
+          description: "GOLD=5, SILVER=3, BRONZE=1, unavailable items=0"
+          example: 5
+
+    ServiceWindowError:
+      type: object
+      description: Returned when the service is toggled offline.
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Service temporarily unavailable"
+        code:
+          type: string
+          enum: [SERVICE_WINDOW]
+          example: "SERVICE_WINDOW"
+
+    ToggleResponse:
+      type: object
+      required: [available, state]
+      properties:
+        available:
+          type: boolean
+          description: true = online, false = offline (service window active)
+          example: true
+        state:
+          type: string
+          description: Human-readable state label
+          example: "ONLINE"

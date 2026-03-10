@@ -1,7 +1,7 @@
 [container.image]
 repository = "ramilu90"
 name = "customer_backends"
-tag = "1.0.3"
+tag = "1.0.5"
 
 # [[cloud.config.envs]]
 # key_ref = "BAL_CONFIG_DATA"

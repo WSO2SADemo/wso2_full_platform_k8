@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.1"
+IMAGE_TAG="1.0.4"
 IMAGE_NAME="purchase_service_orchestration_pipeline"
 
 echo "================================================"
@@ -96,6 +96,19 @@ spec:
           mountPath: /home/ballerina/bre/security
           readOnly: true
 "
+
+echo ""
+echo "--- Injecting RabbitMQ credentials from secret ---"
+kubectl set env deployment/"$DEPLOYMENT" \
+  --from=secret/rabbitmq-credentials \
+  --keys=RABBITMQ_USER,RABBITMQ_PASSWORD \
+  -n "$NAMESPACE" --overwrite
+
+echo ""
+echo "--- Injecting ConfigMap env vars ---"
+kubectl set env deployment/"$DEPLOYMENT" \
+  --from=configmap/ballerina-values-error-handling-flow \
+  -n "$NAMESPACE" --overwrite
 
 echo ""
 echo "--- Restarting deployment to pick up changes ---"

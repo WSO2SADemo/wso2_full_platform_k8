@@ -32,6 +32,15 @@ export default defineConfig({
         ...proxyEntry('https://gw.wso2.com'),
         rewrite: (path) => path.replace(/^\/gw-proxy/, ''),
       },
+      // RabbitMQ Management API via ingress – plain HTTP, no TLS agent
+      '/rmq-proxy': {
+        target: 'http://rabbitmq.wso2.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/rmq-proxy/, ''),
+        configure: (proxy) => {
+          proxy.on('error', (err) => console.error('[rmq-proxy error]', err.message));
+        },
+      },
     },
   },
 })

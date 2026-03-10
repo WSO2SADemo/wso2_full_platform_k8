@@ -1,0 +1,395 @@
+# OpenAPI Specification for Purchase Service Orchestration Pipeline
+openapi: 3.0.3
+info:
+  title: Purchase Service Orchestration Pipeline API
+  description: |
+    E-Commerce Order Fulfillment Pipeline
+    
+    This API orchestrates a three-step pipeline for processing purchase orders:
+    1. **Customer Profile Service** - Fetches customer tier and credit limit
+    2. **Pricing Service** - Calculates pricing with discounts based on customer segment
+    3. **Purchase Service** - Confirms the purchase and generates tracking information
+    
+    The pipeline performs message transformation between steps, mapping customer tier 
+    (GOLD/SILVER/BRONZE) to customer segment (PREMIUM/STANDARD/BASIC) for the pricing service.
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: http://localhost:9086
+    description: Local development server
+
+paths:
+  /orders/process:
+    post:
+      summary: Process a purchase order
+      description: |
+        Executes the complete order fulfillment pipeline:
+        - Retrieves customer profile and credit information
+        - Calculates pricing with applicable discounts
+        - Confirms the purchase and generates delivery tracking
+        
+        The pipeline uses correlation IDs for tracing and includes retry/replay 
+        capabilities via RabbitMQ message stores.
+      operationId: processOrder
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+            examples:
+              goldCustomer:
+                summary: Gold tier customer order
+                value:
+                  customerId: "CUST-001"
+                  items:
+                    - productId: "PROD-123"
+                      quantity: 2
+                    - productId: "PROD-456"
+                      quantity: 1
+              silverCustomer:
+                summary: Silver tier customer order
+                value:
+                  customerId: "CUST-002"
+                  items:
+                    - productId: "PROD-789"
+                      quantity: 5
+      responses:
+        '200':
+          description: Order processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseConfirmation'
+              examples:
+                confirmedOrder:
+                  summary: Confirmed purchase
+                  value:
+                    purchaseId: "PUR-ABC12345"
+                    status: "CONFIRMED"
+                    deliveryDate: "2024-01-15"
+                    trackingRef: "TRK-XYZ789"
+        '400':
+          description: Bad request - invalid order data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyItems:
+                  summary: Order with no items
+                  value:
+                    error: "Order must contain at least one item"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440000"
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseWithStep'
+              examples:
+                customerNotFound:
+                  summary: Unknown customer ID
+                  value:
+                    error: "Step 1 failed: Customer 'CUST-999' not found (HTTP 404)"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440001"
+                    failedStep: "customer-profile"
+        '500':
+          description: Internal server error - pipeline step failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseWithStep'
+              examples:
+                customerServiceDown:
+                  summary: Customer service unavailable
+                  value:
+                    error: "Step 1 failed: Customer service unavailable – Connection refused"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440002"
+                    failedStep: "customer-profile"
+                pricingServiceError:
+                  summary: Pricing service error
+                  value:
+                    error: "Step 2 failed: Pricing service returned HTTP 500"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440003"
+                    failedStep: "pricing"
+                purchaseServiceError:
+                  summary: Purchase service error
+                  value:
+                    error: "Step 3 failed: Purchase service unavailable – Timeout"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440004"
+                    failedStep: "purchase"
+
+  /orders/health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the orchestration pipeline service
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Service Orchestration Pipeline is running on port 9086"
+
+components:
+  schemas:
+    OrderRequest:
+      type: object
+      required:
+        - customerId
+        - items
+      properties:
+        customerId:
+          type: string
+          description: Unique identifier for the customer
+          example: "CUST-001"
+        items:
+          type: array
+          description: List of products to purchase
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrderItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+          description: Unique identifier for the product
+          example: "PROD-123"
+        quantity:
+          type: integer
+          description: Number of units to purchase
+          minimum: 1
+          example: 2
+
+    PurchaseConfirmation:
+      type: object
+      required:
+        - purchaseId
+        - status
+        - deliveryDate
+        - trackingRef
+      properties:
+        purchaseId:
+          type: string
+          description: Unique identifier for the confirmed purchase
+          example: "PUR-ABC12345"
+        status:
+          type: string
+          description: Purchase confirmation status
+          enum:
+            - CONFIRMED
+            - REJECTED
+          example: "CONFIRMED"
+        deliveryDate:
+          type: string
+          format: date
+          description: Expected delivery date in ISO-8601 format (YYYY-MM-DD)
+          example: "2024-01-15"
+        trackingRef:
+          type: string
+          description: Shipment tracking reference number
+          example: "TRK-XYZ789"
+
+    CustomerProfile:
+      type: object
+      description: Customer profile information from Step 1
+      required:
+        - customerId
+        - name
+        - tier
+        - creditLimit
+        - shippingAddress
+      properties:
+        customerId:
+          type: string
+          example: "CUST-001"
+        name:
+          type: string
+          example: "John Doe"
+        tier:
+          type: string
+          description: Customer tier level (mapped to segment for pricing)
+          enum:
+            - GOLD
+            - SILVER
+            - BRONZE
+          example: "GOLD"
+        creditLimit:
+          type: number
+          format: decimal
+          description: Customer credit limit (drives payment terms)
+          example: 10000.00
+        shippingAddress:
+          type: string
+          example: "123 Main St, City, State 12345"
+
+    PricingLineItem:
+      type: object
+      required:
+        - productId
+        - quantity
+        - unitPrice
+        - lineTotal
+      properties:
+        productId:
+          type: string
+          example: "PROD-123"
+        quantity:
+          type: integer
+          example: 2
+        unitPrice:
+          type: number
+          format: decimal
+          example: 49.99
+        lineTotal:
+          type: number
+          format: decimal
+          example: 99.98
+
+    PricingResult:
+      type: object
+      description: Pricing calculation result from Step 2
+      required:
+        - lineItems
+        - baseTotal
+        - discountPercentage
+        - discountAmount
+        - finalTotal
+        - shippingFee
+        - grandTotal
+        - paymentTerms
+        - currency
+      properties:
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/PricingLineItem'
+        baseTotal:
+          type: number
+          format: decimal
+          description: Sum of all line items before discount
+          example: 299.95
+        discountPercentage:
+          type: number
+          format: decimal
+          description: Discount percentage based on customer segment
+          example: 15.0
+        discountAmount:
+          type: number
+          format: decimal
+          description: Calculated discount amount
+          example: 44.99
+        finalTotal:
+          type: number
+          format: decimal
+          description: Total after discount, before shipping
+          example: 254.96
+        shippingFee:
+          type: number
+          format: decimal
+          example: 12.50
+        grandTotal:
+          type: number
+          format: decimal
+          description: Final total including shipping
+          example: 267.46
+        paymentTerms:
+          type: string
+          description: Payment terms based on credit limit
+          enum:
+            - NET-30
+            - PREPAID
+          example: "NET-30"
+        currency:
+          type: string
+          example: "USD"
+
+    OrderSummary:
+      type: object
+      description: Complete order summary (alternative response format)
+      required:
+        - orderId
+        - correlationId
+        - customer
+        - pricing
+        - processedAt
+      properties:
+        orderId:
+          type: string
+          description: Generated order identifier
+          example: "ORD-A1B2C3D4"
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlation ID for tracing the request through the pipeline
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        customer:
+          $ref: '#/components/schemas/CustomerProfile'
+        pricing:
+          $ref: '#/components/schemas/PricingResult'
+        processedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the order was processed (ISO-8601)
+          example: "2024-01-10T14:30:00Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - correlationId
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Order must contain at least one item"
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlation ID for tracing the failed request
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    ErrorResponseWithStep:
+      type: object
+      required:
+        - error
+        - correlationId
+        - failedStep
+      properties:
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Step 1 failed: Customer service unavailable"
+        correlationId:
+          type: string
+          format: uuid
+          description: Correlation ID for tracing the failed request
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        failedStep:
+          type: string
+          description: Name of the pipeline step that failed
+          enum:
+            - customer-profile
+            - pricing
+            - purchase
+            - unknown
+          example: "customer-profile"
+
+tags:
+  - name: Orders
+    description: Order processing and fulfillment operations
+  - name: Health
+    description: Service health check endpoints

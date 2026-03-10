@@ -39,7 +39,7 @@ import ballerina/log;
 import ballerina/uuid;
 import xlibb/pipeline;
 import ballerinax/moesif as _;
-import ballerinax/wso2.icp as _;
+// import ballerinax/wso2.icp as _;
 
 listener http:Listener orchestrationListener = check new http:Listener(9086);
 
