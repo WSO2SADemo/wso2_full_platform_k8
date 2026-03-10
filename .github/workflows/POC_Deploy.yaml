@@ -118,27 +118,6 @@ jobs:
             | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
             | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
 
-      # -----------------------------------------------------------------------
-      # Inject ENVIRONMENT from ConfigMap into Deployment YAML
-      # -----------------------------------------------------------------------
-      - name: Inject ENVIRONMENT from ConfigMap into Deployment
-        run: |
-          K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment"
-          DEPLOYMENT_YAML=$(find "$K8S_DIR" -name '*_deployment.yaml' | head -n1)
-
-          if [ ! -f "$DEPLOYMENT_YAML" ]; then
-            echo "Error: Deployment YAML not found in $K8S_DIR"
-            exit 1
-          fi
-
-          # Inject envFrom only if not already present
-          if ! grep -q "envFrom:" "$DEPLOYMENT_YAML"; then
-            sed -i '/containers:/,/ports:/ a \
-                \ \ \ \ envFrom:\n\
-                \ \ \ \ \ \ - configMapRef:\n\
-                \ \ \ \ \ \ \ \ name: poc-env-config' "$DEPLOYMENT_YAML"
-          fi
-
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
           K8S_ARTIFACTS_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment"
@@ -197,4 +176,19 @@ jobs:
 
           echo "Service applied. Current state:"
           kubectl get svc poc-deployment -n ${NAMESPACE} -o wide
+      # -----------------------------------------------------------------------
+      # Patch Deployment to inject ConfigMap ENVIRONMENT
+      # -----------------------------------------------------------------------
+      - name: Patch Deployment with ConfigMap ENV
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+          DEPLOYMENT=$(find "${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment" -name '*_deployment.yaml' | xargs -n1 basename | sed 's/_deployment.yaml//')
 
+          # Use kubectl set env to inject ConfigMap values
+          kubectl set env deployment/${DEPLOYMENT}-deployment \
+            --from=configmap/poc-env-config \
+            -n $NAMESPACE --overwrite
+
+          # Restart to apply changes
+          kubectl rollout restart deployment/${DEPLOYMENT}-deployment -n $NAMESPACE
+          kubectl rollout status deployment/${DEPLOYMENT}-deployment -n $NAMESPACE --timeout=180s
