@@ -199,7 +199,7 @@ jobs:
           # Apply ConfigMap values as individual env vars, overwriting any
           # conflicting entries already present in the Ballerina-generated deployment
           kubectl set env deployment/$DEPLOYMENT \
-            --from=configmap/ballerina-values-ochastration-and-email-sms \
+            --from=configmap/ballerina-values-orchestration-and-email-sms \
             -n $NAMESPACE --overwrite
 
           # Restart to pick up latest config and volume mounts
