@@ -182,8 +182,7 @@ jobs:
       - name: Patch Deployment with ConfigMap ENV
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-          # Use kubectl to get the exact deployment name in the namespace
-          DEPLOYMENT=$(kubectl get deployments -n $NAMESPACE -o jsonpath='{.items[0].metadata.name}')
+          DEPLOYMENT="poc-deployment-deployment"   # exact name from Ballerina-generated YAML
 
           echo "Patching deployment: $DEPLOYMENT"
 
