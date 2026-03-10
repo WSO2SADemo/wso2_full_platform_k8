@@ -21,7 +21,7 @@ jobs:
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
       # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.68"
+      IMAGE_TAG: "1.0.69"
       # Secrets required in GitHub → Settings → Secrets and variables → Actions:
       #   ORCHESTRATION_CONFIGMAP_YAML  – full ConfigMap YAML with __NAMESPACE__ as placeholder
 
