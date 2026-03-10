@@ -6,7 +6,7 @@ on:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment/**'
       - '.github/workflows/POC_Deploy.yaml'
     branches:
-      - POC
+      - POC_PROD
 
   # Allows manual triggering
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
 
     env:
       AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
-      AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+      AKS_CLUSTER_NAME: ${{ secrets.AKS_PROD_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
       # Must match Cloud.toml [container.image].tag
