@@ -11,6 +11,7 @@ service /heartbeat on httpDefaultListener {
         do {
             json response = {
                 status: "POC integration is running",
+                test: "test",
                 environment: ENVIRONMENT   // <-- added this
             };
             log:printInfo("Heartbeat endpoint called");
