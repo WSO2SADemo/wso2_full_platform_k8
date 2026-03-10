@@ -1,0 +1,12 @@
+[package]
+org = "TomasOzana"
+name = "poc_deployment"
+version = "0.1.0"
+distribution = "2201.13.1"
+title = "poc_deployment"
+
+[build-options]
+cloud="k8s"
+remoteManagement=true
+# sticky = true
+observabilityIncluded=true
