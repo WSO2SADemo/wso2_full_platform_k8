@@ -9,7 +9,7 @@ service /heartbeat on httpDefaultListener {
         do {
             json response = {
                 status: "POC integration is running",
-                test: "test"
+                test: environment_type
             };
             log:printInfo("Heartbeat endpoint called");
             log:printInfo("Response payload: " + response.toJsonString());
