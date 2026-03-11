@@ -18,7 +18,7 @@ jobs:
       AKS_CLUSTER_NAME: ${{ secrets.AKS_PROD_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
-      IMAGE_TAG: "1.0.76"
+      IMAGE_TAG: "1.0.77"
 
     steps:
       - name: Checkout Code
@@ -80,7 +80,7 @@ jobs:
 
       - name: Create ConfigMap
         env:
-          CONFIGMAP_YAML: ${{ secrets.POC_CONFIGMAP_YAML }}
+          CONFIGMAP_YAML: ${{ secrets.POC_PROD_CONFIGMAP_YAML }}
         run: |
           printf '%s\n' "$CONFIGMAP_YAML" \
             | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
