@@ -6,7 +6,7 @@ on:
       - 'apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment/**'
       - '.github/workflows/POC_Deploy.yaml'
     branches:
-      - POC_PROD
+      - POC
 
   # Allows manual triggering
   workflow_dispatch:
