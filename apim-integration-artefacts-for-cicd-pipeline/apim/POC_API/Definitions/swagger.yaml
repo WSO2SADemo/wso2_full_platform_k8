@@ -1,7 +1,7 @@
 openapi: 3.0.1
 info:
   title: POC API
-  version: 1.0.0
+  version: 1.1.0
 servers:
  -
   url: /
@@ -61,7 +61,7 @@ x-wso2-sandbox-endpoints:
   urls:
    - http://poc-deployment.ballerina.svc.cluster.local:9090
   type: http
-x-wso2-basePath: /POCAPI/1.0.0
+x-wso2-basePath: /POCAPI/1.1.0
 x-wso2-transports:
  - http
  - https

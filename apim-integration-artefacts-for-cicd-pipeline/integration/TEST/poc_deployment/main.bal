@@ -9,7 +9,7 @@ service /heartbeat on httpDefaultListener {
     resource function get status() returns json|error {
         do {
             json response = {
-                status: "POC integration is running for my testing purposes",
+                status: "POC integration is running for my POC purpose",
                 Environment: environment_type
             };
             log:printInfo("Heartbeat endpoint called");

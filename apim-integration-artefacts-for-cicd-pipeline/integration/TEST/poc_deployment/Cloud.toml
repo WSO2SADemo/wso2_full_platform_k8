@@ -1,7 +1,7 @@
 [container.image]
 repository = "ramilu90"
 name = "poc_deployment"
-tag = "1.0.79"
+tag = "1.0.80"
 
 [[cloud.config.envs]]
 key_ref = "ENVIRONMENT"
