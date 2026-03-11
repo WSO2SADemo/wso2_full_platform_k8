@@ -18,11 +18,40 @@ jobs:
       AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
-      IMAGE_TAG: "1.0.76"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 2  # fetch current + previous commit for git diff
+
+      - name: Extract IMAGE_TAG from Cloud.toml
+        id: get_tag
+        run: |
+          IMAGE_TAG=$(grep 'tag =' ${{ env.PROJECT_DIR }}/Cloud.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "Extracted IMAGE_TAG: $IMAGE_TAG"
+
+      - name: Check if Cloud.toml was changed
+        run: |
+          # Only run this check on push events
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Checking if Cloud.toml changed..."
+            changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            echo "$changed_files"
+            
+            if echo "$changed_files" | grep -q "${{ env.PROJECT_DIR }}/Cloud.toml"; then
+              echo "Cloud.toml changed. Continuing workflow."
+            else
+              echo "ERROR: Cloud.toml was not changed. IMAGE_TAG may not have been updated."
+              exit 1
+            fi
+          else
+            echo "Skipping change check for workflow_dispatch."
+          fi
+
+      - name: Print IMAGE_TAG
+        run: echo "The image tag is $IMAGE_TAG"
 
       - name: ⚙️ Debug - Print Environment Variables
         run: |
