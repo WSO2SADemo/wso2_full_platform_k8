@@ -7,8 +7,6 @@ on:
       - '.github/workflows/POC_Deploy.yaml'
     branches:
       - POC_PROD
-
-  # Allows manual triggering
   workflow_dispatch:
 
 jobs:
@@ -20,10 +18,7 @@ jobs:
       AKS_CLUSTER_NAME: ${{ secrets.AKS_PROD_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
-      # Must match Cloud.toml [container.image].tag
-      IMAGE_TAG: "1.0.68"
-      # Secrets required in GitHub → Settings → Secrets and variables → Actions:
-      #   ORCHESTRATION_CONFIGMAP_YAML  – full ConfigMap YAML with __NAMESPACE__ as placeholder
+      IMAGE_TAG: "1.0.76"
 
     steps:
       - name: Checkout Code
@@ -31,7 +26,6 @@ jobs:
 
       - name: ⚙️ Debug - Print Environment Variables
         run: |
-          echo "Current Working Directory: $(pwd)"
           echo "PROJECT_DIR: ${{ env.PROJECT_DIR }}"
           echo "IMAGE_TAG: ${{ env.IMAGE_TAG }}"
 
@@ -44,29 +38,16 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.ballerina
-          key: ballerina-deps-${{ hashFiles('apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment/Ballerina.toml') }}
+          key: ballerina-deps-${{ hashFiles('${{ env.PROJECT_DIR }}/Ballerina.toml') }}
           restore-keys: |
             ballerina-deps-
 
       - name: Build Ballerina Project
         working-directory: ${{ env.PROJECT_DIR }}
         run: bal build --cloud k8s
-      
+
       - name: 🐳 List local Docker images
-        run: |
-          echo "Local Docker images on runner:"
-          docker images
-      
-      # - name: Tag Docker Image
-      #   run: |
-      #     echo "Local Docker images before tagging:"
-      #     docker images
-
-      #     echo "Tagging ballerina_heartbeat:latest -> ramilu90/ballerina_heartbeat:1.0.66"
-      #     docker tag ballerina_heartbeat:latest ramilu90/ballerina_heartbeat:1.0.66
-
-      #     echo "Local Docker images after tagging:"
-      #     docker images
+        run: docker images
 
       - name: 🔐 Docker Login
         uses: docker/login-action@v3
@@ -74,19 +55,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # -----------------------------------------------------------------------
-      # Push the image that Ballerina built (tag comes from Cloud.toml).
-      # IMAGE_TAG env var must match Cloud.toml [container.image].tag.
-      # -----------------------------------------------------------------------
       - name: 📦 Push Docker Image
         run: |
           IMAGE_NAME="ramilu90/poc_deployment:${{ env.IMAGE_TAG }}"
-          echo "Pushing image: ${IMAGE_NAME}"
-          docker push "${IMAGE_NAME}"
+          docker push "$IMAGE_NAME"
 
-      # -----------------------------------------------------------------------
-      # AKS authentication – must happen before any kubectl commands
-      # -----------------------------------------------------------------------
       - name: 🔐 Azure Login via Service Principal
         uses: azure/login@v2
         with:
@@ -105,18 +78,13 @@ jobs:
           kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
           kubectl get namespace ${NAMESPACE}
 
-      # -----------------------------------------------------------------------
-      # ConfigMap – rendered from ORCHESTRATION_CONFIGMAP_YAML secret.
-      # The secret must contain the full ConfigMap YAML with __NAMESPACE__
-      # as the namespace placeholder.
-      # -----------------------------------------------------------------------
-      # - name: Create ConfigMap
-      #   env:
-      #     CONFIGMAP_YAML: ${{ secrets.ORCHESTRATION_CONFIGMAP_YAML }}
-      #   run: |
-      #     printf '%s\n' "$CONFIGMAP_YAML" \
-      #       | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
-      #       | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
+      - name: Create ConfigMap
+        env:
+          CONFIGMAP_YAML: ${{ secrets.POC_CONFIGMAP_YAML }}
+        run: |
+          printf '%s\n' "$CONFIGMAP_YAML" \
+            | sed "s|__NAMESPACE__|${{ env.BALLERINA_NAMESPACE }}|g" \
+            | kubectl apply -n ${{ env.BALLERINA_NAMESPACE }} -f -
 
       - name: 🔍 Debug - Check K8s Artifacts Directory
         run: |
@@ -129,51 +97,57 @@ jobs:
             exit 1
           fi
 
-      # -----------------------------------------------------------------------
-      # Deploy: delete stale resources first, then apply fresh
-      # -----------------------------------------------------------------------
       - name: Deploy Kubernetes Resources
         run: |
           K8S_DIR="${{ env.PROJECT_DIR }}/target/kubernetes/poc_deployment"
-
           echo "Deleting existing resources from ${K8S_DIR}..."
           kubectl delete -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }} --ignore-not-found=true
-
           echo "Applying new resources from ${K8S_DIR}..."
           kubectl apply -f ${K8S_DIR} -n ${{ env.BALLERINA_NAMESPACE }}
 
-      # -----------------------------------------------------------------------
-      # Service: the Ballerina-generated YAML contains no Service resource.
-      # Apply a complete Service definition covering all listener ports.
-      #
-      # Ports exposed by orchestration_and_email_sms:
-      #   9090 – Combined API (combined_services.bal – combinedListener)
-      #          Hosts /api (benefit registration) and /call_service_and_notify (email/SMS)
-      #   9097 – Notification service port (reserved; previously integration_notification_service.bal)
-      #   9264 – Ballerina management API
-      # -----------------------------------------------------------------------
       - name: Ensure Service & Patch Ports
         run: |
           NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
-
           kubectl apply -f - <<EOF
           apiVersion: v1
           kind: Service
           metadata:
-            name: poc-deployment       # unique name
-            namespace: ballerina          # use the same namespace or a new one
+            name: poc-deployment
+            namespace: ${NAMESPACE}
             labels:
               app: poc_deployment
           spec:
-            type: ClusterIP               # internal cluster service
+            type: ClusterIP
             selector:
-              app: poc_deployment      # matches pods with this label
+              app: poc_deployment
             ports:
               - name: http
-                port: 9090                # port other services will call
-                targetPort: 9090          # port your container listens on
+                port: 9090
+                targetPort: 9090
           EOF
-
-          echo "Service applied. Current state:"
           kubectl get svc poc-deployment -n ${NAMESPACE} -o wide
 
+      - name: Patch Deployment (Inject ENVIRONMENT from ConfigMap)
+        run: |
+          NAMESPACE="${{ env.BALLERINA_NAMESPACE }}"
+
+          # Find the deployment dynamically by label
+          DEPLOYMENT=$(kubectl get deployment -n $NAMESPACE -l app=poc_deployment -o jsonpath='{.items[0].metadata.name}')
+          if [ -z "$DEPLOYMENT" ]; then
+            echo "Error: No deployment found with label app=poc_deployment in namespace $NAMESPACE"
+            exit 1
+          fi
+
+          # Get container name
+          CONTAINER_NAME=$(kubectl get deployment $DEPLOYMENT -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')
+          echo "Patching Deployment $DEPLOYMENT (Container: $CONTAINER_NAME)..."
+
+          # Inject ConfigMap values as individual env vars
+          kubectl set env deployment/$DEPLOYMENT \
+            --from=configmap/poc-env-config \
+            -n $NAMESPACE --overwrite
+
+          # Restart deployment to pick up new ENV
+          kubectl rollout restart deployment/$DEPLOYMENT -n $NAMESPACE
+          echo "Waiting for successful rollout..."
+          kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=180s

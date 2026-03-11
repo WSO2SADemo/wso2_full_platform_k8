@@ -1,4 +1,8 @@
 [container.image]
 repository = "ramilu90"
 name = "poc_deployment"
-tag = "1.0.68"
+tag = "1.0.76"
+
+[[cloud.config.envs]]
+key_ref = "ENVIRONMENT"
+config_name = "poc-env-config"
