@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="APIM_Input_Log" statistics="enable" trace="enable" xmlns="http://ws.apache.org/ns/synapse">
+	<property expression="$trp:pid" name="WSO2id" scope="default" type="STRING"/>
+	<property expression="get-property('axis2','REST_URL_POSTFIX')" scope="default" name="Resource"/>
+	<property name="RequestStartEpoch" expression="get-property('SYSTEM_TIME')" scope="default"/>
+	<filter regex="false" source="boolean(get-property('WSO2id'))">
+		<then>
+			<property expression="get-property('MessageID')" name="WSO2id" scope="default" type="STRING"/>
+			<property expression="get-property('WSO2id')" name="pid" scope="transport" type="STRING"/>
+			<property value="true" name="initial_call" scope="default" type="STRING"/>
+		</then>
+		<else>
+			<property value="false" name="initial_call" scope="default" type="STRING"/>
+		</else>
+	</filter>
+	<property expression="$trp:pid" name="WSO2id" scope="default" type="STRING"/>
+	<property expression="$trp:X-JWT-Assertion" name="JWTassertion"/>
+	<property expression="base64Decode(fn:substring-before(fn:substring-after($ctx:JWTassertion, '.'), '.'))" name="JWTdecoded"/>
+	<property expression="fn:concat(get-property('transport','X-Forwarded-For'), ', ')" name="coming-X-Forwarded-For" scope="axis2" type="STRING"/>
+	<property expression="get-property('axis2','REMOTE_ADDR')" name="clientIP"/>
+	<log level="custom">
+		<property name="Initial_call" expression="get-property('initial_call')"/>
+		<property expression="get-property('transport', 'Host')" name="Host"/>
+		<property expression="get-property('To')" name="Context"/>
+		<property expression="get-property('axis2', 'REST_URL_POSTFIX')" name="Resource"/>
+		<property expression="get-property('transport', 'Content-Type')" name="Content-Type"/>
+		<property expression="get-property('axis2', 'HTTP_METHOD')" name="Http_Method"/>
+		<property expression="fn:substring-after(get-property('SYNAPSE_REST_API'),'--')" name="API_NAME" xmlns:ns="http://org.apache.synapse/xsd"/>
+		<property expression="$ctx:api.ut.userName" name="Username"/>
+		<property expression="$ctx:api.ut.application.name" name="Application"/>
+		<property expression="$ctx:api.ut.tier" name="Tier"/>
+		<property expression="$ctx:api.ut.keyType" name="Keytype"/>
+		<property expression="get-property('WSO2id')" name="WSO2ID" xmlns:ns="http://org.apache.synapse/xsd"/>
+		<property expression="get-property('transport','X-Forwarded-For')" name="coming-X-Forwarded-For"/>
+		<property expression="get-property('clientIP')" name="clientIP"/>
+		<property expression="fn:concat(get-property('axis2','coming-X-Forwarded-For'), get-property('clientIP'))" name="X-Forwarded-For"/>
+	</log>
+</sequence>
