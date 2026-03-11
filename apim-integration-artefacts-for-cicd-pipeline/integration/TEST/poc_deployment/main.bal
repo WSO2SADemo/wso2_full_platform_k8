@@ -1,8 +1,6 @@
 import ballerina/http;
 import ballerina/log;
 
-// This will get the value from Kubernetes ConfigMap (or env var)
-configurable string ENVIRONMENT = ?;
 
 listener http:Listener httpDefaultListener = http:getDefaultListener();
 
@@ -11,8 +9,7 @@ service /heartbeat on httpDefaultListener {
         do {
             json response = {
                 status: "POC integration is running",
-                test: "test",
-                environment: ENVIRONMENT   // <-- added this
+                test: "test"
             };
             log:printInfo("Heartbeat endpoint called");
             log:printInfo("Response payload: " + response.toJsonString());
