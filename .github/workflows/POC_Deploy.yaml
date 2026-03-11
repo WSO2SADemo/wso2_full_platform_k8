@@ -18,7 +18,7 @@ jobs:
       AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
       BALLERINA_NAMESPACE: ballerina
       PROJECT_DIR: apim-integration-artefacts-for-cicd-pipeline/integration/TEST/poc_deployment
-      IMAGE_TAG: "1.0.75"
+      IMAGE_TAG: "1.0.76"
 
     steps:
       - name: Checkout Code
