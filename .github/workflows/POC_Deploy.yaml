@@ -32,6 +32,21 @@ jobs:
       - name: Print IMAGE_TAG
         run: echo "The image tag is $IMAGE_TAG"
 
+      - name: Check if Cloud.toml was changed
+        run: |
+          # Get the list of changed files between the previous and current commit
+          changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          echo "Changed files:"
+          echo "$changed_files"
+
+          # Check if Cloud.toml in PROJECT_DIR is among changed files
+          if echo "$changed_files" | grep -q "${{ env.PROJECT_DIR }}/Cloud.toml"; then
+            echo "Cloud.toml changed. Continuing workflow."
+          else
+            echo "ERROR: Cloud.toml was not changed. IMAGE_TAG may not have been updated."
+            exit 1
+          fi
+
       - name: ⚙️ Debug - Print Environment Variables
         run: |
           echo "PROJECT_DIR: ${{ env.PROJECT_DIR }}"
