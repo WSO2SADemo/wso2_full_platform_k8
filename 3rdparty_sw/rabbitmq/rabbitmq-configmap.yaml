@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rabbitmq-config
-  namespace: rabbitmq
+  namespace: ballerina
 data:
   rabbitmq.conf: |
     # Networking
@@ -24,4 +24,4 @@ data:
     loopback_users = none
 
   enabled_plugins: |
-    [rabbitmq_management,rabbitmq_management_agent,rabbitmq_prometheus].
+    [rabbitmq_management,rabbitmq_management_agent,rabbitmq_prometheus,rabbitmq_shovel,rabbitmq_shovel_management].

@@ -1,0 +1,12 @@
+# ADR Orchestrator — Docker Configuration
+# Database + upstream service URLs only (AI Agent is separate)
+username="adr_user"
+password="adr_password"
+port=3306
+host="mysql"
+database="flight_delay_db"
+
+disruptionServiceUrl="http://disruption-detection:9090"
+crewServiceUrl="http://crew-service:9091"
+passengerServiceUrl="http://passenger-service:9092"
+logisticsServiceUrl="http://logistics-service:9093"

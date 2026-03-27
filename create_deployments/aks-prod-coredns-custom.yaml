@@ -11,14 +11,14 @@ data:
         errors
         cache 30
         hosts {
-            # Point EVERYTHING to the Nginx Ingress Controller IP (10.0.7.22)
-            10.0.7.22 is.wso2.com
-            10.0.7.22 cp.wso2.com
-            10.0.7.22 gw.wso2.com
-            10.0.7.22 icp.wso2.com
-            10.0.7.22 extgw.wso2.com
-            10.0.7.22 kibana.wso2.com
-            10.0.7.22 rabbitmq.wso2.com
+            # Point EVERYTHING to the Nginx Ingress CLUSTER-IP (10.0.119.125)
+            10.0.119.125 is.wso2.com
+            10.0.119.125 cp.wso2.com
+            10.0.119.125 gw.wso2.com
+            10.0.119.125 icp.wso2.com
+            10.0.119.125 extgw.wso2.com
+            10.0.119.125 kibana.wso2.com
+            10.0.119.125 rabbitmq.wso2.com
             
             fallthrough
         }

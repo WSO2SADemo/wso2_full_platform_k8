@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.3"
+IMAGE_TAG="1.0.18"
 
 echo "================================================"
 echo "  Deploy parallel_service_ochastration_integration"

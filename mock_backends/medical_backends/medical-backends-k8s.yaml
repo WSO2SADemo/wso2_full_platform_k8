@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medical-backends
+  namespace: ballerina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medical-backends
+  template:
+    metadata:
+      labels:
+        app: medical-backends
+    spec:
+      containers:
+        - name: medical-backends
+          image: ramilu90/medical_backends:0.3.0
+          ports:
+            - containerPort: 9201  # Patient services (patients, appointments, prescriptions, labs)
+            - containerPort: 9205  # Provider services (pharmacy, doctors, hospitals, insurance)
+          readinessProbe:
+            httpGet:
+              path: /patients/health
+              port: 9201
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /patients/health
+              port: 9201
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medical-patient-services
+  namespace: ballerina
+spec:
+  selector:
+    app: medical-backends
+  ports:
+    - name: http
+      port: 9201
+      targetPort: 9201
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medical-provider-services
+  namespace: ballerina
+spec:
+  selector:
+    app: medical-backends
+  ports:
+    - name: http
+      port: 9205
+      targetPort: 9205

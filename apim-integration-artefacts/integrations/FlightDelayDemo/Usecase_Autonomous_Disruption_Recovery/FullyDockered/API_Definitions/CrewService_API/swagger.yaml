@@ -1,0 +1,442 @@
+openapi: 3.0.1
+info:
+  title: CrewServiceAPI
+  description: "Manages crew assignments, duty hour compliance, and crew reassignment for the ADR Flight Delay Demo."
+  version: 1.0.0
+servers:
+  - url: http://crew-service:9091/crew
+security:
+  - default: []
+paths:
+  /members:
+    get:
+      summary: List all crew members
+      operationId: getCrewMembers
+      responses:
+        "200":
+          description: List of crew members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrewMember"
+    post:
+      summary: Register a new crew member
+      operationId: createCrewMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrewMemberInput"
+      responses:
+        "201":
+          description: Crew member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrewMember"
+  /members/{id}:
+    get:
+      summary: Get crew member details
+      operationId: getCrewMemberById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Crew member details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrewMember"
+        "404":
+          description: Crew member not found
+  /assignments/{flightId}:
+    get:
+      summary: Get crew assignments for a flight
+      operationId: getCrewAssignments
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of crew assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrewAssignment"
+  /requirements/{flightId}:
+    get:
+      summary: Get crew requirements for a flight
+      operationId: getCrewRequirements
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Crew requirement summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrewRequirementSummary"
+        "404":
+          description: Flight not found
+  /available:
+    get:
+      summary: Get available crew members
+      operationId: getAvailableCrew
+      parameters:
+        - name: airport
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of available crew
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrewMember"
+  /check-compliance:
+    post:
+      summary: Check duty hour compliance for a crew member
+      operationId: checkCompliance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplianceCheckRequest"
+      responses:
+        "200":
+          description: Compliance check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceCheckResult"
+  /evaluate/{flightId}:
+    get:
+      summary: Evaluate crew fitness for a flight
+      operationId: evaluateCrewFitness
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: airport
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Crew fitness evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrewFitnessEvaluation"
+  /assign:
+    post:
+      summary: Assign crew to a flight
+      operationId: assignCrew
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignCrewRequest"
+      responses:
+        "200":
+          description: Assignment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignCrewResult"
+  /reassign:
+    post:
+      summary: Reassign crew from one flight to another
+      operationId: reassignCrew
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReassignRequest"
+      responses:
+        "200":
+          description: Reassignment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReassignResult"
+components:
+  schemas:
+    CrewMember:
+      type: object
+      properties:
+        crew_id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        base_airport:
+          type: string
+        duty_hours_today:
+          type: number
+        max_duty_hours:
+          type: number
+        status:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        certification:
+          type: string
+    CrewMemberInput:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - role
+        - base_airport
+      properties:
+        crew_id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        base_airport:
+          type: string
+        duty_hours_today:
+          type: number
+        max_duty_hours:
+          type: number
+        status:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        certification:
+          type: string
+    CrewAssignment:
+      type: object
+      properties:
+        assignment_id:
+          type: string
+        crew_id:
+          type: string
+        flight_id:
+          type: string
+        role:
+          type: string
+        duty_start:
+          type: string
+        duty_end:
+          type: string
+        status:
+          type: string
+    ComplianceCheckRequest:
+      type: object
+      required:
+        - crew_id
+        - flight_id
+        - additional_hours
+      properties:
+        crew_id:
+          type: string
+        flight_id:
+          type: string
+        additional_hours:
+          type: number
+    ComplianceCheckResult:
+      type: object
+      properties:
+        crew_id:
+          type: string
+        crew_name:
+          type: string
+        flight_id:
+          type: string
+        compliant:
+          type: boolean
+        current_duty_hours:
+          type: number
+        max_duty_hours:
+          type: number
+        requested_additional_hours:
+          type: number
+        projected_total:
+          type: number
+        message:
+          type: string
+    AssignCrewRequest:
+      type: object
+      required:
+        - crew_id
+        - flight_id
+        - role
+      properties:
+        crew_id:
+          type: string
+        flight_id:
+          type: string
+        role:
+          type: string
+        duty_start:
+          type: string
+        duty_end:
+          type: string
+    AssignCrewResult:
+      type: object
+      properties:
+        assignment_id:
+          type: string
+        crew_id:
+          type: string
+        crew_name:
+          type: string
+        flight_id:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    ReassignRequest:
+      type: object
+      required:
+        - crew_id
+        - from_flight_id
+        - to_flight_id
+        - role
+      properties:
+        crew_id:
+          type: string
+        from_flight_id:
+          type: string
+        to_flight_id:
+          type: string
+        role:
+          type: string
+    ReassignResult:
+      type: object
+      properties:
+        crew_id:
+          type: string
+        crew_name:
+          type: string
+        from_flight_id:
+          type: string
+        to_flight_id:
+          type: string
+        new_assignment_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    CrewRequirementSummary:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlightCrewRequirement"
+        fully_staffed:
+          type: boolean
+        total_required:
+          type: integer
+        total_assigned:
+          type: integer
+        gaps:
+          type: integer
+    FlightCrewRequirement:
+      type: object
+      properties:
+        id:
+          type: integer
+        flight_id:
+          type: string
+        role:
+          type: string
+        required_count:
+          type: integer
+        assigned_count:
+          type: integer
+    CrewFitnessEvaluation:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrewCandidate"
+        gaps:
+          type: array
+          items:
+            type: string
+        recommendation:
+          type: string
+    CrewCandidate:
+      type: object
+      properties:
+        crew_id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        duty_hours_remaining:
+          type: number
+        compliant:
+          type: boolean
+        fitness_score:
+          type: string
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://crew-service:9091/crew
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://crew-service:9091/crew

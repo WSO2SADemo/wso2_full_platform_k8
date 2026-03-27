@@ -17,6 +17,11 @@ service /insurance/customer on customerListener {
         io:println("Insurance customer service initialized on port 8082");
     }
 
+    resource function get health() returns http:Ok {
+        io:println("Health check received at /insurance/customer/health");
+        return {body: {status: "UP"}};
+    }
+
     // Get policy details by username
     resource function post policy(@http:Payload UsernameRequest request) returns PolicyResponse|ErrorResponse {
         string username = request.username;
@@ -94,6 +99,10 @@ service /insurance/agent on agentListener {
 
     function init() {
         io:println("Insurance agent service initialized on port 8083");
+    }
+
+    resource function get health() returns http:Ok {
+        return {body: {status: "UP"}};
     }
 
     // List all policies

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAsgardeo, User, SignOutButton } from '@asgardeo/react';
+import ChatAgent from '../components/ChatAgent';
+import config from '../config';
 
 export default function EmployeeDashboard() {
   const { getAccessToken, getDecodedIdToken, isSignedIn, isLoading } = useAsgardeo();
@@ -54,16 +56,20 @@ export default function EmployeeDashboard() {
         console.log('Access Token claims:', parsedAccess);
         console.log("Employee Scopes:", scopeArray);
 
-        const userInfoRes = await fetch('https://is.wso2.com/oauth2/userinfo', {
+        const userInfoRes = await fetch(`${config.isBaseUrl}/oauth2/userinfo`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const userInfo = await userInfoRes.json();
         console.log('Userinfo claims:', userInfo);
 
-        setUsername(userInfo.username || userInfo.preferred_username || userInfo.email || idToken.username || idToken.email || "Unknown User");
+        const resolvedUsername = userInfo.username || userInfo.preferred_username || userInfo.email || idToken.username || idToken.email || "Unknown User";
+        sessionStorage.setItem('insurance_username', resolvedUsername);
+        setUsername(resolvedUsername);
         setAccessToken(token);
-        setHasOrdinaryAccess(scopeArray.includes("ordinary"));
-        setHasPrivilegedAccess(scopeArray.includes("privileged"));
+        const hasPrivileged = scopeArray.some(s => s === "privileged" || s === "privileged_api_scope");
+        const hasOrdinary = scopeArray.some(s => s === "ordinary" || s === "ordinary_api_scope");
+        setHasOrdinaryAccess(hasOrdinary || hasPrivileged);
+        setHasPrivilegedAccess(hasPrivileged);
 
       } catch (error) {
         console.error('Error fetching permissions:', error);
@@ -82,7 +88,7 @@ export default function EmployeeDashboard() {
     const fetchPolicies = async () => {
       try {
         console.log("Fetching policies...");
-        const response = await fetch('https://gw.wso2.com/insuranceagentapi/1.0.0/insurance/agent/policies', {
+        const response = await fetch(`${config.agentApiBase}/insurance/agent/policies`, {
           method: 'GET',
           headers: { 'accept': '*/*', 'Authorization': `Bearer ${accessToken}` }
         });
@@ -108,7 +114,7 @@ export default function EmployeeDashboard() {
     if (!policyToUpdate) return;
 
     try {
-      const response = await fetch('https://gw.wso2.com/insuranceagentapi/1.0.0/insurance/agent/policy/update', {
+      const response = await fetch(`${config.agentApiBase}/insurance/agent/policy/update`, {
         method: 'POST',
         headers: {
           'accept': '*/*',
@@ -283,6 +289,9 @@ export default function EmployeeDashboard() {
           </div>
         )}
       </div>
+
+      {/* AI Chat Agent */}
+      <ChatAgent accessToken={accessToken} hasPremiumCoverage={hasPrivilegedAccess} username={username} />
 
       {/* MODAL: Update Policy Status */}
       {showUpdateModal && policyToUpdate && (

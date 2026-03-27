@@ -1,0 +1,9 @@
+# MCP Server Docker Configuration
+# Service URLs pointing to Docker container hostnames
+
+disruptionServiceUrl = "http://disruption-detection:9090"
+crewServiceUrl = "http://crew-service:9091"
+passengerServiceUrl = "http://passenger-service:9092"
+logisticsServiceUrl = "http://logistics-service:9093"
+orchestratorUrl = "http://adr-orchestrator:9094"
+mcpPort = 9096

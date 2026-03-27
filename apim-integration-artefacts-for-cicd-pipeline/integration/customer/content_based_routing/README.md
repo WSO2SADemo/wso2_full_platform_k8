@@ -2,65 +2,148 @@
 
 ## Overview
 
-Sweden's unemployment insurance funds distribute information from a **sender** to one or more **recipients**. Sender and recipient are unknown to each other — their connections are only to the integration platform.
+Sweden's unemployment insurance funds distribute benefit notifications from a **sender** (unemployment fund) to a **recipient** (processing backend). Sender and recipient are unknown to each other — their only connection is through this integration platform.
 
 This integration:
-1. Exposes a **SOAP/XML endpoint** over HTTP
-2. **Validates** the incoming XML body against an XSD schema
-3. **Routes** the message to the correct public SOAP service based on content in the SOAP Header (`senderName`) and Body (`benefitAmount`)
-4. Returns a **SOAP acknowledgement** to the caller
+1. Exposes a **SOAP/XML endpoint** on port 9095
+2. **Validates** the incoming XML body against an embedded XSD schema
+3. **Routes** the message to the correct external SOAP service based on `senderName` (SOAP Header) and `benefitAmount` (SOAP Body)
+4. Executes the forwarding through a **pipeline** with built-in failure handling via RabbitMQ
+5. Returns a **SOAP acknowledgement** to the caller
 
 ---
 
 ## Architecture
 
+### Happy Path
+
 ```
-                            ┌─────────────────────────────────────────────────────┐
-                            │         content-based-routing (port 9095)           │
-                            │                                                     │
-  Sender (AFA / Alfa /      │  1. Extract senderName from SOAP Header             │
-  Folksam / unknown)  ───▶  │  2. XSD validate BenefitNotification body          │
-  POST /soap/routing        │  3. Route based on senderName                       │
-                            │  4. If amount > 50 000 SEK → also store-and-forward │
-                            └──────────────┬──────────────────────────────┬───────┘
-                                           │                              │
-                     ┌─────────────────────┼──────────────┐              │ (high-value only)
-                     │                     │              │               │
-              senderName=AFA        senderName=Alfa  senderName=Folksam  ▼
-                     │                     │              │  store-and-forward-integration
-                     ▼                     ▼              ▼  (RabbitMQ – durable delivery)
-          DNE Calculator         DataAccess           DataAccess
-          (Add operation)        NumberToWords        NumberToWords
-          dneonline.com          dataaccess.com       dataaccess.com
+  Sender Fund
+  (AFA / Folksam /         ┌─────────────────────────────────────────────────────────┐
+   Skandia / unknown)       │        content-based-routing  (port 9095)               │
+                            │                                                         │
+  POST /soap/routing  ───▶  │  Step 1: Extract senderName from SOAP Header           │
+                            │  Step 2: Extract BenefitNotification from SOAP Body    │
+                            │  Step 3: XSD validate BenefitNotification              │
+                            │  Step 4: Parse benefitAmount as decimal                │
+                            │  Step 5: determineRoute(senderName, benefitAmount)     │
+                            │  Step 6: Build NotificationForwardPayload              │
+                            │  Step 7: Execute soapRoutingPipeline                   │
+                            └──────────────────────┬──────────────────────────────────┘
+                                                   │
+                                    ┌──────────────▼──────────────┐
+                                    │   xlibb/pipeline             │
+                                    │   soap-routing-pipeline      │
+                                    │                              │
+                                    │   [Processor]                │
+                                    │   dummyTransformer           │
+                                    │   (pass-through)             │
+                                    │                              │
+                                    │   [Destination]              │
+                                    │   forwardNotification        │
+                                    └──────────────┬───────────────┘
+                                                   │
+              ┌────────────────────┬───────────────┼──────────────────┬──────────────────┐
+              │                    │               │                  │                  │
+        senderName=AFA       senderName=AFA  senderName=Folksam  senderName=Folksam  any other /
+        any amount           high-value       amount ≤ 50 000     amount > 50 000     Skandia
+              │              (future)               │                  │
+              ▼                                     ▼                  ▼                 ▼
+    DNE Calculator              Oorsprong CountryInfo       DNE Calculator      LearnWebServices
+    (Add operation)             CapitalCity SE              (Multiply op)       (SayHello)
+    dneonline.com/              webservices.oorsprong.org   dneonline.com/      apps.learnwebservices.com
+    calculator.asmx                                         calculator.asmx     /services/hello
+
+    Route: AFA-Fund-A           Route: Folksam-Fund-C       Route: Folksam-HighValue   Route: Default
+```
+
+### Routing Decision Table
+
+| `senderName` | `benefitAmount` | Route Key | Backend | SOAP Operation |
+|---|---|---|---|---|
+| `AFA` | any | `AFA-Fund-A` | DNE Online Calculator | `Add` |
+| `Folksam` | ≤ 50 000 | `Folksam-Fund-C` | Oorsprong CountryInfo | `CapitalCity` (SE) |
+| `Folksam` | > 50 000 | `Folksam-HighValue` | DNE Online Calculator | `Multiply` |
+| `Skandia` | any | `Skandia-Fund-D` | *(none – simulated unavailable)* | — |
+| *(any other)* | any | `Default` | LearnWebServices | `SayHello` |
+
+---
+
+### Failure Path (Pipeline Error Handling)
+
+When `forwardNotification` fails (e.g. backend returns error, Skandia simulated failure), the pipeline automatically stores the message in RabbitMQ for retry:
+
+```
+  forwardNotification
+  destination FAILS
+        │
+        ▼
+  ┌─────────────────────────────────────────┐
+  │  xlibb/pipeline failure handler         │
+  └──────────────┬──────────────────────────┘
+                 │
+                 ▼
+  ┌──────────────────────────────────┐
+  │  RabbitMQ                        │
+  │  Queue: contentbasedrouting.     │
+  │          order-failure           │  ◀─── Failed messages land here
+  └──────────────┬───────────────────┘
+                 │
+        (manual or automated replay)
+                 │
+                 ▼
+  ┌──────────────────────────────────┐
+  │  RabbitMQ                        │
+  │  Queue: contentbasedrouting.     │
+  │          order-replay            │  ◀─── Moved here for re-processing
+  └──────────────┬───────────────────┘
+                 │
+        pipeline replays from here
+                 │
+          ┌──────┴──────┐
+          │  succeeds   │  fails again (max retries)
+          │             │
+          ▼             ▼
+      ACCEPTED    contentbasedrouting.
+                  order-deadletter     ◀─── Permanently failed messages
 ```
 
 ---
 
-## Recipient SOAP Services
+### Component Map
 
-| Sender | ConfigMap Variable | SOAP Service | Operation |
-|---|---|---|---|
-| `AFA` | `afaRecipientUrl` | DNE Online Calculator | `Add` (benefitAmount as `intA`) |
-| `Alfa` | `alfaRecipientUrl` | DataAccess NumberToWords | `NumberToWords` (benefitAmount) |
-| `Folksam` | `folksamRecipientUrl` | DataAccess NumberToWords | `NumberToWords` (benefitAmount) |
-| *(default)* | `defaultRecipientUrl` | DNE Online Calculator | `Add` (benefitAmount as `intA`) |
+```
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  Kubernetes namespace: ballerina                                      │
+  │                                                                      │
+  │  ┌─────────────────────────────────────┐                            │
+  │  │  content-based-routing (port 9095)  │                            │
+  │  │                                     │                            │
+  │  │  main.bal    – HTTP service,        │                            │
+  │  │               routing logic,        │                            │
+  │  │               SOAP builders         │                            │
+  │  │  config.bal  – env var wiring       │                            │
+  │  │  clients.bal – RabbitMQ stores,     │                            │
+  │  │               pipeline definition   │                            │
+  │  │  types.bal   – record types         │                            │
+  │  └────────────────┬────────────────────┘                            │
+  │                   │                                                  │
+  │                   ▼                                                  │
+  │  ┌────────────────────────────────┐                                 │
+  │  │  RabbitMQ (namespace: ballerina│                                 │
+  │  │  contentbasedrouting.order-failure                               │
+  │  │  contentbasedrouting.order-replay                                │
+  │  │  contentbasedrouting.order-deadletter                            │
+  │  └────────────────────────────────┘                                 │
+  └──────────────────────────────────────────────────────────────────────┘
 
-**Additional high-value routing:**
-
-| Condition | Also routed to | ConfigMap Variable |
-|---|---|---|
-| `benefitAmount > 50 000` | Internal store-and-forward (RabbitMQ) | `highValueUrl` |
-
----
-
-## Routing Table
-
-| SOAP Header `senderName` | Recipient | Outbound SOAP Service |
-|---|---|---|
-| `AFA` | AFA-Fund-A | `afaRecipientUrl` → DNE Calculator (`Add`) |
-| `Alfa` | Alfa-Fund-B | `alfaRecipientUrl` → DataAccess NumberToWords |
-| `Folksam` | Folksam-Fund-C | `folksamRecipientUrl` → DataAccess NumberToWords |
-| *(anything else)* | Default | `defaultRecipientUrl` → DNE Calculator (`Add`) |
+  External SOAP backends (public internet):
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  dneonline.com/calculator.asmx           – AFA-Fund-A, Folksam-HV   │
+  │  webservices.oorsprong.org/...           – Folksam-Fund-C            │
+  │  apps.learnwebservices.com/services/hello – Default                  │
+  └──────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -93,41 +176,35 @@ Content-Type: text/xml
 </soap:Envelope>
 ```
 
-### XSD-validated fields (all required except `message`)
+### XSD-validated fields
 
-| Field | XSD type | Notes |
+| Field | XSD type | Required |
 |---|---|---|
-| `personalNumber` | `xs:string` | Swedish personal number |
-| `benefitAmount` | `xs:decimal` | Triggers high-value routing if > 50 000 |
-| `benefitType` | `xs:string` | e.g. `STANDARD`, `PARTIAL` |
-| `periodStart` | `xs:date` | ISO date `YYYY-MM-DD` |
-| `periodEnd` | `xs:date` | ISO date `YYYY-MM-DD` |
-| `message` | `xs:string` | Optional free-text |
+| `personalNumber` | `xs:string` | yes |
+| `benefitAmount` | `xs:decimal` | yes |
+| `benefitType` | `xs:string` | yes |
+| `periodStart` | `xs:date` | yes |
+| `periodEnd` | `xs:date` | yes |
+| `message` | `xs:string` | no |
 
 ### Success Response
 
 ```xml
-HTTP/1.1 200 OK
-Content-Type: text/xml
-
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <DistributionAcknowledgement>
       <status>ACCEPTED</status>
       <correlationId>a1b2c3d4-...</correlationId>
       <routedTo>AFA-Fund-A</routedTo>
-      <message>Message validated and distributed successfully</message>
+      <message>Successfully forwarded to AFA-Fund-A</message>
     </DistributionAcknowledgement>
   </soap:Body>
 </soap:Envelope>
 ```
 
-### Validation Failure Response (HTTP 400)
+### Validation / Routing Failure Response (HTTP 400)
 
 ```xml
-HTTP/1.1 400 Bad Request
-Content-Type: text/xml
-
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <soap:Fault>
@@ -146,17 +223,13 @@ Content-Type: text/xml
 > ```bash
 > kubectl port-forward svc/content-based-routing 9095:9095 -n ballerina
 > ```
-> Then use `http://localhost:9095` as base URL.
 
----
-
-### 1. AFA sender – standard amount (routes to DNE Calculator)
+### 1. AFA sender (routes to DNE Calculator – Add)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
   -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                xmlns:un="http://unemployment.sweden.se/notification">
   <soap:Header>
     <un:SenderHeader>
@@ -171,90 +244,27 @@ curl -s -X POST http://localhost:9095/soap/routing \
       <un:benefitType>STANDARD</un:benefitType>
       <un:periodStart>2026-01-01</un:periodStart>
       <un:periodEnd>2026-03-31</un:periodEnd>
-      <un:message>Benefit notification for Q1 2026</un:message>
+      <un:message>Standard notification</un:message>
     </un:BenefitNotification>
   </soap:Body>
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `AFA-Fund-A` via DNE Calculator (Add 35000+0). ACK: `routedTo=AFA-Fund-A`.
+**Expected:** `routedTo=AFA-Fund-A`, status=ACCEPTED
 
 ---
 
-### 2. AFA sender – HIGH-VALUE amount (routes to DNE Calculator + store-and-forward)
+### 2. Folksam sender – low amount (routes to Oorsprong CountryInfo)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
   -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:un="http://unemployment.sweden.se/notification">
-  <soap:Header>
-    <un:SenderHeader>
-      <un:senderName>AFA</un:senderName>
-      <un:senderId>AFA-002</un:senderId>
-    </un:SenderHeader>
-  </soap:Header>
-  <soap:Body>
-    <un:BenefitNotification>
-      <un:personalNumber>197003151234</un:personalNumber>
-      <un:benefitAmount>75000.00</un:benefitAmount>
-      <un:benefitType>INCOME_RELATED</un:benefitType>
-      <un:periodStart>2026-01-01</un:periodStart>
-      <un:periodEnd>2026-06-30</un:periodEnd>
-      <un:message>High-value benefit – income-related compensation</un:message>
-    </un:BenefitNotification>
-  </soap:Body>
-</soap:Envelope>'
-```
-
-**Expected:** Routed to `AFA-Fund-A` (DNE Calculator) + **also** queued in store-and-forward (RabbitMQ). ACK contains `[HIGH-VALUE: also sent to store-and-forward]`.
-
----
-
-### 3. Alfa sender (routes to DataAccess NumberToWords)
-
-```bash
-curl -s -X POST http://localhost:9095/soap/routing \
-  -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:un="http://unemployment.sweden.se/notification">
-  <soap:Header>
-    <un:SenderHeader>
-      <un:senderName>Alfa</un:senderName>
-      <un:senderId>ALFA-SE-007</un:senderId>
-    </un:SenderHeader>
-  </soap:Header>
-  <soap:Body>
-    <un:BenefitNotification>
-      <un:personalNumber>199204221234</un:personalNumber>
-      <un:benefitAmount>22000.00</un:benefitAmount>
-      <un:benefitType>PARTIAL</un:benefitType>
-      <un:periodStart>2026-02-01</un:periodStart>
-      <un:periodEnd>2026-04-30</un:periodEnd>
-      <un:message>Partial benefit notification</un:message>
-    </un:BenefitNotification>
-  </soap:Body>
-</soap:Envelope>'
-```
-
-**Expected:** Routed to `Alfa-Fund-B` via DataAccess NumberToWords (22000 → "twenty two thousand"). ACK: `routedTo=Alfa-Fund-B`.
-
----
-
-### 4. Folksam sender (routes to DataAccess NumberToWords)
-
-```bash
-curl -s -X POST http://localhost:9095/soap/routing \
-  -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                xmlns:un="http://unemployment.sweden.se/notification">
   <soap:Header>
     <un:SenderHeader>
       <un:senderName>Folksam</un:senderName>
-      <un:senderId>FOLKSAM-SE-003</un:senderId>
+      <un:senderId>FOLKSAM-001</un:senderId>
     </un:SenderHeader>
   </soap:Header>
   <soap:Body>
@@ -269,17 +279,74 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `Folksam-Fund-C` via DataAccess NumberToWords. ACK: `routedTo=Folksam-Fund-C`.
+**Expected:** `routedTo=Folksam-Fund-C`, status=ACCEPTED
 
 ---
 
-### 5. Unknown sender (default routing → DNE Calculator)
+### 3. Folksam sender – high amount > 50 000 (routes to DNE Calculator – Multiply)
 
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
   -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:un="http://unemployment.sweden.se/notification">
+  <soap:Header>
+    <un:SenderHeader>
+      <un:senderName>Folksam</un:senderName>
+      <un:senderId>FOLKSAM-002</un:senderId>
+    </un:SenderHeader>
+  </soap:Header>
+  <soap:Body>
+    <un:BenefitNotification>
+      <un:personalNumber>197003151234</un:personalNumber>
+      <un:benefitAmount>75000.00</un:benefitAmount>
+      <un:benefitType>INCOME_RELATED</un:benefitType>
+      <un:periodStart>2026-01-01</un:periodStart>
+      <un:periodEnd>2026-06-30</un:periodEnd>
+    </un:BenefitNotification>
+  </soap:Body>
+</soap:Envelope>'
+```
+
+**Expected:** `routedTo=Folksam-HighValue`, status=ACCEPTED
+
+---
+
+### 4. Skandia sender (simulated unavailable – failure path demo)
+
+```bash
+curl -s -X POST http://localhost:9095/soap/routing \
+  -H "Content-Type: text/xml" \
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:un="http://unemployment.sweden.se/notification">
+  <soap:Header>
+    <un:SenderHeader>
+      <un:senderName>Skandia</un:senderName>
+      <un:senderId>SKANDIA-001</un:senderId>
+    </un:SenderHeader>
+  </soap:Header>
+  <soap:Body>
+    <un:BenefitNotification>
+      <un:personalNumber>199204221234</un:personalNumber>
+      <un:benefitAmount>22000.00</un:benefitAmount>
+      <un:benefitType>PARTIAL</un:benefitType>
+      <un:periodStart>2026-02-01</un:periodStart>
+      <un:periodEnd>2026-04-30</un:periodEnd>
+    </un:BenefitNotification>
+  </soap:Body>
+</soap:Envelope>'
+```
+
+**Expected:** Pipeline failure → message stored in `contentbasedrouting.order-failure` queue
+
+---
+
+### 5. Unknown sender (default route → LearnWebServices)
+
+```bash
+curl -s -X POST http://localhost:9095/soap/routing \
+  -H "Content-Type: text/xml" \
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                xmlns:un="http://unemployment.sweden.se/notification">
   <soap:Header>
     <un:SenderHeader>
@@ -299,7 +366,7 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** Routed to `Default-Recipient (sender=UnknownFund)` via DNE Calculator.
+**Expected:** `routedTo=Default`, status=ACCEPTED
 
 ---
 
@@ -308,8 +375,7 @@ curl -s -X POST http://localhost:9095/soap/routing \
 ```bash
 curl -s -X POST http://localhost:9095/soap/routing \
   -H "Content-Type: text/xml" \
-  -d '<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  -d '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                xmlns:un="http://unemployment.sweden.se/notification">
   <soap:Header>
     <un:SenderHeader>
@@ -329,7 +395,7 @@ curl -s -X POST http://localhost:9095/soap/routing \
 </soap:Envelope>'
 ```
 
-**Expected:** HTTP 400 with `<soap:Fault>` — `XSD validation failed`.
+**Expected:** HTTP 400 with `<soap:Fault>` — XSD validation failed
 
 ---
 
@@ -338,5 +404,3 @@ curl -s -X POST http://localhost:9095/soap/routing \
 ```bash
 curl http://localhost:9095/soap/health
 ```
-
----

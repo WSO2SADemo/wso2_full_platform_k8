@@ -1,0 +1,305 @@
+openapi: 3.0.1
+info:
+  title: LogisticsServiceAPI
+  description: "Manages gates, catering, and ground handling for the ADR Flight Delay Demo."
+  version: 1.0.0
+servers:
+  - url: http://logistics-service:9093/logistics
+security:
+  - default: []
+paths:
+  /gates/available/{airport}:
+    get:
+      summary: Get available gates at an airport
+      operationId: getAvailableGates
+      parameters:
+        - name: airport
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: gate_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of available gates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Gate"
+  /gates/assign:
+    post:
+      summary: Assign a gate to a flight
+      operationId: assignGate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GateAssignRequest"
+      responses:
+        "200":
+          description: Gate assignment result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GateAssignResult"
+  /resources/{airport}:
+    get:
+      summary: Get airport resource summary
+      operationId: getAirportResources
+      parameters:
+        - name: airport
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Airport resource summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AirportResources"
+  /catering/{flightId}:
+    get:
+      summary: Get catering orders for a flight
+      operationId: getCateringOrders
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of catering orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CateringOrder"
+  /catering/redirect:
+    post:
+      summary: Redirect catering to a new gate
+      operationId: redirectCatering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CateringRedirectRequest"
+      responses:
+        "200":
+          description: Catering redirect result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CateringRedirectResult"
+  /ground-tasks/{flightId}:
+    get:
+      summary: Get ground handling tasks for a flight
+      operationId: getGroundTasks
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of ground handling tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroundHandlingTask"
+  /ground-handling/notify:
+    post:
+      summary: Create or notify about a ground handling task
+      operationId: notifyGroundHandling
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroundHandlingNotifyRequest"
+      responses:
+        "200":
+          description: Ground handling notification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroundHandlingNotifyResult"
+components:
+  schemas:
+    Gate:
+      type: object
+      properties:
+        gate_id:
+          type: string
+        airport:
+          type: string
+        terminal:
+          type: string
+        gate_type:
+          type: string
+        status:
+          type: string
+        assigned_flight_id:
+          type: string
+    GateAssignRequest:
+      type: object
+      required:
+        - flight_id
+        - gate_id
+      properties:
+        flight_id:
+          type: string
+        gate_id:
+          type: string
+    GateAssignResult:
+      type: object
+      properties:
+        gate_id:
+          type: string
+        flight_id:
+          type: string
+        terminal:
+          type: string
+        gate_type:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    AirportResources:
+      type: object
+      properties:
+        airport:
+          type: string
+        total_gates:
+          type: integer
+        available_gates:
+          type: integer
+        occupied_gates:
+          type: integer
+        maintenance_gates:
+          type: integer
+        active_catering_orders:
+          type: integer
+        pending_ground_tasks:
+          type: integer
+    CateringOrder:
+      type: object
+      properties:
+        order_id:
+          type: string
+        flight_id:
+          type: string
+        meal_count:
+          type: integer
+        special_meals:
+          type: integer
+        status:
+          type: string
+        delivery_gate:
+          type: string
+        notes:
+          type: string
+    CateringRedirectRequest:
+      type: object
+      required:
+        - flight_id
+        - new_gate
+      properties:
+        flight_id:
+          type: string
+        new_gate:
+          type: string
+        notes:
+          type: string
+    CateringRedirectResult:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        new_gate:
+          type: string
+        orders_redirected:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+    GroundHandlingTask:
+      type: object
+      properties:
+        task_id:
+          type: string
+        flight_id:
+          type: string
+        task_type:
+          type: string
+        assigned_team:
+          type: string
+        status:
+          type: string
+        gate:
+          type: string
+        notes:
+          type: string
+    GroundHandlingNotifyRequest:
+      type: object
+      required:
+        - flight_id
+        - task_type
+      properties:
+        flight_id:
+          type: string
+        task_type:
+          type: string
+        gate:
+          type: string
+        assigned_team:
+          type: string
+        notes:
+          type: string
+    GroundHandlingNotifyResult:
+      type: object
+      properties:
+        task_id:
+          type: string
+        flight_id:
+          type: string
+        task_type:
+          type: string
+        assigned_team:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://logistics-service:9093/logistics
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://logistics-service:9093/logistics

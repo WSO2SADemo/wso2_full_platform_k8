@@ -11,7 +11,7 @@ wso2:
       serviceAccountName: wso2apk-platform
       roleName: wso2apk-role
     listener:
-      hostname: "kgw.airline.wso2.com"
+      hostname: "kgw.wso2.com"
       port: 9095
     idp:
       issuer: "https://cp.wso2.com:443/oauth2/token"
@@ -39,7 +39,7 @@ wso2:
       enabled: true
       gateway:
         listener:
-          hostname: "kgw.airline.wso2.com"
+          hostname: "kgw.wso2.com"
       configdeployer:
         enabled: true
         deployment:
@@ -52,7 +52,7 @@ wso2:
           imagePullPolicy: Always
           image: wso2/apk-adapter:1.3.0
           logging:
-            level: "DEBG"
+            level: "DEBUG"
           configs:
             enableGatewayClassController: false
       commonController:
@@ -86,7 +86,7 @@ wso2:
                 permitWithoutStream: true
               apiKey:
                 enabled: false
-                issuer: "https://cp.airline.wso2.com:443/oauth2/token"
+                issuer: "https://cp.wso2.com:443/oauth2/token"
 idp:
   enabled: false
   listener:
@@ -104,12 +104,12 @@ idp:
     validationTimeout: 250
   idpds:
     configs:
-      issuer: "https://mbcp.idp.wso2.com/token"
+      issuer: "https://idp.wso2.com/token"
       keyId: "gateway_certificate_alias"
-      hostname: "mbcp.idp.wso2.com"
-      loginPageURl: "https://mbcp.idp.wso2.com:9095/authenticationEndpoint/login"
-      loginErrorPageUrl: "https://mbcp.idp.wso2.com:9095/authenticationEndpoint/error"
-      loginCallBackURl: "https://mbcp.idp.wso2.com:9095/authenticationEndpoint/login-callback"
+      hostname: "idp.wso2.com"
+      loginPageURl: "https://idp.wso2.com:9095/authenticationEndpoint/login"
+      loginErrorPageUrl: "https://idp.wso2.com:9095/authenticationEndpoint/error"
+      loginCallBackURl: "https://idp.wso2.com:9095/authenticationEndpoint/login-callback"
     deployment:
       replicas: 1
       imagePullPolicy: Always
@@ -120,8 +120,8 @@ idp:
       imagePullPolicy: Always
       image: wso2/apk-idp-ui:1.3.0
     configs:
-      idpLoginUrl: "https://mbcp.idp.wso2.com:9095/commonauth/login"
-      idpAuthCallBackUrl: "https://mbcp.idp.wso2.com:9095/oauth2/auth-callback"
+      idpLoginUrl: "https://idp.wso2.com:9095/commonauth/login"
+      idpAuthCallBackUrl: "https://idp.wso2.com:9095/oauth2/auth-callback"
 
 gatewaySystem:
   enabled: true

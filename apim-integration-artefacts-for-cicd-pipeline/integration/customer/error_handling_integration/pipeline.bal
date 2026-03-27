@@ -175,7 +175,8 @@ isolated function step2_calculatePricing(pipeline:MessageContext ctx)
 }
 
 @pipeline:DestinationConfig {
-    id: "step3_doPurchase"
+    id: "step3_doPurchase",
+    retryConfig: {maxRetries: 3, retryInterval: 30}
 }
 isolated function step3_doPurchase(pipeline:MessageContext ctx)
         returns PurchaseConfirmation|error {

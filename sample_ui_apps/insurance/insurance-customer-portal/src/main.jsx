@@ -3,16 +3,17 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AsgardeoProvider } from '@asgardeo/react';
 import App from './App';
+import config from './config';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter>
             <AsgardeoProvider
-                clientId="ULyXO3hl_sBIJmv4kkfzqrc4uDga"
-                clientSecret="Bt72nzcni5gwtqYKAEtElJXoxB1UIFePIpTsxYVvffAa"
-                baseUrl="https://is.wso2.com"
-                scopes="openid profile email phone address ext_privileged int_ordinary"
+                clientId={config.isClientId}
+                clientSecret="qHJy4bqtYkaw0R4K36oGm3z1CTwaJ5TsxMyLJZK49MIa"
+                baseUrl={config.isBaseUrl}
+                scopes="openid profile email phone address ordinary_external_api_scope privilege_external_api_scope"
                 enablePKCE={false}
                 syncSession={true}
             >

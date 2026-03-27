@@ -1,4 +1,10 @@
 // Mock policy database
+// All policies are HealthGuard health insurance plans (GRP-HG-2024).
+// Plan tiers per policy document:
+//   Basic    – POL-HEALTH-00x – $100,000 coverage – $120.00/month
+//   Standard – POL-HEALTH-00x – $150,000 coverage – $145.00/month
+//   Enhanced – POL-HEALTH-00x – $250,000 coverage – $180.00/month
+//   Premier  – POL-HEALTH-00x – $500,000 coverage – $350.00/month
 map<InsurancePolicy> policyDatabase = {
     "john_doe": {
         username: "john_doe",
@@ -22,32 +28,32 @@ map<InsurancePolicy> policyDatabase = {
     },
     "alex_cashier": {
         username: "alex_cashier",
-        policyNumber: "POL-AUTO-001",
-        policyType: "AUTO",
-        coverageAmount: 50000.00,
-        premiumAmount: 80.00,
+        policyNumber: "POL-HEALTH-006",
+        policyType: "HEALTH",
+        coverageAmount: 150000.00,
+        premiumAmount: 145.00,
         startDate: "2024-03-01",
         endDate: "2025-03-01",
         status: "ACTIVE"
     },
     "sarah_williams": {
         username: "sarah_williams",
-        policyNumber: "POL-HOME-001",
-        policyType: "HOME",
-        coverageAmount: 250000.00,
-        premiumAmount: 95.00,
+        policyNumber: "POL-HEALTH-007",
+        policyType: "HEALTH",
+        coverageAmount: 100000.00,
+        premiumAmount: 120.00,
         startDate: "2023-06-01",
         endDate: "2024-06-01",
         status: "EXPIRED"
     },
     "michael_brown": {
         username: "michael_brown",
-        policyNumber: "POL-LIFE-001",
-        policyType: "LIFE",
-        coverageAmount: 1000000.00,
-        premiumAmount: 200.00,
+        policyNumber: "POL-HEALTH-008",
+        policyType: "HEALTH",
+        coverageAmount: 500000.00,
+        premiumAmount: 350.00,
         startDate: "2024-01-15",
-        endDate: "2044-01-15",
+        endDate: "2025-01-15",
         status: "ACTIVE"
     },
     "rami.desilva@auth0.com": {
@@ -72,10 +78,10 @@ map<InsurancePolicy> policyDatabase = {
     },
     "sam": {
         username: "sam",
-        policyNumber: "POL-AUTO-002",
-        policyType: "AUTO",
-        coverageAmount: 75000.00,
-        premiumAmount: 95.00,
+        policyNumber: "POL-HEALTH-009",
+        policyType: "HEALTH",
+        coverageAmount: 250000.00,
+        premiumAmount: 180.00,
         startDate: "2024-01-15",
         endDate: "2025-01-15",
         status: "ACTIVE"
@@ -92,24 +98,31 @@ map<InsurancePolicy> policyDatabase = {
     },
     "employee_jack": {
         username: "employee_jack",
-        policyNumber: "POL-LIFE-002",
-        policyType: "LIFE",
-        coverageAmount: 500000.00,
-        premiumAmount: 150.00,
+        policyNumber: "POL-HEALTH-010",
+        policyType: "HEALTH",
+        coverageAmount: 150000.00,
+        premiumAmount: 145.00,
         startDate: "2024-02-10",
-        endDate: "2044-02-10",
+        endDate: "2025-02-10",
         status: "ACTIVE"
     }
 };
 
 // Mock claims database
+// Valid claim types per HealthGuard policy document:
+//   Outpatient    – doctor visits, specialist, lab, imaging, mental health outpatient
+//   Hospitalization – inpatient hospital stay, surgery, mental health inpatient
+//   Emergency     – emergency room visit
+//   Pharmacy      – prescription drug (out-of-network pharmacy)
+//   DME           – durable medical equipment purchase
+//   Medical       – other medical services
 map<Claim[]> claimsDatabase = {
     "john_doe": [
         {
             claimId: "CLM-001",
             claimType: "Hospitalization",
             amount: 3200.00,
-            description: "Emergency appendix surgery",
+            description: "Emergency appendix surgery and inpatient recovery",
             submittedDate: "2024-03-10",
             status: "APPROVED"
         },
@@ -117,7 +130,7 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-002",
             claimType: "Outpatient",
             amount: 450.00,
-            description: "Specialist consultation and lab tests",
+            description: "Specialist consultation and diagnostic lab tests",
             submittedDate: "2024-05-22",
             status: "PENDING"
         }
@@ -127,7 +140,7 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-003",
             claimType: "Hospitalization",
             amount: 12000.00,
-            description: "Knee replacement surgery",
+            description: "Knee replacement surgery and inpatient rehabilitation",
             submittedDate: "2024-02-18",
             status: "APPROVED"
         }
@@ -135,19 +148,47 @@ map<Claim[]> claimsDatabase = {
     "alex_cashier": [
         {
             claimId: "CLM-004",
-            claimType: "Accident",
-            amount: 5500.00,
-            description: "Vehicle collision repair",
+            claimType: "Outpatient",
+            amount: 280.00,
+            description: "Urgent care visit for acute respiratory infection",
             submittedDate: "2024-04-05",
             status: "APPROVED"
         },
         {
             claimId: "CLM-005",
-            claimType: "Theft",
-            amount: 800.00,
-            description: "Stolen car accessories",
+            claimType: "Pharmacy",
+            amount: 95.00,
+            description: "Prescription medication - antibiotics and inhaler (out-of-network pharmacy)",
             submittedDate: "2024-06-01",
-            status: "REJECTED"
+            status: "APPROVED"
+        }
+    ],
+    "sarah_williams": [
+        {
+            claimId: "CLM-011",
+            claimType: "Outpatient",
+            amount: 150.00,
+            description: "Annual wellness exam and routine blood panel",
+            submittedDate: "2024-03-20",
+            status: "APPROVED"
+        }
+    ],
+    "michael_brown": [
+        {
+            claimId: "CLM-012",
+            claimType: "Hospitalization",
+            amount: 18500.00,
+            description: "Cardiac catheterization and coronary stent placement",
+            submittedDate: "2024-04-10",
+            status: "APPROVED"
+        },
+        {
+            claimId: "CLM-013",
+            claimType: "Outpatient",
+            amount: 640.00,
+            description: "Cardiac rehabilitation outpatient sessions (8 sessions)",
+            submittedDate: "2024-06-15",
+            status: "APPROVED"
         }
     ],
     "rami.desilva@auth0.com": [
@@ -155,7 +196,7 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-006",
             claimType: "Outpatient",
             amount: 320.00,
-            description: "Annual health screening",
+            description: "Annual health screening and lipid panel",
             submittedDate: "2024-07-14",
             status: "APPROVED"
         }
@@ -163,9 +204,9 @@ map<Claim[]> claimsDatabase = {
     "sam": [
         {
             claimId: "CLM-007",
-            claimType: "Accident",
-            amount: 2500.00,
-            description: "Minor fender bender repair",
+            claimType: "Outpatient",
+            amount: 560.00,
+            description: "Orthopedic specialist consultation and X-ray imaging",
             submittedDate: "2024-06-20",
             status: "APPROVED"
         }
@@ -175,7 +216,7 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-008",
             claimType: "Hospitalization",
             amount: 8500.00,
-            description: "Surgery and recovery",
+            description: "Laparoscopic cholecystectomy (gallbladder removal) and recovery",
             submittedDate: "2024-05-15",
             status: "APPROVED"
         },
@@ -183,7 +224,7 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-009",
             claimType: "Outpatient",
             amount: 180.00,
-            description: "Follow-up consultation",
+            description: "Post-operative follow-up consultation",
             submittedDate: "2024-06-10",
             status: "APPROVED"
         }
@@ -193,9 +234,17 @@ map<Claim[]> claimsDatabase = {
             claimId: "CLM-010",
             claimType: "Medical",
             amount: 1200.00,
-            description: "Routine medical examination",
+            description: "Comprehensive health screening and diagnostic tests",
             submittedDate: "2024-04-25",
             status: "APPROVED"
+        },
+        {
+            claimId: "CLM-014",
+            claimType: "DME",
+            amount: 420.00,
+            description: "CPAP device for diagnosed sleep apnea",
+            submittedDate: "2024-07-08",
+            status: "PENDING"
         }
     ]
 };

@@ -1,5 +1,3 @@
-import ballerina/os;
-
 // ============================================================================
 // Routing recipient URLs
 //
@@ -9,6 +7,7 @@ import ballerina/os;
 //   "Folksam", amount ≤ threshold   → folksamRecipientUrl (Oorsprong CountryInfo)
 //   any other sender                → alfaRecipientUrl    (LearnWebServices Hello)
 // ============================================================================
+import ballerina/os;
 
 // AFA sender → DNE Online Calculator SOAP service (Add operation)
 configurable string afaRecipientUrl = os:getEnv("afaRecipientUrl");
@@ -22,3 +21,9 @@ configurable string folksamRecipientUrl = os:getEnv("folksamRecipientUrl");
 // Benefit amount threshold above which Folksam routes to Calculator Multiply
 // Stored as string in ConfigMap, parsed at startup
 configurable string highValueThresholdStr = os:getEnv("highValueThresholdStr");
+
+// RabbitMQ connection configuration
+configurable string rabbitmqHost = os:getEnv("rabbitmqHost");
+configurable int rabbitmqPort = check int:fromString(os:getEnv("rabbitmqPort"));
+configurable string rabbitmqUser = os:getEnv("RABBITMQ_USER");
+configurable string rabbitmqPassword = os:getEnv("RABBITMQ_PASSWORD");

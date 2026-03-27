@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: otel-collector
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--config=/etc/otelcol/config.yaml"
+          env:
+            - name: MOESIF_KEY_ENV_VAR
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.moesif.secretName }}
+                  key: {{ .Values.moesif.secretKey }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.ports.grpc }}
+              protocol: TCP
+            - name: http
+              containerPort: {{ .Values.service.ports.http }}
+              protocol: TCP
+            - name: zpages
+              containerPort: {{ .Values.service.ports.zpages }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol/config.yaml
+              subPath: config.yaml
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config

@@ -1,83 +1,182 @@
-# Store-and-Forward Notification Integration
+# Store and Forward
 
-A Ballerina integration service that accepts notification requests from callers and delivers them durably to a backend via RabbitMQ. Callers get an immediate `202 Accepted` response — delivery happens asynchronously with automatic retries and a dead-letter queue (DLQ) for manual recovery.
+## Overview
+
+This integration provides **guaranteed message delivery** for benefit notifications sent to a downstream backend (Fund 11 – Notification Receiver). The caller never waits for backend delivery: the message is accepted immediately and the integration handles delivery, retries, and dead-letter management autonomously.
+
+Key capabilities:
+1. Exposes an **HTTP endpoint** on port 9085 that accepts notification requests
+2. **Publishes** the message to RabbitMQ immediately and returns `202 Accepted`
+3. A **background consumer** attempts delivery to the backend; on failure it retries up to 3 times using a RabbitMQ TTL retry queue (30 s between attempts)
+4. Messages that exhaust all retries are moved to a **Dead Letter Queue (DLQ)** and surfaced via a manual-retry API
+5. The backend can be **toggled offline** (via its admin endpoint) to simulate a service window and demonstrate the full retry/DLQ path
 
 ---
 
 ## Architecture
 
+### Happy Path
+
 ```
-Caller
-  │
-  │  POST /notifications/send
-  ▼
-Store-and-Forward Service (port 9085)
-  │
-  │  publish
-  ▼
-RabbitMQ: store-forward-notifications (main queue)
-  │
-  │  consume
-  ▼
-Consumer Worker
-  ├── Success          → ack message, done
-  ├── Failure (attempt < 3) → publish to store-forward-retry (TTL 30s → back to main)
-  └── Failure (attempt = 3) → publish to store-forward-dlq + store in memory
-                                    │
-                                    │  POST /notifications/retry
-                                    ▼
-                              Re-queued to main queue (retry counter reset)
+  Caller
+  (UI / API)
+
+  POST /notifications/send  ──▶  ┌─────────────────────────────────────────────────┐
+                                  │  store-and-forward (port 9085)                  │
+                                  │                                                 │
+                                  │  1. Wrap payload in NotificationMessage         │
+                                  │  2. Publish to RabbitMQ main queue              │
+                                  │  3. Return 202 Accepted immediately             │
+                                  └──────────────────────┬──────────────────────────┘
+                                                         │
+                                         ┌───────────────▼───────────────┐
+                                         │  RabbitMQ                     │
+                                         │  store-forward-notifications  │  ← main queue
+                                         └───────────────┬───────────────┘
+                                                         │  consumer polls (100 ms)
+                                         ┌───────────────▼───────────────┐
+                                         │  Background Consumer          │
+                                         │  (queue_consumer.bal)         │
+                                         └───────────────┬───────────────┘
+                                                         │  POST /notifications
+                                         ┌───────────────▼───────────────┐
+                                         │  Fund 11 – Notification       │
+                                         │  Receiver  (port 9101)        │
+                                         └───────────────────────────────┘
+                                                  HTTP 200 → ack ✓
+```
+
+### Retry / Failure Path (backend unavailable)
+
+```
+  Backend returns non-2xx or times out
+         │
+         ▼
+  retryCount < MAX_RETRIES (3)?
+         │
+        YES ──▶ ┌──────────────────────────────────────┐
+                │  RabbitMQ                            │
+                │  store-forward-retry                 │  ← TTL 30 000 ms
+                │  (x-dead-letter → main queue)        │
+                └──────────────────┬───────────────────┘
+                                   │  after 30 s
+                                   ▼
+                         re-enters store-forward-notifications
+                         consumer retries (attempt 2, 3, 4)
+         │
+        NO (retries exhausted)
+         │
+         ▼
+  ┌──────────────────────────────────────┐
+  │  RabbitMQ                            │
+  │  store-forward-dlq                   │  ← Dead Letter Queue
+  └──────────────────────────────────────┘
+         │  also stored in in-memory dlqMessages map
+         │
+         ├── GET  /notifications/dlq-status  → inspect pending messages
+         │
+         └── POST /notifications/retry       → requeue oldest message
+                                               (retryCount reset to 0)
 ```
 
 ---
 
-## Queues
+### Component Map
 
-| Queue | Purpose |
+```
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  Kubernetes namespace: ballerina                                     │
+  │                                                                     │
+  │  ┌──────────────────────────────────────┐                          │
+  │  │  store-and-forward (port 9085)       │                          │
+  │  │                                      │                          │
+  │  │  main.bal           – HTTP service   │                          │
+  │  │                       send / retry / │                          │
+  │  │                       dlq-status     │                          │
+  │  │  queue_consumer.bal – background     │                          │
+  │  │                       delivery loop  │                          │
+  │  │  connections.bal    – RabbitMQ +     │                          │
+  │  │                       HTTP clients,  │                          │
+  │  │                       queue setup,   │                          │
+  │  │                       constants      │                          │
+  │  │  config.bal         – env var wiring │                          │
+  │  │  types.bal          – record types   │                          │
+  │  └──────────────────────┬───────────────┘                          │
+  │                         │                                           │
+  │                         ▼                                           │
+  │  ┌──────────────────────────────────────┐                          │
+  │  │  RabbitMQ (namespace: ballerina)     │                          │
+  │  │  store-forward-notifications         │  ← main delivery queue   │
+  │  │  store-forward-retry                 │  ← TTL 30 s, auto-DLR   │
+  │  │  store-forward-dlq                   │  ← exhausted messages    │
+  │  └──────────────────────────────────────┘                          │
+  │                                                                     │
+  │  ┌──────────────────────────────────────┐                          │
+  │  │  customer-backends (port 9101)       │                          │
+  │  │  Fund 11 – Notification Receiver     │                          │
+  │  │  POST /notifications                 │  ← delivery target       │
+  │  │  POST /notifications/admin/toggle    │  ← simulate outage       │
+  │  │  GET  /notifications/admin/status    │  ← check availability    │
+  │  └──────────────────────────────────────┘                          │
+  └─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Retry Policy
+
+| Attempt | Behaviour |
 |---|---|
-| `store-forward-notifications` | Main delivery queue (durable) |
-| `store-forward-retry` | Retry holding queue — messages expire after 30 s (TTL) and dead-letter back to main |
-| `store-forward-dlq` | Dead-letter queue — messages that exhausted all 3 automatic retries |
+| 1 (initial) | Direct delivery to backend |
+| 2–4 (auto retries) | Re-queued via TTL retry queue; 30 s delay between each |
+| After attempt 4 | Moved to DLQ; available for manual retry via `POST /notifications/retry` |
+
+| Constant | Value | Description |
+|---|---|---|
+| `MAX_RETRIES` | `3` | Automatic delivery attempts after the initial failure |
+| `RETRY_TTL_MS` | `30 000` | Milliseconds a failed message waits before re-attempt |
+| `BACKEND_TIMEOUT_SECONDS` | `5.0` | Per-request HTTP timeout to the backend |
+
+> **Note:** The in-memory DLQ map (`dlqMessages`) is lost on pod restart. For production, persist DLQ messages to a database.
 
 ---
 
-## API Endpoints
+## API Reference
 
-Base URL (in-cluster): `http://store-and-forward-integration.ballerina.svc.cluster.local:9085`
+### POST `/notifications/send`
 
-### POST /notifications/send
-
-Queue a notification for durable delivery. Returns `202` immediately.
+Queue a notification for durable delivery. Returns `202 Accepted` immediately.
 
 **Request body:**
 ```json
 {
-  "personId": "P-12345",
+  "personId": "199001011234",
   "notificationType": "BENEFIT_UPDATE",
   "data": {
-    "amount": 35000,
-    "period": "2026-Q1"
+    "benefitAmount": 15000,
+    "currency": "SEK",
+    "note": "Monthly update"
   }
 }
 ```
 
-**Response `202`:**
+Supported `notificationType` values: `STATUS_CHANGE`, `BENEFIT_UPDATE`, `REGISTRATION`
+
+**Response (202):**
 ```json
 {
   "messageId": "550e8400-e29b-41d4-a716-446655440000",
   "status": "QUEUED",
   "message": "Message accepted and queued for delivery. Automatic retries will occur if the backend is unavailable.",
-  "timestamp": "2026-03-08T09:00:00.000Z"
+  "timestamp": "2026-03-11T12:00:00.000Z"
 }
 ```
 
-**Supported `notificationType` values:** `STATUS_CHANGE`, `BENEFIT_UPDATE`, `REGISTRATION`
-
 ---
 
-### POST /notifications/retry
+### POST `/notifications/retry`
 
-Manually retry the oldest message in the in-memory DLQ. Resets its retry counter to 0 for a full new round of delivery attempts.
+Manually requeue the oldest DLQ message for another delivery attempt (resets retry counter to 0).
 
 **Response:**
 ```json
@@ -88,7 +187,7 @@ Manually retry the oldest message in the in-memory DLQ. Resets its retry counter
 
 ---
 
-### GET /notifications/dlq-status
+### GET `/notifications/dlq-status`
 
 List all messages currently awaiting manual retry.
 
@@ -99,12 +198,12 @@ List all messages currently awaiting manual retry.
   "messages": [
     {
       "messageId": "550e8400-e29b-41d4-a716-446655440000",
-      "personId": "P-12345",
+      "personId": "199001011234",
       "notificationType": "BENEFIT_UPDATE",
-      "data": { "amount": 35000 },
+      "data": { "benefitAmount": 15000, "currency": "SEK" },
       "retryCount": 3,
-      "createdAt": "2026-03-08T07:00:00.000Z",
-      "lastAttemptAt": "2026-03-08T07:05:00.000Z"
+      "createdAt": "2026-03-11T12:00:00.000Z",
+      "lastAttemptAt": "2026-03-11T12:01:30.000Z"
     }
   ]
 }
@@ -127,18 +226,6 @@ Configured via Kubernetes ConfigMap (`ballerina-values-store-and-forward`) and S
 
 ---
 
-## Retry Policy
-
-| Attempt | Behaviour |
-|---|---|
-| 1 (initial) | Deliver to backend |
-| 2–4 (auto retries) | Re-queued via TTL retry queue, 30 s delay between each |
-| After attempt 4 | Moved to DLQ; available for manual retry via `POST /notifications/retry` |
-
-> **Note:** The in-memory DLQ map is lost on pod restart. For production, persist DLQ messages to a database.
-
----
-
 ## Deployment
 
 ```bash
@@ -157,15 +244,7 @@ The deploy script:
 8. Scales to 1 replica (prevents RabbitMQ queue `PRECONDITION_FAILED` on multi-pod startup)
 9. Restarts the deployment and waits for rollout
 
-### Image
-
-```
-ramilu90/store_and_forward_integration:<IMAGE_TAG>
-```
-
-Platform: `linux/amd64` (built with `docker buildx` for AKS compatibility)
-
-### Kubernetes resources
+### Kubernetes Resources
 
 | Resource | Name | Namespace |
 |---|---|---|
@@ -178,26 +257,123 @@ Platform: `linux/amd64` (built with `docker buildx` for AKS compatibility)
 
 ---
 
-## Sample curl Commands
+## cURL Commands
+
+> **Local access (port-forward):**
+> ```bash
+> kubectl port-forward svc/store-and-forward-integration 9085:9085 -n ballerina
+> kubectl port-forward svc/customer-backends 9101:9101 -n ballerina
+> ```
+
+### 1. Send a notification (backend online – delivered immediately)
 
 ```bash
-# Port-forward (if not exposed via ingress)
-kubectl port-forward svc/store-and-forward-integration 9085:9085 -n ballerina
-
-HOST="http://localhost:9085"
-
-# Queue a notification
-curl -X POST "$HOST/notifications/send" \
+curl -s -X POST http://localhost:9085/notifications/send \
   -H "Content-Type: application/json" \
   -d '{
-    "personId": "P-12345",
+    "personId": "199001011234",
     "notificationType": "BENEFIT_UPDATE",
-    "data": { "amount": 35000, "period": "2026-Q1" }
+    "data": {
+      "benefitAmount": 15000,
+      "currency": "SEK",
+      "note": "Monthly update"
+    }
   }'
-
-# Check DLQ
-curl "$HOST/notifications/dlq-status"
-
-# Manually retry oldest DLQ message
-curl -X POST "$HOST/notifications/retry"
 ```
+
+**Expected:** `202 Accepted`, `status=QUEUED`. Backend receives delivery within ~100 ms.
+
+---
+
+### 2. Check backend availability
+
+```bash
+curl -s http://localhost:9101/notifications/admin/status
+```
+
+**Expected:** `{"available": true, "state": "ONLINE"}`
+
+---
+
+### 3. Toggle the backend offline (simulate service window)
+
+```bash
+curl -s -X POST http://localhost:9101/notifications/admin/toggle
+```
+
+**Expected:** `{"available": false, "state": "OFFLINE (service window active)"}`
+
+---
+
+### 4. Send a notification while backend is offline (triggers retry loop)
+
+```bash
+curl -s -X POST http://localhost:9085/notifications/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "personId": "199001011234",
+    "notificationType": "STATUS_CHANGE",
+    "data": { "newStatus": "INACTIVE", "reason": "Employment started" }
+  }'
+```
+
+**Expected:** `202 Accepted`. The background consumer will attempt delivery, fail, and retry up to 3 more times (each after 30 s). After all 4 attempts fail, the message is moved to the DLQ.
+
+---
+
+### 5. Check DLQ status (after retries are exhausted)
+
+```bash
+curl -s http://localhost:9085/notifications/dlq-status
+```
+
+**Expected:** `count=1`, message with `retryCount=3`.
+
+---
+
+### 6. Toggle the backend back online
+
+```bash
+curl -s -X POST http://localhost:9101/notifications/admin/toggle
+```
+
+**Expected:** `{"available": true, "state": "ONLINE"}`
+
+---
+
+### 7. Manually retry the DLQ message
+
+```bash
+curl -s -X POST http://localhost:9085/notifications/retry
+```
+
+**Expected:** `status=REQUEUED`. The message is moved back to the main queue and delivered to the now-online backend within ~100 ms.
+
+---
+
+### 8. Send a registration notification
+
+```bash
+curl -s -X POST http://localhost:9085/notifications/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "personId": "200102044567",
+    "notificationType": "REGISTRATION",
+    "data": { "fund": "Akademikernas", "startDate": "2026-03-11" }
+  }'
+```
+
+**Expected:** `202 Accepted`, delivered immediately if backend is online.
+
+---
+
+## Store & Forward Notification Integration
+
+This integration implements the Store & Forward pattern specifically for the **Benefit Notification** use case:
+
+- **Producer**: any system (UI, APIM-managed API) that needs to notify Fund 11 of a benefit status change, registration, or update
+- **Store**: RabbitMQ queue (`store-forward-notifications`) acts as the durable store — the message survives pod restarts and network blips
+- **Forward**: a background consumer continuously polls the queue and delivers each notification to the Fund 11 Notification Receiver endpoint
+- **Retry & Dead-Letter**: failed deliveries are re-routed through a TTL-based retry queue before being moved to the DLQ for manual replay
+
+The caller interacts only with the Store & Forward service — it never calls Fund 11 directly. This decouples the producer from the backend's availability, turning transient outages into an invisible retry cycle.

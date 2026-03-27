@@ -112,3 +112,10 @@ coverage/
 .parcel-cache/
 .eslintcache
 .stylelintcache
+
+*.key
+*.jks
+*.p12
+*.jar
+*.zip
+*secret*.yaml

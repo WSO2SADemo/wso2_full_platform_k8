@@ -23,7 +23,7 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 # install dependencies
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl ca-certificates fontconfig locales python-is-python3 libxml2-utils netcat-traditional unzip wget \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl ca-certificates fontconfig locales python-is-python3 libxml2-utils netcat-traditional unzip \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
@@ -78,12 +78,11 @@ ARG USER_HOME=/home/${USER}
 # build arguments for WSO2 product installation
 ARG WSO2_SERVER_NAME=wso2am-acp
 ARG WSO2_SERVER_VERSION=4.6.0
-ARG WSO2_SERVER_ZIP_VERSION=${WSO2_SERVER_VERSION}
+ARG WSO2_SERVER_ZIP_VERSION=4.6.0.20
 ARG WSO2_SERVER_REPOSITORY=product-apim
 ARG WSO2_SERVER=${WSO2_SERVER_NAME}-${WSO2_SERVER_VERSION}
 ARG WSO2_SERVER_ZIP=${WSO2_SERVER_NAME}-${WSO2_SERVER_ZIP_VERSION}
 ARG WSO2_SERVER_HOME=${USER_HOME}/${WSO2_SERVER}
-ARG WSO2_SERVER_DIST_URL=https://github.com/wso2/${WSO2_SERVER_REPOSITORY}/releases/download/v${WSO2_SERVER_ZIP_VERSION}/${WSO2_SERVER_ZIP}.zip
 # build argument for MOTD
 ARG MOTD="\n\
 Welcome to WSO2 Docker resources.\n\
@@ -105,9 +104,9 @@ RUN chmod +x ${USER_HOME}/docker-entrypoint.sh
 # install required packages
 
 # add the WSO2 product distribution to user's home directory
+COPY ${WSO2_SERVER_ZIP}.zip .
 RUN \
-    wget -O ${WSO2_SERVER_ZIP}.zip "${WSO2_SERVER_DIST_URL}" \
-    && unzip -d ${USER_HOME} ${WSO2_SERVER_ZIP}.zip \
+    unzip -d ${USER_HOME} ${WSO2_SERVER_ZIP}.zip \
     && EXTRACTED_DIR=$(ls -1 ${USER_HOME} | grep "^${WSO2_SERVER_NAME}-" | head -1) \
     && if [ "${EXTRACTED_DIR}" != "${WSO2_SERVER}" ]; then mv ${USER_HOME}/${EXTRACTED_DIR} ${USER_HOME}/${WSO2_SERVER}; fi \
     && chown wso2carbon:wso2 -R ${WSO2_SERVER_HOME} \
@@ -120,7 +119,7 @@ RUN \
 COPY --chown=wso2carbon:wso2 mysql-connector-j-8.4.0.jar ${USER_HOME}/${WSO2_SERVER}/repository/components/lib/
 
 # remove unnecesary packages
-RUN apt-get purge -y netcat-traditional unzip wget
+RUN apt-get purge -y netcat-traditional unzip
 
 # set the user and work directory
 USER ${USER_ID}

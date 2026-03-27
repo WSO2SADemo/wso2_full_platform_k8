@@ -1,0 +1,24 @@
+# Admin Agent - Docker Configuration
+
+# MCP Server - Admin Agent connects via APIM MCP Gateway (OBO auth)
+mcpServerUrl="https://adr-api-manager:8246/adr-mcp/1.0.0/mcp"
+mcpApiKey=""
+
+# WSO2 IS - AI Agent On-Behalf-Of (OBO) flow configuration
+# These values are injected by create_apis.sh at startup after agent registration
+agentId="628694a2-f963-40e2-a028-b16a389b8c59"
+agentSecret="AgentSecret@123"
+appClientId="fjgfcqnHuVbYuCusiNJS7P5Kc6Aa"
+isBaseUrl="https://adr-identity-server:9444"
+isPublicUrl="https://localhost:9444"
+
+# JWKS endpoint for JWT validation (container network URL)
+jwksUrl="https://adr-identity-server:9444/oauth2/jwks"
+
+# Allowed groups for Admin Recovery Agent access (from JWT 'groups' claim)
+allowedGroups=["adr_admins"]
+
+# APIM AI API Configuration (Ollama via APIM AI Gateway, OpenAI-compatible)
+aillmModel="qwen3:1.7b"
+aillmServiceUrl="https://adr-api-manager:8246/ollama/1.0.0"
+aiGatewayToken="eyJ4NXQjUzI1NiI6Ik16QXpNVEZqT0RRMU1ETmpPVFUxWkRBNE5HUTVNRGt6WXpFM01XSTRNbVJsWkdVM1l6WmpZams0WkdSa00yUmhNbUl3TWpBeFl6SmxNR0pqTmpkbU53PT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJhZG1pbkBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJpZCI6MiwidXVpZCI6ImQzYzMwZjMxLTY3YTEtNGNlZi1hYjAxLTM4OWYxNzk4N2ExMiJ9LCJpc3MiOiJodHRwczpcL1wvbG9jYWxob3N0Ojk0NDZcL29hdXRoMlwvdG9rZW4iLCJrZXl0eXBlIjoiUFJPRFVDVElPTiIsInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3NzM3Mjg4OTUsImp0aSI6IjU1YjA4MTQ4LTVjZmUtNGU4MC04MzY3LWQ3N2I5ZjI3NmM0NiJ9.QFbu0UXKHDvRvBGN9cKaOVrmWpLyE9uEy83ecXBO1RGKqfa2cvqFqoLXxDTo4uCjLHN4iiL17N3G7i5MzSqRSNll_gMiC6NgCDeadBu2Xvd-Ei-oeS25r7_NiqbaDKtdW56j1l6xysWwyozMK2p5agORAULpIxzhWqNMYl1sQfKKGHdTOTyANRN4RWSdig_YoxydUkF6tVqjUs76D4LXN0Py3NIDZnKHispVQtZAofJ-r3z5i-wCLF3o6RTaMx5G3Awn4t5AsRswycFaCVnfaShMr4yNiVo83UbtpmeohG5Gy-75EGJhYwVemgzi-MSSPhvk7SHDJ5LZnTgEyahlKQ=="

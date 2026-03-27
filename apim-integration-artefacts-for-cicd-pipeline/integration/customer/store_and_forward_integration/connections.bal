@@ -19,7 +19,7 @@ const int MAX_RETRIES = 3;
 
 // How long (ms) a failed message waits in the retry queue before being re-attempted
 // (RabbitMQ TTL – 30 s for demo; increase for production)
-const int RETRY_TTL_MS = 30000;
+const int RETRY_TTL_MS = 5000;
 
 // ─── RabbitMQ clients ─────────────────────────────────────────────────────────
 

@@ -9,10 +9,10 @@ import { OrderPipeline } from './components/OrderPipeline';
 import './App.css';
 
 const TABS = [
-  { id: 'cbr', label: 'Content-Based Routing (SOAP)' },
-  { id: 'sf',  label: 'Store & Forward' },
-  { id: 'pso', label: 'Parallel Orchestration' },
   { id: 'op',  label: 'Error Handling' },
+  { id: 'pso', label: 'Scatter and Gather' },
+  { id: 'sf',  label: 'Store & Forward' },
+  { id: 'cbr', label: 'Content-Based Routing (SOAP)' },
 ];
 
 // Module-level flag — survives StrictMode double-invoke (unlike useRef)
@@ -20,7 +20,7 @@ let exchangeStarted = false;
 
 export default function App() {
   const [authed, setAuthed]       = useState(false);
-  const [activeTab, setActiveTab] = useState('cbr');
+  const [activeTab, setActiveTab] = useState('op');
   const [error, setError]         = useState(null);
 
   useEffect(() => {

@@ -1,0 +1,95 @@
+openapi: "3.0.0"
+info:
+  title: "Ollama Chat API"
+  version: "1.0.0"
+  description: "Ollama Local LLM Chat Completion API"
+servers:
+  - url: "http://ollama:11434"
+paths:
+  /api/chat:
+    post:
+      summary: "Generate a chat completion"
+      operationId: "chatCompletion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - model
+                - messages
+              properties:
+                model:
+                  type: string
+                  description: "The model to use for chat completion"
+                  example: "llama3.2:1b"
+                messages:
+                  type: array
+                  description: "List of messages in the conversation"
+                  items:
+                    type: object
+                    required:
+                      - role
+                      - content
+                    properties:
+                      role:
+                        type: string
+                        enum:
+                          - system
+                          - user
+                          - assistant
+                      content:
+                        type: string
+                stream:
+                  type: boolean
+                  description: "Whether to stream the response"
+                  default: false
+                tools:
+                  type: array
+                  description: "List of tools the model can use"
+                  items:
+                    type: object
+                options:
+                  type: object
+                  description: "Additional model parameters"
+                  properties:
+                    temperature:
+                      type: number
+                    num_predict:
+                      type: integer
+      responses:
+        "200":
+          description: "Successful chat completion response"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  model:
+                    type: string
+                  created_at:
+                    type: string
+                  message:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+                  done:
+                    type: boolean
+                  total_duration:
+                    type: integer
+                  load_duration:
+                    type: integer
+                  prompt_eval_count:
+                    type: integer
+                    description: "Number of tokens in the prompt"
+                  prompt_eval_duration:
+                    type: integer
+                  eval_count:
+                    type: integer
+                    description: "Number of tokens in the completion"
+                  eval_duration:
+                    type: integer

@@ -2,7 +2,7 @@
 public type InsurancePolicy record {|
     string username;
     string policyNumber;
-    string policyType;   // "HEALTH", "LIFE", "AUTO", "HOME"
+    string policyType;   // "HEALTH"
     decimal coverageAmount;
     decimal premiumAmount;
     string startDate;

@@ -52,7 +52,7 @@ controlPlane:
   skipSSLVerification: true
   # CP Event Bus (AMQP) for real-time notifications
   eventListeningEndpoints: amqp://admin:admin@acp-wso2am-acp-service.apim-cp.svc.cluster.local:5672?retries='10'&connectdelay='30'
-  internalKeyIssuer: http://cp.airline.wso2.com:443/token
+  internalKeyIssuer: https://cp.wso2.com/token
 
 # Data Plane (APK Gateway) connection configuration
 # Agent pushes K8s resources to APK Gateway's Config Deployer Service

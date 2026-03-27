@@ -1,0 +1,418 @@
+openapi: 3.0.1
+info:
+  title: DisruptionDetectionAPI
+  description: "Monitors flights, detects delays, and manages disruption events for the ADR Flight Delay Demo."
+  version: 1.0.0
+servers:
+  - url: http://disruption-detection:9090/disruption
+security:
+  - default: []
+paths:
+  /flights:
+    get:
+      summary: List all flights
+      operationId: getFlights
+      responses:
+        "200":
+          description: List of all flights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Flight"
+    post:
+      summary: Register a new flight
+      operationId: createFlight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FlightInput"
+      responses:
+        "201":
+          description: Flight created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+  /flights/{id}:
+    get:
+      summary: Get flight details
+      operationId: getFlightById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Flight details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+        "404":
+          description: Flight not found
+  /flights/{id}/seats:
+    get:
+      summary: Get seat availability for a flight
+      operationId: getFlightSeats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Seat availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatAvailability"
+        "404":
+          description: Flight not found
+  /flights/{id}/crew-requirements:
+    get:
+      summary: Get crew requirements for a flight
+      operationId: getFlightCrewRequirements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Crew requirement summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrewRequirementSummary"
+        "404":
+          description: Flight not found
+  /flights/{id}/assess:
+    get:
+      summary: Assess disruption severity and recommend actions
+      operationId: assessFlight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Risk assessment result
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Flight not found
+  /flights/{id}/status:
+    put:
+      summary: Change flight status
+      operationId: updateFlightStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusChangeRequest"
+      responses:
+        "200":
+          description: Updated flight
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Flight"
+        "404":
+          description: Flight not found
+  /flights/{id}/delay:
+    put:
+      summary: Report a delay for a flight
+      operationId: reportFlightDelay
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DelayReport"
+      responses:
+        "200":
+          description: Disruption created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Disruption"
+  /delays:
+    get:
+      summary: Get all active disruptions
+      operationId: getActiveDisruptions
+      responses:
+        "200":
+          description: List of active disruptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Disruption"
+  /{disruptionId}:
+    get:
+      summary: Get disruption details
+      operationId: getDisruptionById
+      parameters:
+        - name: disruptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disruption details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Disruption"
+        "404":
+          description: Disruption not found
+  /{disruptionId}/resolve:
+    put:
+      summary: Mark disruption as resolved
+      operationId: resolveDisruption
+      parameters:
+        - name: disruptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disruption resolved
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  schemas:
+    Flight:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        airline:
+          type: string
+        flight_number:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        scheduled_departure:
+          type: string
+        scheduled_arrival:
+          type: string
+        actual_departure:
+          type: string
+        actual_arrival:
+          type: string
+        aircraft_type:
+          type: string
+        gate:
+          type: string
+        status:
+          type: string
+        passenger_count:
+          type: integer
+        seats_first:
+          type: integer
+        seats_business:
+          type: integer
+        seats_premium_economy:
+          type: integer
+        seats_economy:
+          type: integer
+        required_captains:
+          type: integer
+        required_first_officers:
+          type: integer
+        required_cabin_crew_leads:
+          type: integer
+        required_cabin_crew:
+          type: integer
+    FlightInput:
+      type: object
+      required:
+        - airline
+        - flight_number
+        - origin
+        - destination
+        - scheduled_departure
+        - scheduled_arrival
+      properties:
+        flight_id:
+          type: string
+        airline:
+          type: string
+        flight_number:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        scheduled_departure:
+          type: string
+        scheduled_arrival:
+          type: string
+        aircraft_type:
+          type: string
+        gate:
+          type: string
+        status:
+          type: string
+        passenger_count:
+          type: integer
+        seats_first:
+          type: integer
+        seats_business:
+          type: integer
+        seats_premium_economy:
+          type: integer
+        seats_economy:
+          type: integer
+        required_captains:
+          type: integer
+        required_first_officers:
+          type: integer
+        required_cabin_crew_leads:
+          type: integer
+        required_cabin_crew:
+          type: integer
+    DelayReport:
+      type: object
+      required:
+        - delayMinutes
+        - reason
+      properties:
+        delayMinutes:
+          type: integer
+        reason:
+          type: string
+    StatusChangeRequest:
+      type: object
+      required:
+        - new_status
+      properties:
+        new_status:
+          type: string
+        gate:
+          type: string
+    Disruption:
+      type: object
+      properties:
+        disruption_id:
+          type: string
+        flight_id:
+          type: string
+        disruption_type:
+          type: string
+        delay_minutes:
+          type: integer
+        reason:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        detected_at:
+          type: string
+        resolved_at:
+          type: string
+    SeatAvailability:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        classes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeatClassInfo"
+        total_capacity:
+          type: integer
+        total_booked:
+          type: integer
+        total_available:
+          type: integer
+    SeatClassInfo:
+      type: object
+      properties:
+        seat_class:
+          type: string
+        total_seats:
+          type: integer
+        booked_seats:
+          type: integer
+        available_seats:
+          type: integer
+    CrewRequirementSummary:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlightCrewRequirement"
+        fully_staffed:
+          type: boolean
+        total_required:
+          type: integer
+        total_assigned:
+          type: integer
+    FlightCrewRequirement:
+      type: object
+      properties:
+        id:
+          type: integer
+        flight_id:
+          type: string
+        role:
+          type: string
+        required_count:
+          type: integer
+        assigned_count:
+          type: integer
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://disruption-detection:9090/disruption
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://disruption-detection:9090/disruption

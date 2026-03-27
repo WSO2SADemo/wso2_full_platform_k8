@@ -3,10 +3,10 @@ wso2:
   deployment:
     image:
       registry: docker.io
-      # repository: "ramilu90/wso2am-uni-gw-arm:4.6.0"
-      # digest: "sha256:18167aa736dbe4983b7054afe51257fce0edd222a304ec21832400b5d80d4f17"
-      repository: "ramilu90/wso2am-uni-gw-amd64:4.6.0"
-      digest: "sha256:de2c4efe95d316b552602bcdf9862e60672c8761aed57d00b7a47a15da0fe757"
+      repository: "ramilu90/wso2am-uni-gw-arm:4.6.0"
+      digest: "sha256:18167aa736dbe4983b7054afe51257fce0edd222a304ec21832400b5d80d4f17"
+      # repository: "ramilu90/wso2am-uni-gw-amd64:4.6.0"
+      # digest: "sha256:de2c4efe95d316b552602bcdf9862e60672c8761aed57d00b7a47a15da0fe757"
     resources:
       requests:
         cpu: "0.5"  # Guarantee 0.5 CPU to start

@@ -1,0 +1,23 @@
+# Ballerina build artifacts
+target/
+
+# Node.js
+node_modules/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temp / backup
+*.bak
+*.tmp
+*.orig
+*.old

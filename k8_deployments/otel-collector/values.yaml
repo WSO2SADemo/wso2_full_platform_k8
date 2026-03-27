@@ -1,0 +1,26 @@
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.145.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+service:
+  type: ClusterIP
+  ports:
+    grpc: 4317
+    http: 4318
+    zpages: 55679
+
+# Secret that holds the Moesif API key (same secret used by the gateway)
+moesif:
+  secretName: apim-secrets
+  secretKey: MOESIF_API_KEY

@@ -46,6 +46,7 @@ import ballerina/uuid;
 import ballerinax/moesif as _;
 // import ballerinax/wso2.controlplane as _;
 import ballerinax/wso2.icp as _;
+import xlibb/pipeline;
 
 
 // SOAP and application XML namespaces
@@ -84,6 +85,7 @@ const string XSD_CONTENT = string `<?xml version="1.0" encoding="UTF-8"?>
 //   afaClient     → DNE Calculator SOAP        (dneonline.com/calculator.asmx)
 //   alfaClient    → LearnWebServices Hello     (apps.learnwebservices.com/services/hello)
 //   folksamClient → Oorsprong CountryInfo SOAP (webservices.oorsprong.org)
+//   Skandia-Fund-D → short-circuits immediately with ServiceUnavailable (no HTTP call)
 // ============================================================================
 final http:Client afaClient = check new (afaRecipientUrl);
 final http:Client alfaClient = check new (alfaRecipientUrl);
@@ -95,23 +97,33 @@ decimal highValueThreshold = 50000d;
 listener http:Listener soapRoutingListener = check new (9095);
 
 function init() returns error? {
+    log:printInfo("=== content_based_routing init() START ===");
+
+    // Log raw env vars before any parsing
+    log:printInfo("[ENV] afaRecipientUrl      = '" + afaRecipientUrl + "'");
+    log:printInfo("[ENV] alfaRecipientUrl     = '" + alfaRecipientUrl + "'");
+    log:printInfo("[ENV] folksamRecipientUrl  = '" + folksamRecipientUrl + "'");
+    log:printInfo("[ENV] highValueThresholdStr= '" + highValueThresholdStr + "'");
+    log:printInfo("[ENV] rabbitmqHost         = '" + rabbitmqHost + "'");
+    log:printInfo("[ENV] rabbitmqPort         = '" + rabbitmqPort.toString() + "'");
+    log:printInfo("[ENV] rabbitmqUser         = '" + rabbitmqUser + "'");
+    log:printInfo("[ENV] rabbitmqPassword     = '" + (rabbitmqPassword.length() > 0 ? "***set***" : "EMPTY") + "'");
+
     // Parse high-value threshold from config string
     decimal|error threshold = decimal:fromString(highValueThresholdStr);
     if threshold is decimal {
         highValueThreshold = threshold;
+        log:printInfo("[INIT] highValueThreshold parsed OK: " + highValueThreshold.toString());
     } else {
-        log:printWarn("Could not parse highValueThresholdStr, using default 50000");
+        log:printWarn("[INIT] Could not parse highValueThresholdStr '" + highValueThresholdStr + "', using default 50000. Error: " + threshold.message());
     }
 
     // Write embedded XSD to /tmp so xmldata:validate() can reference it
+    log:printInfo("[INIT] Writing XSD to: " + XSD_PATH);
     check io:fileWriteString(XSD_PATH, XSD_CONTENT);
+    log:printInfo("[INIT] XSD written OK");
 
-    log:printInfo("Content-Based Routing SOAP service starting on port 9095");
-    log:printInfo("XSD schema written to: " + XSD_PATH);
-    log:printInfo("High-value threshold (Folksam): " + highValueThreshold.toString());
-    log:printInfo("AFA recipient (Calculator Add):         " + afaRecipientUrl);
-    log:printInfo("Alfa/default recipient (LearnWebSvc):  " + alfaRecipientUrl);
-    log:printInfo("Folksam recipient (CountryInfo):       " + folksamRecipientUrl);
+    log:printInfo("=== content_based_routing init() DONE — listening on port 9095 ===");
 }
 
 // ============================================================================
@@ -215,16 +227,34 @@ service /soap on soapRoutingListener {
         // ----------------------------------------------------------------
         // Step 7: Forward to recipient and proxy response back to caller
         // ----------------------------------------------------------------
-        xml|error result = forwardNotification(recipientName, forwardPayload, correlationId);
-
-        log:printInfo(string `[${correlationId}] === CONTENT-BASED ROUTING END ===`);
-
-        if result is xml {
-            return result;
-        }
-        return <http:InternalServerError>{
-            body: createSoapFault(string `Routing failed: ${result.message()}`)
+        NotificationContext notificationContext = {
+            forwardPayload: forwardPayload,
+            recipientName: recipientName,
+            correlationId: correlationId
         };
+
+        do {
+            pipeline:ExecutionSuccess execute = check soapRoutingPipeline.execute(notificationContext);
+            NotificationStatusContext notificationStatusContext = check execute.destinationResults["forwardNotification"].cloneWithType();
+            
+            // Convert status context to SOAP acknowledgement XML
+            xml acknowledgement = buildAcknowledgementSoap(
+                status = notificationStatusContext.success == "true" ? "ACCEPTED" : "REJECTED",
+                correlationId = correlationId,
+                routedTo = recipientName,
+                message = notificationStatusContext.message
+            );
+            
+            return acknowledgement;
+        } on fail error err {
+            //1st destination itself failed
+            log:printError(string `[${correlationId}] ── ORDER PIPELINE FAILED at Step # – ${err.message()}`);
+            return <http:InternalServerError>{body: {
+                    'error: string `${err.message()}`,
+                    correlationId: correlationId,
+                    failedStep: "unknown"
+                }};
+        }
     }
 
     resource function get health() returns string {
@@ -247,10 +277,21 @@ function determineRoute(string senderName, decimal benefitAmount) returns string
         "Folksam" => {
             return benefitAmount > highValueThreshold ? "Folksam-HighValue" : "Folksam-Fund-C";
         }
+        "Skandia" => {
+            return "Skandia-Fund-D";
+        }
         _ => {
             return "Default";
         }
     }
+}
+
+@pipeline:TransformerConfig {
+    id: "dummyTransformer"
+}
+isolated function dummyTransformer(pipeline:MessageContext ctx) returns NotificationContext|error {
+    NotificationContext message = check ctx.getContentWithType();
+    return message;
 }
 
 // ============================================================================
@@ -260,12 +301,20 @@ function determineRoute(string senderName, decimal benefitAmount) returns string
 //   Folksam-Fund-C  → folksamClient, Oorsprong CountryInfo  (application/soap+xml)
 //   Default         → alfaClient,    LearnWebServices Hello (text/xml)
 // ============================================================================
-function forwardNotification(string recipientName, NotificationForwardPayload payload, string correlationId) returns xml|error {
+@pipeline:DestinationConfig {
+    id: "forwardNotification"
+}
+isolated function forwardNotification(pipeline:MessageContext ctx) returns NotificationStatusContext|error {
 
     http:Client recipientClient;
     xml soapEnvelope;
     string soapAction;
     string contentType = "text/xml;charset=UTF-8";
+
+    NotificationContext notificationContext = check ctx.getContentWithType();
+    string recipientName = notificationContext.recipientName;
+    NotificationForwardPayload payload = notificationContext.forwardPayload;
+    string correlationId = notificationContext.correlationId;
 
     match recipientName {
         "AFA-Fund-A" => {
@@ -284,6 +333,9 @@ function forwardNotification(string recipientName, NotificationForwardPayload pa
             soapAction = "";
             contentType = "application/soap+xml;charset=UTF-8";
         }
+        "Skandia-Fund-D" => {
+            return error(string `simulated Error returned for ${recipientName} to demonstrate failure handling`);
+        }
         _ => {
             recipientClient = alfaClient;
             soapEnvelope = buildLearnWebServicesSoap(payload);
@@ -298,17 +350,23 @@ function forwardNotification(string recipientName, NotificationForwardPayload pa
         req.setHeader("SOAPAction", "\"" + soapAction + "\"");
     }
 
+    NotificationStatusContext statusContext = {
+        success: "true",
+        message: ""
+    };
     http:Response|http:ClientError result = recipientClient->post("", req);
-    if result is http:ClientError {
+    if (result is http:ClientError ) {
         log:printError(string `[${correlationId}] Failed to forward to ${recipientName}: ${result.message()}`);
-        return result;
+        return error(string `[${correlationId}] Failed to forward to ${recipientName}: ${result.message()} Message replay enabled for this error.`);
+    } else if (result.statusCode >= 400) {
+        log:printError(string `[${correlationId}] Recipient ${recipientName} returned HTTP ${result.statusCode}`);
+        return error(string `[${correlationId}] Recipient returned HTTP ${result.statusCode} Message replay enabled for this error.`);
+    } else {
+        log:printInfo(string `[${correlationId}] Successfully forwarded to ${recipientName}`);
+        statusContext.success = "true";
+        statusContext.message = check result.getTextPayload();
     }
-
-    log:printInfo(string `[${correlationId}] Forwarded to ${recipientName} – HTTP ${result.statusCode}`);
-    if result.statusCode >= 400 {
-        return error(string `Recipient returned HTTP ${result.statusCode}`);
-    }
-    return check result.getXmlPayload();
+    return check statusContext;
 }
 
 // ============================================================================
@@ -317,8 +375,9 @@ function forwardNotification(string recipientName, NotificationForwardPayload pa
 
 // DNE Online Calculator – Add or Multiply operation
 // Endpoint: http://www.dneonline.com/calculator.asmx
-function buildCalculatorSoap(NotificationForwardPayload payload, string operation) returns xml {
-    int amount = <int>payload.benefitAmount;
+isolated function buildCalculatorSoap(NotificationForwardPayload payload, string operation) returns xml {
+    decimal benefitAmount = payload.benefitAmount;
+    int amount = <int>benefitAmount;
     if operation == "Multiply" {
         return xml `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -345,7 +404,7 @@ function buildCalculatorSoap(NotificationForwardPayload payload, string operatio
 
 // LearnWebServices Hello – SayHello operation
 // Endpoint: https://apps.learnwebservices.com/services/hello
-function buildLearnWebServicesSoap(NotificationForwardPayload payload) returns xml {
+isolated function buildLearnWebServicesSoap(NotificationForwardPayload payload) returns xml {
     return xml `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
   <soapenv:Header/>
   <soapenv:Body>
@@ -358,7 +417,7 @@ function buildLearnWebServicesSoap(NotificationForwardPayload payload) returns x
 
 // Oorsprong CountryInfo – CapitalCity operation (SOAP 1.2)
 // Endpoint: http://webservices.oorsprong.org/websamples.countryinfo/CountryInfoService.wso
-function buildCountryInfoSoap() returns xml {
+isolated function buildCountryInfoSoap() returns xml {
     return xml `<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Body>
     <CapitalCity xmlns="http://www.oorsprong.org/websamples.countryinfo">
@@ -377,4 +436,18 @@ function createSoapFault(string faultString) returns xml {
             </soap:Fault>
         </soap:Body>
     </soap:Envelope>`;
+}
+
+// Build SOAP acknowledgement response
+isolated function buildAcknowledgementSoap(string status, string correlationId, string routedTo, string message) returns xml {
+    return xml `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <DistributionAcknowledgement>
+      <status>${status}</status>
+      <correlationId>${correlationId}</correlationId>
+      <routedTo>${routedTo}</routedTo>
+      <message>${message}</message>
+    </DistributionAcknowledgement>
+  </soap:Body>
+</soap:Envelope>`;
 }

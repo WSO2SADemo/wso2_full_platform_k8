@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.4"
+IMAGE_TAG="1.0.9"
 IMAGE_NAME="purchase_service_orchestration_pipeline"
 
 echo "================================================"

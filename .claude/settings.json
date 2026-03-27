@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl logs:*)",
+      "Bash(chmod +x /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/apim-integration-artefacts/integrations/insurance_agent/arm64-deploy.sh)"
+    ]
+  }
+}

@@ -1,0 +1,449 @@
+openapi: 3.0.0
+info:
+  title: InsuranceAgentChatAPI
+  description: >
+    AI-powered insurance agent service backed by Mistral LLM, WSO2 MCP tools,
+    and a Pinecone vector knowledge base.
+
+
+    The agent can:
+
+    - **MCP tools** — retrieve a customer's policy details and claims history,
+    and submit new claims
+      via the Insurance Customer MCP server; list all policies and update policy status via the
+      Insurance Agent MCP server (privileged endpoint only)
+    - **RAG (vector DB)** — answer questions about policy terms, coverage,
+    exclusions, and
+      procedures by querying the HealthGuard insurance policy document stored in Pinecone
+    - **Generic LLM** — answer general insurance-related questions using the
+    Mistral model directly
+
+
+    Use `sessionId` to maintain conversation history across multiple turns.
+  contact:
+    name: WSO2 Demo Team
+    email: support@healthguard-insurance.com
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:9090'
+    description: Local / port-forward
+  - url: 'https://gw.wso2.com/insurance-agent/1.0'
+    description: WSO2 API Gateway (in-cluster)
+security:
+  - default: []
+tags:
+  - name: chat
+    description: Conversational chat endpoints for the insurance agent
+paths:
+  /insurance_agent/chat:
+    post:
+      tags:
+        - chat
+      summary: Send a message to the insurance agent
+      description: >
+        Sends a natural-language message to the insurance agent. The agent
+        selects the appropriate
+
+        tool(s) automatically:
+
+
+        - **MCP** — triggered when the query names a specific user/policy (e.g.
+        "show me john_doe's policy")
+
+        - **RAG** — triggered for questions about policy terms, coverage rules,
+        or claim procedures
+          (e.g. "what is the deductible for the Premier plan?")
+        - **LLM only** — triggered for general insurance questions that require
+        no live data or
+          document lookup (e.g. "what is the difference between a copay and coinsurance?")
+
+        Requires an access token with `ordinary` or `privilege` scope issued by
+        WSO2 IS.
+      operationId: chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatReqMessage'
+            examples:
+              mcp_get_policy:
+                summary: MCP — get policy for a user
+                value:
+                  message: >-
+                    What is the current insurance policy for john_doe? Show the
+                    coverage amount, premium, and status.
+                  sessionId: session-001
+              mcp_get_claims:
+                summary: MCP — get claims for a user
+                value:
+                  message: >-
+                    Show me all claims submitted by emma_premier. Are any still
+                    pending?
+                  sessionId: session-002
+              mcp_submit_claim:
+                summary: MCP — submit a new claim
+                value:
+                  message: >-
+                    Submit a hospitalization claim for pri_sam for $4500 for
+                    back surgery.
+                  sessionId: session-003
+              rag_deductible:
+                summary: RAG — policy document query
+                value:
+                  message: >-
+                    What is the deductible and out-of-pocket maximum for the
+                    Premier plan?
+                  sessionId: session-004
+              rag_claims_process:
+                summary: RAG — claims filing procedure
+                value:
+                  message: >-
+                    What is the claims filing deadline and how do I submit a
+                    claim for reimbursement?
+                  sessionId: session-005
+              llm_generic:
+                summary: LLM only — general insurance question
+                value:
+                  message: >-
+                    What is the difference between a deductible and an
+                    out-of-pocket maximum in health insurance?
+                  sessionId: session-006
+        required: true
+      responses:
+        '200':
+          description: Agent response message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatRespMessage'
+              example:
+                message: >-
+                  John Doe holds policy POL-HEALTH-001 (Basic plan) with a
+                  coverage amount of $100,000 and a monthly premium of $120. The
+                  policy is currently ACTIVE, running from 2024-01-01 to
+                  2025-01-01.
+        '400':
+          description: Bad request — malformed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized — missing or invalid Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error — agent or tool failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerAuth: []
+        - default: []
+      x-auth-type: Application & Application User
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+          - oauth2
+        optional: false
+  /insurance_agent/privilege_chat:
+    post:
+      tags:
+        - chat
+      summary: Send a message to the privileged insurance agent
+      description: >
+        Same as `/insurance_agent/chat` but uses the **privileged agent
+        identity**
+
+        (`privilegedAgentID` / `privilegedAgentSecret`). This agent has access
+        to both the
+
+        customer MCP toolkit and the agent MCP toolkit, enabling administrative
+        operations such as:
+
+
+        - Listing **all** policies across all users
+
+        - Updating policy status (`ACTIVE`, `SUSPENDED`, `EXPIRED`)
+
+
+        Requires an access token with `privilege` scope.
+      operationId: privilegeChat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatReqMessage'
+            examples:
+              list_all_policies:
+                summary: MCP — list all policies (agent-level)
+                value:
+                  message: List all insurance policies currently in the system.
+                  sessionId: priv-session-001
+              update_policy_status:
+                summary: MCP — update a policy status
+                value:
+                  message: Suspend policy POL-HEALTH-001 due to missed payment.
+                  sessionId: priv-session-002
+              rag_exclusions:
+                summary: RAG — query about exclusions
+                value:
+                  message: >-
+                    What are the pre-existing condition waiting periods for the
+                    Basic plan?
+                  sessionId: priv-session-003
+        required: true
+      responses:
+        '200':
+          description: Privileged agent response message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatRespMessage'
+              example:
+                message: >-
+                  Policy POL-HEALTH-001 has been successfully updated to status
+                  SUSPENDED.
+        '400':
+          description: Bad request — malformed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: >-
+            Unauthorized — missing or invalid Bearer token, or insufficient
+            scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error — agent or tool failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerAuth: []
+        - default: []
+      x-auth-type: Application & Application User
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+          - oauth2
+        optional: false
+  /insurance_agent/health:
+    get:
+      parameters: []
+      responses:
+        '200':
+          description: ok
+      security:
+        - default: []
+      x-auth-type: Application & Application User
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+          - oauth2
+        optional: false
+  /insurance_obo/obo_chat:
+    post:
+      tags:
+        - chat
+      summary: Send a message via the OBO-enabled insurance agent
+      description: >
+        OBO-aware chat endpoint. Read-only queries (getPolicy, getClaims) are
+        handled immediately using the agent's own token. If submitClaim is
+        required and no delegated OBO token exists for the session, a
+        `consent_url` is returned instead of a direct answer.
+
+
+        The client must open the consent URL in a popup, wait for the user to
+        approve, then resend the original message with the same `sessionId` to
+        complete the flow.
+      operationId: oboChat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatReqMessage'
+        required: true
+      responses:
+        '200':
+          description: Agent response or consent URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OBOChatResponse'
+        '401':
+          description: Unauthorized — missing or invalid Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error — agent or tool failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerAuth: []
+        - default: []
+      x-auth-type: Application & Application User
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+          - oauth2
+        optional: false
+  /insurance_obo/obo_callback:
+    get:
+      parameters: []
+      responses:
+        '200':
+          description: ok
+      security:
+        - default: []
+      x-auth-type: None
+      x-throttling-tier: Unlimited
+      x-wso2-application-security:
+        security-types:
+          - oauth2
+        optional: false
+components:
+  schemas:
+    ChatReqMessage:
+      required:
+        - message
+      type: object
+      properties:
+        message:
+          type: string
+          description: The natural-language message to send to the agent.
+          example: What is the current insurance policy for john_doe?
+        sessionId:
+          type: string
+          description: >
+            Optional session identifier used to maintain multi-turn conversation
+            context.
+
+            Use the same value across consecutive calls to preserve history.
+
+            Any unique string is valid (UUID recommended).
+          example: session-001
+    ChatRespMessage:
+      required:
+        - message
+      type: object
+      properties:
+        message:
+          type: string
+          description: The agent's natural-language response.
+          example: >-
+            John Doe holds policy POL-HEALTH-001 (Basic plan) with a coverage of
+            $100,000 and a monthly premium of $120. Status: ACTIVE.
+    OBOChatResponse:
+      required:
+        - message
+      type: object
+      properties:
+        message:
+          type: string
+          description: >-
+            The agent's response, or a prompt to authorize when consent is
+            required.
+        consent_url:
+          type: string
+          nullable: true
+          description: >-
+            If present, the client must open this URL in a popup for the user to
+            grant OBO consent.
+        session_id:
+          type: string
+          nullable: true
+          description: >-
+            The session ID — pass this back on subsequent calls to maintain
+            context.
+    ErrorResponse:
+      required:
+        - message
+      type: object
+      properties:
+        message:
+          type: string
+          description: Human-readable error description.
+          example: 'Failed to process request: MCP tool invocation error'
+        errorCode:
+          type: string
+          description: Optional error code for programmatic handling.
+          nullable: true
+          example: TOOL_INVOCATION_FAILED
+  securitySchemes:
+    BearerAuth:
+      type: http
+      description: >
+        JWT access token issued by WSO2 IS (`https://is.wso2.com/oauth2/token`).
+
+
+        Required scopes:
+
+        - `/insurance_agent/chat` — `ordinary` or `privilege`
+
+        - `/insurance_agent/privilege_chat` — `privilege`
+
+
+        Agent credentials are resolved internally by the Ballerina AI agent
+        runtime using the
+
+        `agentID` / `agentSecret` configured via the
+        `ballerina-values-insurance-agent` ConfigMap.
+      scheme: bearer
+      bearerFormat: JWT
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: 'https://test.com'
+          scopes: {}
+x-wso2-api-key-header: ApiKey
+x-wso2-auth-header: Authorization
+x-wso2-cors:
+  corsConfigurationEnabled: false
+  accessControlAllowOrigins:
+    - '*'
+  accessControlAllowCredentials: false
+  accessControlAllowHeaders:
+    - authorization
+    - Access-Control-Allow-Origin
+    - Content-Type
+    - SOAPAction
+  accessControlAllowMethods:
+    - GET
+    - PUT
+    - POST
+    - DELETE
+    - PATCH
+    - OPTIONS
+x-wso2-production-endpoints:
+  urls:
+    - 'http://insurance-agent.ballerina.svc.cluster.local:9090/'
+  type: http
+x-wso2-sandbox-endpoints:
+  urls:
+    - 'http://insurance-agent.ballerina.svc.cluster.local:9090/'
+  type: http
+x-wso2-basePath: /insuranceagentchatapi/1.0.0
+x-wso2-transports:
+  - http
+  - https
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-response-cache:
+  enabled: false
+  cacheTimeoutInSeconds: 300

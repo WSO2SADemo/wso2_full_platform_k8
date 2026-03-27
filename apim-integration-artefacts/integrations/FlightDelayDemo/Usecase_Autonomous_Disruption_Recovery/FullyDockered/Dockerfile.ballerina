@@ -1,0 +1,19 @@
+# =============================================================================
+# Multi-stage Dockerfile for Ballerina ADR Services
+# =============================================================================
+
+# ── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM ballerina/ballerina:2201.13.1 AS builder
+ARG SERVICE_NAME
+WORKDIR /home/ballerina/build
+COPY --chown=ballerina:ballerina Common/${SERVICE_NAME}/ ./
+COPY --chown=ballerina:ballerina Usecase_Autonomous_Disruption_Recovery/FullyDockered/Config.docker.toml ./Config.toml
+RUN bal build
+
+# ── Stage 2: Run ─────────────────────────────────────────────────────────────
+FROM ballerina/ballerina:2201.13.1
+ARG SERVICE_NAME
+WORKDIR /home/ballerina
+COPY --from=builder /home/ballerina/build/target/bin/${SERVICE_NAME}.jar ./service.jar
+COPY --from=builder /home/ballerina/build/Config.toml ./Config.toml
+ENTRYPOINT ["java", "-jar", "service.jar"]

@@ -1,0 +1,31 @@
+FROM wso2/wso2is:7.2.0
+
+# Apply port offset=1 matching Banking Demo SingleDockerImage pattern
+# Effective ports: 9444 (Console)
+USER root
+RUN sed -i '/\[server\]/a offset=1' /home/wso2carbon/wso2is-7.2.0/repository/conf/deployment.toml
+
+# ── Regenerate self-signed certificate (10-year validity) ─────────────────
+# The base wso2/wso2is:7.2.0 image ships with a cert that expired Jan 2026.
+# We regenerate it at build time so it's always fresh.
+RUN KS=/home/wso2carbon/wso2is-7.2.0/repository/resources/security/wso2carbon.p12 && \
+    TS=/home/wso2carbon/wso2is-7.2.0/repository/resources/security/client-truststore.p12 && \
+    PASS=wso2carbon && \
+    # Delete the expired keypair
+    keytool -delete -alias wso2carbon -keystore "$KS" -storepass "$PASS" -storetype PKCS12 && \
+    # Generate a new 2048-bit RSA keypair valid for 10 years
+    keytool -genkeypair -alias wso2carbon \
+      -keyalg RSA -keysize 2048 -validity 3650 \
+      -dname "CN=localhost, OU=WSO2, O=WSO2, L=Santa Clara, ST=CA, C=US" \
+      -keystore "$KS" -storepass "$PASS" -storetype PKCS12 && \
+    # Export the new cert and update the IS truststore
+    keytool -exportcert -alias wso2carbon -keystore "$KS" -storepass "$PASS" \
+      -storetype PKCS12 -file /tmp/new_is.crt && \
+    # Remove old self-signed cert from truststore (alias may be 'certalias')
+    keytool -delete -alias certalias -keystore "$TS" -storepass "$PASS" -storetype PKCS12 2>/dev/null || true && \
+    # Import the fresh cert
+    keytool -importcert -alias certalias -keystore "$TS" -storepass "$PASS" \
+      -storetype PKCS12 -file /tmp/new_is.crt -noprompt && \
+    rm -f /tmp/new_is.crt
+
+USER wso2carbon

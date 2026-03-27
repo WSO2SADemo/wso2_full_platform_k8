@@ -12,7 +12,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ── Verify apim-secrets.yaml has a valid Moesif key before proceeding ────────
 APIM_SECRETS_YAML="$ROOT_DIR/k8_deployments/am-control-plane/apim-secrets.yaml"
 
-ENCODED_KEY=$(grep 'MOESIF_API_KEY:' "$APIM_SECRETS_YAML" | awk '{print $2}')
+ENCODED_KEY=$(grep -v '^\s*#' "$APIM_SECRETS_YAML" | grep 'MOESIF_API_KEY:' | awk '{print $2}')
 if [ -z "$ENCODED_KEY" ]; then
   echo "ERROR: MOESIF_API_KEY is missing in $APIM_SECRETS_YAML. Update it and re-run."
   exit 1

@@ -1,0 +1,125 @@
+openapi: 3.0.1
+info:
+  title: AIAgentAPI
+  description: "AI-powered natural language interface for the ADR Orchestrator. Uses a local LLM (Ollama) to understand user intent and execute recovery operations via function calling. Requires user-level ADR scopes — only authenticated users or OBO-delegated tokens are accepted."
+  version: 1.0.0
+servers:
+  - url: http://adr-orchestrator:9095/ai
+security:
+  - default:
+      - adr:recovery:manage
+paths:
+  /chat:
+    post:
+      summary: Send a natural language message to the AI agent
+      description: "The AI agent interprets the message, determines the appropriate action (trigger recovery, query plans, etc.), executes it, and returns a natural language response. Requires user-level authorization (user JWT or OBO token with ADR scopes)."
+      operationId: aiChat
+      security:
+        - default:
+            - adr:recovery:manage
+            - adr:flights:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI agent response with optional function execution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "401":
+          description: Missing or invalid user authorization — agent-only tokens are rejected
+        "403":
+          description: Token lacks required ADR scopes
+        "500":
+          description: AI agent error
+  /health:
+    get:
+      summary: AI agent health check
+      operationId: aiHealth
+      security:
+        - default:
+            - adr:flights:read
+      responses:
+        "200":
+          description: Health status
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "AI Agent is running"
+  /callback:
+    get:
+      summary: OBO authorization callback (internal — receives code from IS)
+      operationId: oboCallback
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OBO callback processed
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Natural language message to the AI agent
+          example: "What recovery plans exist for flight FL001?"
+    ChatResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          description: Natural language response from the AI agent
+        function_called:
+          type: string
+          nullable: true
+          description: Name of the function that was called (if any)
+        function_result:
+          type: object
+          nullable: true
+          description: Raw result from the function call (if any)
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes:
+            adr:recovery:manage: Trigger and manage disruption recovery operations
+            adr:flights:read: Read flight data and schedules
+            adr:flights:write: Modify flight data and assignments
+            adr:crew:read: Read crew availability and assignments
+            adr:passenger:read: Read passenger bookings and rebooking options
+            adr:logistics:read: Read gate and aircraft logistics
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://adr-orchestrator:9095/ai
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://adr-orchestrator:9095/ai

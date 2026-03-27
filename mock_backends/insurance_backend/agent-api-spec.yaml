@@ -1,0 +1,146 @@
+# Insurance Agent API - OpenAPI Specification
+
+openapi: 3.0.0
+info:
+  title: Insurance Agent API
+  description: Agent-facing API for managing insurance policies
+  version: 1.0.0
+servers:
+  - url: http://localhost:8083
+    description: Local development server
+
+paths:
+  /insurance/agent/policies:
+    get:
+      summary: List all policies
+      description: Retrieve a list of all insurance policies in the system
+      operationId: listPolicies
+      responses:
+        '200':
+          description: List of all policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsurancePolicy'
+
+  /insurance/agent/policy/update:
+    post:
+      summary: Update policy status
+      description: Update the status of an insurance policy
+      operationId: updatePolicyStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdateRequest'
+      responses:
+        '200':
+          description: Policy status updated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    InsurancePolicy:
+      type: object
+      required:
+        - username
+        - policyNumber
+        - policyType
+        - coverageAmount
+        - premiumAmount
+        - startDate
+        - endDate
+        - status
+      properties:
+        username:
+          type: string
+          description: Username of the policy holder
+          example: john_doe
+        policyNumber:
+          type: string
+          description: Unique policy number
+          example: POL-HEALTH-001
+        policyType:
+          type: string
+          description: Type of insurance policy
+          enum: [HEALTH, LIFE, AUTO, HOME]
+          example: HEALTH
+        coverageAmount:
+          type: number
+          format: decimal
+          description: Coverage amount
+          example: 100000.00
+        premiumAmount:
+          type: number
+          format: decimal
+          description: Premium amount
+          example: 120.00
+        startDate:
+          type: string
+          format: date
+          description: Policy start date
+          example: "2024-01-01"
+        endDate:
+          type: string
+          format: date
+          description: Policy end date
+          example: "2025-01-01"
+        status:
+          type: string
+          description: Current policy status
+          enum: [ACTIVE, EXPIRED, SUSPENDED]
+          example: ACTIVE
+
+    PolicyUpdateRequest:
+      type: object
+      required:
+        - policyNumber
+        - status
+      properties:
+        policyNumber:
+          type: string
+          description: Policy number to update
+          example: POL-HEALTH-001
+        status:
+          type: string
+          description: New policy status
+          enum: [ACTIVE, EXPIRED, SUSPENDED]
+          example: SUSPENDED
+
+    SuccessResponse:
+      type: object
+      required:
+        - message
+        - success
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: Policy updated successfully
+        success:
+          type: boolean
+          enum: [true]
+          description: Success indicator
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: Policy not found
+        errorCode:
+          type: string
+          description: Optional error code
+          nullable: true

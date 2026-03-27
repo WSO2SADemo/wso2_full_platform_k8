@@ -56,6 +56,16 @@ echo "================================================"
 echo "4b. Importing ingress certs into truststores"
 echo "================================================"
 
+# Export public cert from wso2carbon.jks and import into client-truststore.jks
+echo "Exporting public cert from wso2carbon.jks..."
+keytool -export -alias wso2carbon -keystore "$KEYS_DIR/wso2carbon.jks" -storepass wso2carbon -file "$KEYS_DIR/wso2carbon-gw.crt" -rfc
+
+keytool -delete -alias gateway_certificate_alias -keystore "$KEYS_DIR/client-truststore.jks" -storepass wso2carbon -noprompt 2>/dev/null || true
+
+echo "Importing wso2carbon cert as gateway_certificate_alias..."
+keytool -importcert -alias gateway_certificate_alias -file "$KEYS_DIR/wso2carbon-gw.crt" \
+  -keystore "$KEYS_DIR/client-truststore.jks" -storepass wso2carbon -noprompt
+
 # Remove old ingress certs if they exist
 keytool -delete -alias cp-ingress -keystore "$KEYS_DIR/client-truststore.jks" -storepass wso2carbon -noprompt 2>/dev/null || true
 keytool -delete -alias is-ingress -keystore "$KEYS_DIR/client-truststore.jks" -storepass wso2carbon -noprompt 2>/dev/null || true

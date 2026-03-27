@@ -37,7 +37,9 @@ echo "Waiting for CoreDNS to restart..."
 kubectl rollout status deployment/coredns -n kube-system --timeout=60s
 
 echo ""
-echo "--- Waiting for RabbitMQ to be ready ---"
+echo "--- Restarting RabbitMQ to pick up ConfigMap changes ---"
+kubectl rollout restart statefulset/rabbitmq -n "$NAMESPACE"
+echo "Waiting for RabbitMQ to be ready..."
 kubectl rollout status statefulset/rabbitmq -n "$NAMESPACE" --timeout=120s
 
 echo ""

@@ -112,37 +112,6 @@ export function StoreAndForward() {
 
   return (
     <div>
-      {/* ── Fund 11 Toggle ── */}
-      <div className="card">
-        <h2>Store &amp; Forward Notification</h2>
-        <p className="desc">
-          Queue a notification for durable delivery via RabbitMQ. Returns 202 immediately and retries Fund 11
-          up to 3 times (30 s apart). Toggle Fund 11 offline below to observe retries and DLQ behaviour.
-        </p>
-
-        <h3>Fund 11 — Service Window</h3>
-        <div className="toggle-wrap">
-          {statusLoading
-            ? <span className="spinner" />
-            : fund11State
-              ? <span className={`fund11-badge ${isOnline ? 'badge-online' : 'badge-offline'}`}>
-                  {fund11State.state ?? (fund11State.error ? '⚠ Error' : '…')}
-                </span>
-              : null
-          }
-          <button className="btn btn-outline btn-sm" onClick={getFund11Status} disabled={statusLoading}>
-            Refresh
-          </button>
-          <button className="btn btn-orange btn-sm" onClick={toggleFund11} disabled={toggleLoading}>
-            {toggleLoading ? <span className="spinner" /> : null}
-            {isOnline ? 'Take Offline' : 'Bring Online'}
-          </button>
-        </div>
-        {fund11State?.error && (
-          <p className="text-error" style={{ marginTop: 10 }}>❌ {fund11State.error}</p>
-        )}
-      </div>
-
       {/* ── Send via Queue ── */}
       <div className="card">
         <h3>Send Notification via Queue</h3>
@@ -210,6 +179,37 @@ export function StoreAndForward() {
           )}
           {dlq?.error && <p className="text-error">❌ {dlq.error}</p>}
         </div>
+      </div>
+
+      {/* ── Fund 11 Toggle ── */}
+      <div className="card">
+        <h2>Store &amp; Forward Notification</h2>
+        <p className="desc">
+          Queue a notification for durable delivery via RabbitMQ. Returns 202 immediately and retries Fund 11
+          up to 3 times (30 s apart). Toggle Fund 11 offline below to observe retries and DLQ behaviour.
+        </p>
+
+        <h3>Fund 11 — Service Window</h3>
+        <div className="toggle-wrap">
+          {statusLoading
+            ? <span className="spinner" />
+            : fund11State
+              ? <span className={`fund11-badge ${isOnline ? 'badge-online' : 'badge-offline'}`}>
+                  {fund11State.state ?? (fund11State.error ? '⚠ Error' : '…')}
+                </span>
+              : null
+          }
+          <button className="btn btn-outline btn-sm" onClick={getFund11Status} disabled={statusLoading}>
+            Refresh
+          </button>
+          <button className="btn btn-orange btn-sm" onClick={toggleFund11} disabled={toggleLoading}>
+            {toggleLoading ? <span className="spinner" /> : null}
+            {isOnline ? 'Take Offline' : 'Bring Online'}
+          </button>
+        </div>
+        {fund11State?.error && (
+          <p className="text-error" style={{ marginTop: 10 }}>❌ {fund11State.error}</p>
+        )}
       </div>
 
     </div>

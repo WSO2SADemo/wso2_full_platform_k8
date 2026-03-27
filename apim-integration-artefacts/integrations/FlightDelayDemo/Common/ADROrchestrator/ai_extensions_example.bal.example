@@ -1,0 +1,445 @@
+// Example: How to extend the AI Agent with additional capabilities
+// This file demonstrates patterns for adding new AI-powered features
+
+import ballerinax/openai.chat;
+
+// ============================================================================
+// EXAMPLE 1: Predictive Disruption Analysis
+// ============================================================================
+// This function shows how you could add ML-based disruption prediction
+
+type DisruptionPrediction record {|
+    string flight_id;
+    string predicted_issue;
+    decimal probability;
+    string reasoning;
+    string recommended_action;
+|};
+
+// Analyze flight data and predict potential disruptions
+function predictDisruptions(string flightId, json flightData) returns DisruptionPrediction|error {
+    // In a real implementation, you would:
+    // 1. Query historical disruption data
+    // 2. Get current weather conditions
+    // 3. Check aircraft maintenance status
+    // 4. Analyze crew availability
+    // 5. Use ML model to predict disruption probability
+    
+    // For now, we'll use GPT to analyze the data
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are an airline operations analyst. Analyze flight data and predict potential disruptions."
+            },
+            {
+                role: "user",
+                content: string `Analyze this flight data and predict disruption risk: ${flightData.toJsonString()}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json predictionJson = check content.fromJsonString();
+        return check predictionJson.cloneWithType();
+    }
+    
+    return error("Failed to get prediction");
+}
+
+// ============================================================================
+// EXAMPLE 2: Intelligent Passenger Prioritization
+// ============================================================================
+// Use AI to determine optimal passenger rebooking order
+
+type PassengerPriority record {|
+    string passenger_id;
+    int priority_score;
+    string reasoning;
+    string[] recommended_actions;
+|};
+
+function prioritizePassengers(json[] passengers, json disruptionContext) returns PassengerPriority[]|error {
+    // AI analyzes multiple factors:
+    // - Loyalty tier
+    // - Connection risk
+    // - Special needs
+    // - Historical satisfaction
+    // - Business value
+    
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are an airline customer service optimizer. Prioritize passengers for rebooking based on multiple factors."
+            },
+            {
+                role: "user",
+                content: string `Prioritize these passengers: ${passengers.toJsonString()}. Context: ${disruptionContext.toJsonString()}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json priorityJson = check content.fromJsonString();
+        json priorityArray = check priorityJson.priorities;
+        return check priorityArray.cloneWithType();
+    }
+    
+    return error("Failed to prioritize passengers");
+}
+
+// ============================================================================
+// EXAMPLE 3: Dynamic Compensation Reasoning
+// ============================================================================
+// AI explains compensation decisions in human terms
+
+type CompensationExplanation record {|
+    string passenger_id;
+    decimal amount;
+    string explanation;
+    string tone;
+    string suggested_message;
+|};
+
+function explainCompensation(
+    string passengerId,
+    decimal amount,
+    json context
+) returns CompensationExplanation|error {
+    // AI generates personalized, empathetic explanations
+    
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are an airline customer service expert. Explain compensation decisions with empathy and clarity."
+            },
+            {
+                role: "user",
+                content: string `Explain why passenger ${passengerId} received $${amount} compensation. Context: ${context.toJsonString()}`
+            }
+        ]
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        return {
+            passenger_id: passengerId,
+            amount: amount,
+            explanation: content,
+            tone: "empathetic",
+            suggested_message: content
+        };
+    }
+    
+    return error("Failed to generate explanation");
+}
+
+// ============================================================================
+// EXAMPLE 4: Multi-Agent Negotiation
+// ============================================================================
+// Multiple AI agents debate optimal recovery strategy
+
+type AgentOpinion record {|
+    string agent_name;
+    string recommendation;
+    decimal estimated_cost;
+    decimal estimated_satisfaction;
+    string reasoning;
+|};
+
+type ConsensusDecision record {|
+    string chosen_strategy;
+    AgentOpinion[] agent_opinions;
+    string consensus_reasoning;
+    decimal confidence_score;
+|};
+
+function negotiateRecoveryStrategy(json disruptionData) returns ConsensusDecision|error {
+    // Simulate multiple AI agents with different objectives
+    
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    // Agent 1: Cost Minimizer
+    AgentOpinion costAgent = check getAgentOpinion(
+        aiClient,
+        "Cost Minimization Agent",
+        "Minimize total recovery cost while maintaining acceptable service",
+        disruptionData
+    );
+    
+    // Agent 2: Satisfaction Maximizer
+    AgentOpinion satisfactionAgent = check getAgentOpinion(
+        aiClient,
+        "Customer Satisfaction Agent",
+        "Maximize customer satisfaction regardless of cost",
+        disruptionData
+    );
+    
+    // Agent 3: Compliance Officer
+    AgentOpinion complianceAgent = check getAgentOpinion(
+        aiClient,
+        "Compliance Agent",
+        "Ensure all actions meet regulatory requirements",
+        disruptionData
+    );
+    
+    // Meta-agent: Synthesize opinions into consensus
+    AgentOpinion[] opinions = [costAgent, satisfactionAgent, complianceAgent];
+    
+    chat:CreateChatCompletionRequest consensusRequest = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are a senior airline operations manager. Synthesize multiple agent recommendations into an optimal strategy."
+            },
+            {
+                role: "user",
+                content: string `Synthesize these agent opinions into a consensus decision: ${opinions.toJsonString()}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(consensusRequest);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json consensusJson = check content.fromJsonString();
+        return {
+            chosen_strategy: check consensusJson.strategy,
+            agent_opinions: opinions,
+            consensus_reasoning: check consensusJson.reasoning,
+            confidence_score: check consensusJson.confidence
+        };
+    }
+    
+    return error("Failed to reach consensus");
+}
+
+function getAgentOpinion(
+    chat:Client aiClient,
+    string agentName,
+    string agentObjective,
+    json disruptionData
+) returns AgentOpinion|error {
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: string `You are the ${agentName}. Your objective: ${agentObjective}`
+            },
+            {
+                role: "user",
+                content: string `Recommend a recovery strategy for this disruption: ${disruptionData.toJsonString()}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json opinionJson = check content.fromJsonString();
+        return {
+            agent_name: agentName,
+            recommendation: check opinionJson.recommendation,
+            estimated_cost: check opinionJson.estimated_cost,
+            estimated_satisfaction: check opinionJson.estimated_satisfaction,
+            reasoning: check opinionJson.reasoning
+        };
+    }
+    
+    return error("Failed to get agent opinion");
+}
+
+// ============================================================================
+// EXAMPLE 5: Real-time Sentiment Analysis
+// ============================================================================
+// Monitor passenger communications and predict escalation risk
+
+type SentimentAnalysis record {|
+    string passenger_id;
+    decimal sentiment_score; // -1.0 (very negative) to 1.0 (very positive)
+    string sentiment_label; // "positive", "neutral", "negative", "critical"
+    decimal escalation_risk; // 0.0 to 1.0
+    string[] detected_issues;
+    string recommended_action;
+|};
+
+function analyzePassengerSentiment(
+    string passengerId,
+    string[] communications
+) returns SentimentAnalysis|error {
+    // Analyze emails, social media, call transcripts
+    
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    string communicationsText = string:'join("\n---\n", ...communications);
+    
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are a customer sentiment analyst. Analyze passenger communications and assess escalation risk."
+            },
+            {
+                role: "user",
+                content: string `Analyze sentiment for passenger ${passengerId}:\n\n${communicationsText}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json sentimentJson = check content.fromJsonString();
+        return check sentimentJson.cloneWithType();
+    }
+    
+    return error("Failed to analyze sentiment");
+}
+
+// ============================================================================
+// EXAMPLE 6: Automated Root Cause Analysis
+// ============================================================================
+// AI investigates disruption causes and suggests preventive measures
+
+type RootCauseAnalysis record {|
+    string disruption_id;
+    string primary_cause;
+    string[] contributing_factors;
+    string[] preventive_measures;
+    decimal recurrence_probability;
+    string detailed_analysis;
+|};
+
+function analyzeRootCause(
+    string disruptionId,
+    json disruptionHistory,
+    json systemLogs
+) returns RootCauseAnalysis|error {
+    // AI analyzes patterns across multiple data sources
+    
+    chat:Client aiClient = check new (
+        config = {auth: {token: "your-api-key"}},
+        serviceUrl = "https://api.openai.com/v1"
+    );
+    
+    chat:CreateChatCompletionRequest request = {
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "system",
+                content: "You are an airline operations analyst specializing in root cause analysis. Identify patterns and suggest preventive measures."
+            },
+            {
+                role: "user",
+                content: string `Analyze disruption ${disruptionId}. History: ${disruptionHistory.toJsonString()}. Logs: ${systemLogs.toJsonString()}`
+            }
+        ],
+        response_format: {
+            'type: "json_object"
+        }
+    };
+    
+    chat:CreateChatCompletionResponse response = check aiClient->/chat/completions.post(request);
+    string? content = response.choices[0]?.message?.content;
+    
+    if content is string {
+        json analysisJson = check content.fromJsonString();
+        return check analysisJson.cloneWithType();
+    }
+    
+    return error("Failed to analyze root cause");
+}
+
+// ============================================================================
+// HOW TO INTEGRATE THESE INTO YOUR AI AGENT
+// ============================================================================
+
+// 1. Add new tool definitions to buildTools() function in ai_agent.bal
+// 2. Add new cases to executeTool() function
+// 3. Update system prompt to describe new capabilities
+// 4. Test with natural language queries
+
+// Example: Adding predictive analysis to ai_agent.bal
+//
+// In buildTools(), add:
+// {
+//     'type: "function",
+//     'function: {
+//         name: "predict_disruptions",
+//         description: "Predict potential disruptions for a flight based on historical data and current conditions",
+//         parameters: {
+//             "type": "object",
+//             "properties": {
+//                 "flight_id": {
+//                     "type": "string",
+//                     "description": "The flight ID to analyze"
+//                 }
+//             },
+//             "required": ["flight_id"]
+//         }
+//     }
+// }
+//
+// In executeTool(), add:
+// "predict_disruptions" => {
+//     string flightId = check args.flight_id;
+//     // Get flight data from disruption service
+//     json flightData = check disruptionClient->get(string `/disruption/flights/${flightId}`);
+//     DisruptionPrediction prediction = check predictDisruptions(flightId, flightData);
+//     return prediction.toJson();
+// }

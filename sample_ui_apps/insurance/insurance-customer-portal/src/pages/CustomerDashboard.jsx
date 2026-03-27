@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAsgardeo, SignedIn, User } from '@asgardeo/react';
+import ChatAgent from '../components/ChatAgent';
+import OBOChatAgent from '../components/OBOChatAgent';
+import TokenInfoPanel from '../components/TokenInfoPanel';
+import config from '../config';
 
 export default function CustomerDashboard() {
   const { state, getAccessToken, getDecodedIdToken, isSignedIn, isLoading } = useAsgardeo();
@@ -27,15 +31,17 @@ export default function CustomerDashboard() {
         console.log('Access Token claims:', parseJwt(token));
 
         // Fetch user profile claims from userinfo endpoint
-        const userInfoRes = await fetch('https://is.wso2.com/oauth2/userinfo', {
+        const userInfoRes = await fetch(`${config.isBaseUrl}/oauth2/userinfo`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const userInfo = await userInfoRes.json();
         console.log('Userinfo claims:', userInfo);
 
+        const resolvedUsername = userInfo.username || userInfo.preferred_username || userInfo.sub || idToken.username || idToken.sub || idToken.email || userInfo.email || "Unknown User";
+        sessionStorage.setItem('insurance_username', resolvedUsername);
         setAccessToken(token);
-        setUsername(userInfo.username || userInfo.preferred_username || userInfo.email || idToken.username || idToken.email || "Unknown User");
-        setHasPremiumCoverage(scopeArray.includes("ext_privileged"));
+        setUsername(resolvedUsername);
+        setHasPremiumCoverage(scopeArray.some(s => s === "ext_privileged" || s === "ext_privileged_api_scope" || s === "privilege_external_api_scope"));
       } catch (error) {
         console.error('Error fetching token:', error);
       }
@@ -44,12 +50,12 @@ export default function CustomerDashboard() {
 
   // --- 2. API CALLS ---
   useEffect(() => {
-    if (!accessToken || !username || username === "Unknown User") return;
+    if (!accessToken || !username) return;
 
     const fetchInsuranceData = async () => {
       try {
         const [policyRes, claimsRes] = await Promise.all([
-          fetch('https://gw.wso2.com/insurancecustomerapi/1.0.0/insurance/customer/policy', {
+          fetch(`${config.customerApiBase}/insurance/customer/policy`, {
             method: 'POST',
             headers: {
               'accept': '*/*',
@@ -58,7 +64,7 @@ export default function CustomerDashboard() {
             },
             body: JSON.stringify({ username })
           }),
-          fetch('https://gw.wso2.com/insurancecustomerapi/1.0.0/insurance/customer/claims', {
+          fetch(`${config.customerApiBase}/insurance/customer/claims`, {
             method: 'POST',
             headers: {
               'accept': '*/*',
@@ -102,7 +108,9 @@ export default function CustomerDashboard() {
   }[status] || { bg: '#f1f5f9', color: '#475569' });
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
+    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', padding: '2rem' }}>
+      <TokenInfoPanel accessToken={accessToken} />
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
@@ -216,6 +224,10 @@ export default function CustomerDashboard() {
         )}
       </div>
 
+      {/* AI Chat Agent */}
+      <ChatAgent accessToken={accessToken} hasPremiumCoverage={hasPremiumCoverage} username={username} />
+      <OBOChatAgent accessToken={accessToken} username={username} />
+
       {/* Premium Section */}
       {hasPremiumCoverage ? (
         <div className="card" style={{ background: '#0d6e6e', color: 'white', border: '1px solid #0a5555' }}>
@@ -241,6 +253,7 @@ export default function CustomerDashboard() {
           <button className="btn-secondary">View Eligibility</button>
         </div>
       )}
+      </div>
     </div>
   );
 }

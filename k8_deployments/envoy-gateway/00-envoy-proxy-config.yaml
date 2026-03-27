@@ -1,0 +1,26 @@
+# EnvoyProxy — configures the Envoy data plane for the GatewayClass
+# Uses LoadBalancer so k3s svclb binds the port on the node IP (192.168.0.170).
+# Port 443 is taken by nginx ingress, so the Gateway listens on 8443 instead.
+# Access: curl -k https://envoygw.wso2.com:8443/patients
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: envoy-proxy-config
+  namespace: envoy-gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: LoadBalancer
+  telemetry:
+    accessLog:
+      settings:
+        - format:
+            type: Text
+            text: |
+              [ACCESS] %START_TIME% "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%B→%BYTES_SENT%B %DURATION%ms | jwt-sub="%REQ(x-forwarded-client-cert)%" user="%DYNAMIC_METADATA(envoy.filters.http.jwt_authn:principal_tag)%"
+          sinks:
+            - type: File
+              file:
+                path: /dev/stdout

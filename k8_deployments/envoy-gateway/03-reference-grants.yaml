@@ -1,0 +1,14 @@
+# Allow HTTPRoutes in envoy-gateway-system to reference Services in ballerina namespace
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-envoy-gw-to-patient-services
+  namespace: ballerina
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: envoy-gateway-system
+  to:
+    - group: ""
+      kind: Service

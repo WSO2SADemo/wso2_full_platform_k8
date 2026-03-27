@@ -1,0 +1,18 @@
+FROM wso2/wso2am:4.6.0
+
+# Apply port offset=3 matching Banking Demo SingleDockerImage pattern
+# Effective ports: 9446 (Console), 8246 (HTTPS GW), 8283 (HTTP GW)
+USER root
+
+# Set offset and disable hostname verification (IS cert CN=localhost, Docker uses service names)
+RUN APIM_HOME=$(find /home/wso2carbon -maxdepth 1 -name "wso2am-*" -type d | head -1) && \
+    sed -i 's/^#offset=0/offset = 3/' "$APIM_HOME/repository/conf/deployment.toml" && \
+    printf '\n[transport.https.properties]\nHostnameVerifier = "AllowAll"\n' >> "$APIM_HOME/repository/conf/deployment.toml" && \
+    printf '\n# Increase passthrough HTTP socket timeout to 5 minutes for slow LLM backends (CPU-only Ollama)\n[passthru_http]\nhttp.socket.timeout = 300000\n' >> "$APIM_HOME/repository/conf/deployment.toml"
+
+# NOTE: IS certificate import into APIM truststore is handled at runtime by
+# create_apis.sh, which exports the actual cert from the IS container and
+# imports it into APIM. This ensures the certs always match, even after IS
+# cert regeneration (the base wso2/wso2is:7.2.0 ships an expired cert).
+
+USER wso2carbon

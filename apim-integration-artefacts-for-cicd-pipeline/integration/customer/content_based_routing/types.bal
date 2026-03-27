@@ -16,3 +16,14 @@ type NotificationForwardPayload record {|
     string correlationId;
     string routedTo;
 |};
+
+public type NotificationContext record {|
+    NotificationForwardPayload forwardPayload;
+    string recipientName;
+    string correlationId;
+|};
+
+public type NotificationStatusContext record {|
+    string success;
+    string message;
+|};

@@ -1,0 +1,115 @@
+openapi: 3.0.1
+info:
+  title: CSAgentAPI
+  description: "AI-powered Customer Service Agent. Uses a local LLM (Ollama) to understand customer queries and execute operations via MCP tools sourced from existing REST APIs. Requires user-level scopes — only authenticated users or OBO-delegated tokens are accepted."
+  version: 1.0.0
+servers:
+  - url: http://cs-agent:9097/cs
+security:
+  - default: []
+paths:
+  /chat:
+    post:
+      summary: Send a natural language message to the Customer Service AI agent
+      description: "The CS agent interprets the message, determines the appropriate action (look up bookings, check flight status, find rebooking options, etc.), executes it via MCP tools, and returns a natural language response. Requires user-level authorization (user JWT or OBO token with ADR scopes)."
+      operationId: csChat
+      security:
+        - default: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: CS agent response with optional function execution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "401":
+          description: Missing or invalid user authorization — agent-only tokens are rejected
+        "403":
+          description: Token lacks required scopes
+        "500":
+          description: CS agent error
+  /health:
+    get:
+      summary: CS agent health check
+      operationId: csHealth
+      security:
+        - default: []
+      responses:
+        "200":
+          description: Health status
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "CS Agent is running"
+  /callback:
+    get:
+      summary: OBO authorization callback (internal — receives code from IS)
+      operationId: csOboCallback
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OBO callback processed
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Natural language message to the Customer Service agent
+          example: "Can you look up booking details for passenger PAX001?"
+    ChatResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          description: Natural language response from the CS agent
+        function_called:
+          type: string
+          nullable: true
+          description: Name of the MCP tool that was called (if any)
+        function_result:
+          type: object
+          nullable: true
+          description: Raw result from the MCP tool call (if any)
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://cs-agent:9097/cs
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://cs-agent:9097/cs

@@ -1,0 +1,84 @@
+openapi: "3.0.1"
+info:
+  title: "ADR-MCP-Server"
+  description: "MCP Server Proxy for ADR Flight Delay Demo - proxies MCP Streamable HTTP protocol through APIM gateway with API key authentication"
+  version: "1.0.0"
+servers:
+  - url: "http://adr-mcp-server:9096"
+    description: "Backend MCP Server"
+paths:
+  /mcp:
+    post:
+      summary: "MCP Streamable HTTP endpoint"
+      description: "Handles MCP protocol messages (JSON-RPC over HTTP). Supports initialize, tools/list, tools/call, and other MCP operations via Streamable HTTP transport."
+      operationId: "mcpStreamableHTTP"
+      requestBody:
+        description: "JSON-RPC request message"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  example: "2.0"
+                method:
+                  type: string
+                  example: "initialize"
+                id:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                params:
+                  type: object
+      responses:
+        "200":
+          description: "JSON-RPC response or SSE stream"
+          content:
+            application/json:
+              schema:
+                type: object
+            text/event-stream:
+              schema:
+                type: string
+        "202":
+          description: "Accepted (notification)"
+        "404":
+          description: "Not found"
+    get:
+      summary: "MCP SSE endpoint"
+      description: "Server-Sent Events endpoint for MCP protocol (SSE transport fallback)"
+      operationId: "mcpSSE"
+      responses:
+        "200":
+          description: "SSE event stream"
+          content:
+            text/event-stream:
+              schema:
+                type: string
+    delete:
+      summary: "MCP session termination"
+      description: "Terminates an MCP session"
+      operationId: "mcpSessionTerminate"
+      responses:
+        "200":
+          description: "Session terminated"
+components:
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: "https://localhost:9446/oauth/authorize"
+          scopes:
+            mcp:tools:read: "Read MCP tools"
+            mcp:tools:execute: "Execute MCP tools"
+security:
+  - default:
+    - mcp:tools:read
+    - mcp:tools:execute
+x-wso2-basePath: /adr-mcp/1.0.0
+x-wso2-production-endpoints:
+  urls:
+    - "http://adr-mcp-server:9096"

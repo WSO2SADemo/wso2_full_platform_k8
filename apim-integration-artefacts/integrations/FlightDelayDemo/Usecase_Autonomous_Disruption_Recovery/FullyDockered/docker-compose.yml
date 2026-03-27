@@ -1,0 +1,322 @@
+# =============================================================================
+# ADR Flight Delay Demo — Fully Dockerized Deployment
+# =============================================================================
+# Usage:
+#   docker compose up --build -d
+#   docker compose down -v
+# =============================================================================
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: adr-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: flight_delay_db
+      MYSQL_USER: adr_user
+      MYSQL_PASSWORD: adr_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../Common/Database_schemas/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -u adr_user -padr_password flight_delay_db -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    networks:
+      - adr-network
+
+  identity-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.is
+    container_name: adr-identity-server
+    ports:
+      - "9444:9444"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk -o /dev/null -w '' https://localhost:9444/carbon/admin/login.jsp || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  api-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.apim
+    container_name: adr-api-manager
+    ports:
+      - "9446:9446"
+      - "8246:8246"
+      - "8283:8283"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk -o /dev/null -w '' https://localhost:9446/services/Version || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: adr-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  disruption-detection:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: DisruptionDetection
+    container_name: adr-disruption-detection
+    ports:
+      - "9090:9090"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9090' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  crew-service:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: CrewService
+    container_name: adr-crew-service
+    ports:
+      - "9091:9091"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9091' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  passenger-service:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: PassengerService
+    container_name: adr-passenger-service
+    ports:
+      - "9092:9092"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9092' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  logistics-service:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: LogisticsService
+    container_name: adr-logistics-service
+    ports:
+      - "9093:9093"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9093' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  adr-orchestrator:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: ADROrchestrator
+    container_name: adr-orchestrator
+    ports:
+      - "9094:9094"
+    volumes:
+      - ./Config.docker.orchestrator.toml:/home/ballerina/Config.toml
+    depends_on:
+      mysql:
+        condition: service_healthy
+      disruption-detection:
+        condition: service_healthy
+      crew-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      logistics-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9094' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  admin-agent:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: AdminAgent
+    container_name: admin-agent
+    ports:
+      - "9095:9095"
+    volumes:
+      - ./Config.docker.adminagent.toml:/home/ballerina/Config.toml
+    depends_on:
+      ollama:
+        condition: service_healthy
+      adr-orchestrator:
+        condition: service_healthy
+      adr-mcp-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9095' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  adr-mcp-server:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: MCPServer
+    container_name: adr-mcp-server
+    ports:
+      - "9096:9096"
+    volumes:
+      - ./Config.docker.mcpserver.toml:/home/ballerina/Config.toml
+    depends_on:
+      disruption-detection:
+        condition: service_healthy
+      crew-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      logistics-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9096' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  cs-agent:
+    build:
+      context: ../../
+      dockerfile: Usecase_Autonomous_Disruption_Recovery/FullyDockered/Dockerfile.ballerina
+      args:
+        SERVICE_NAME: CustomerServiceAgent
+    container_name: cs-agent
+    ports:
+      - "9097:9097"
+    volumes:
+      - ./Config.docker.csagent.toml:/home/ballerina/Config.toml
+    depends_on:
+      api-manager:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9097' 2>/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+    networks:
+      - adr-network
+
+  adr-dashboard:
+    build:
+      context: ./adr-dashboard
+      dockerfile: Dockerfile
+    container_name: adr-dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      disruption-detection:
+        condition: service_healthy
+      crew-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      logistics-service:
+        condition: service_healthy
+      adr-orchestrator:
+        condition: service_healthy
+      admin-agent:
+        condition: service_healthy
+      adr-mcp-server:
+        condition: service_healthy
+      cs-agent:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - adr-network
+
+volumes:
+  mysql_data:
+  ollama_data:
+
+networks:
+  adr-network:
+    driver: bridge

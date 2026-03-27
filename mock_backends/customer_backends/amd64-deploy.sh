@@ -3,7 +3,7 @@ set -e
 
 NAMESPACE="ballerina"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE_TAG="1.0.5"
+IMAGE_TAG="1.0.7"
 
 echo "================================================"
 echo "  Deploy customer_backends"

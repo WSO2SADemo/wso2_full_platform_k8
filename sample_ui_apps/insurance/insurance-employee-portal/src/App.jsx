@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton } from '@asgardeo/react';
-import EmployeeDashboard from './pages/EmployeeDashboard';
+import EmployeePortal from './pages/EmployeePortal';
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
               </div>
             </div>
           </SignedOut>
-          <SignedIn><EmployeeDashboard /></SignedIn>
+          <SignedIn><EmployeePortal /></SignedIn>
         </>
       } />
     </Routes>

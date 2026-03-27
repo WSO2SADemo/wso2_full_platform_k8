@@ -1,0 +1,228 @@
+# Insurance Customer API - OpenAPI Specification
+
+openapi: 3.0.0
+info:
+  title: Insurance Customer API
+  description: Customer-facing API for insurance policy and claims management
+  version: 1.0.0
+servers:
+  - url: http://localhost:8082
+    description: Local development server
+
+paths:
+  /insurance/customer/policy:
+    post:
+      summary: Get policy details
+      description: Retrieve insurance policy details for a specific username
+      operationId: getPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernameRequest'
+      responses:
+        '200':
+          description: Policy details retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PolicyResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+
+  /insurance/customer/claims:
+    post:
+      summary: Get claims list
+      description: Retrieve all claims for a specific username
+      operationId: getClaims
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernameRequest'
+      responses:
+        '200':
+          description: Claims list retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Claim'
+                  - $ref: '#/components/schemas/ErrorResponse'
+
+  /insurance/customer/claims/submit:
+    post:
+      summary: Submit a new claim
+      description: Submit a new insurance claim for processing
+      operationId: submitClaim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimSubmitRequest'
+      responses:
+        '200':
+          description: Claim submitted successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    UsernameRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          description: Username of the policy holder
+          example: john_doe
+
+    ClaimSubmitRequest:
+      type: object
+      required:
+        - username
+        - claimType
+        - amount
+        - description
+      properties:
+        username:
+          type: string
+          description: Username of the policy holder
+          example: john_doe
+        claimType:
+          type: string
+          description: Type of claim
+          example: Hospitalization
+        amount:
+          type: number
+          format: decimal
+          description: Claim amount
+          example: 3200.00
+        description:
+          type: string
+          description: Description of the claim
+          example: Emergency appendix surgery
+
+    PolicyResponse:
+      type: object
+      required:
+        - policyNumber
+        - policyType
+        - coverageAmount
+        - premiumAmount
+        - startDate
+        - endDate
+        - status
+      properties:
+        policyNumber:
+          type: string
+          description: Unique policy number
+          example: POL-HEALTH-001
+        policyType:
+          type: string
+          description: Type of insurance policy
+          enum: [HEALTH, LIFE, AUTO, HOME]
+          example: HEALTH
+        coverageAmount:
+          type: number
+          format: decimal
+          description: Coverage amount
+          example: 100000.00
+        premiumAmount:
+          type: number
+          format: decimal
+          description: Premium amount
+          example: 120.00
+        startDate:
+          type: string
+          format: date
+          description: Policy start date
+          example: "2024-01-01"
+        endDate:
+          type: string
+          format: date
+          description: Policy end date
+          example: "2025-01-01"
+        status:
+          type: string
+          description: Current policy status
+          enum: [ACTIVE, EXPIRED, SUSPENDED]
+          example: ACTIVE
+
+    Claim:
+      type: object
+      required:
+        - claimId
+        - claimType
+        - amount
+        - description
+        - submittedDate
+        - status
+      properties:
+        claimId:
+          type: string
+          description: Unique claim identifier
+          example: CLM-001
+        claimType:
+          type: string
+          description: Type of claim
+          example: Hospitalization
+        amount:
+          type: number
+          format: decimal
+          description: Claim amount
+          example: 3200.00
+        description:
+          type: string
+          description: Claim description
+          example: Emergency appendix surgery
+        submittedDate:
+          type: string
+          format: date
+          description: Date claim was submitted
+          example: "2024-03-10"
+        status:
+          type: string
+          description: Current claim status
+          enum: [PENDING, APPROVED, REJECTED]
+          example: APPROVED
+
+    SuccessResponse:
+      type: object
+      required:
+        - message
+        - success
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: Claim submitted successfully
+        success:
+          type: boolean
+          enum: [true]
+          description: Success indicator
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: No policy found for username
+        errorCode:
+          type: string
+          description: Optional error code
+          nullable: true

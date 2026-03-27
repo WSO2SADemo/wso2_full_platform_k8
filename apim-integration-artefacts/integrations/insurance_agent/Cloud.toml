@@ -1,14 +1,40 @@
 [container.image]
 repository="ramilu90" # Docker hub repository name.
 name="insurance_agent" # container name
-tag="1.0.0"
+tag="1.0.17"
+
+# ── Secrets (injected as env vars, read via os:getEnv defaults in config.bal) ──
 
 [[cloud.secret.envs]]
-key_ref="mcpServerClientSecret"
+key_ref="agentAppClientSecret"
 secret_name="ballerina-insurance-agent-secrets"
 
 [[cloud.secret.envs]]
-key_ref="wso2AccessToken"
+key_ref="privilegedAgentSecret"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="agentSecret"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="mistralKey"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="mistralAccessToken"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="pineConeKey"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="wso2ProviderConfigAccessToken"
+secret_name="ballerina-insurance-agent-secrets"
+
+[[cloud.secret.envs]]
+key_ref="openAIKey"
 secret_name="ballerina-insurance-agent-secrets"
 
 [[cloud.secret.envs]]
@@ -18,6 +44,8 @@ secret_name="ballerina-insurance-agent-secrets"
 [[cloud.secret.envs]]
 key_ref="truststorePassword"
 secret_name="ballerina-insurance-agent-secrets"
+
+# ── ConfigMap (non-sensitive values via BAL_CONFIG_DATA TOML) ─────────────────
 
 [[cloud.config.envs]]
 key_ref="BAL_CONFIG_DATA"

@@ -1,0 +1,1365 @@
+{
+	"info": {
+		"_postman_id": "adr-flight-delay-demo",
+		"name": "Flight Delay Demo — Autonomous Disruption Recovery",
+		"description": "Complete Postman collection for the ADR Flight Delay Demo.\n\n**Part A — REST API Testing (Sections 1–6)**\nDirect REST calls to backend services. Run in order:\n1. Verify seed data → 2. Report delay → 3. Test individual services → 4. Trigger full ADR recovery → 5. Verify results → 6. Additional scenarios\n\n**Part B — Customer Service MCP Testing (Sections 7–11)**\nMCP tool calls via APIM gateway (generate-from-api). Two MCP servers:\n• CustomerServiceDisruptionMCP (4 tools) at /cs-disruption-mcp/1.0.0/mcp\n• CustomerServicePassengerMCP (10 tools) at /cs-passenger-mcp/1.0.0/mcp\n\nRun create_customer_service_mcp.sh to provision the MCP servers before using Part B.\n\nThe key demo endpoint is POST /adr/recover — this triggers the full multi-service recovery negotiation.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "disruption_host",
+			"value": "http://localhost:9090"
+		},
+		{
+			"key": "crew_host",
+			"value": "http://localhost:9091"
+		},
+		{
+			"key": "passenger_host",
+			"value": "http://localhost:9092"
+		},
+		{
+			"key": "logistics_host",
+			"value": "http://localhost:9093"
+		},
+		{
+			"key": "orchestrator_host",
+			"value": "http://localhost:9094"
+		},
+		{
+			"key": "apim_host",
+			"value": "https://localhost:9446"
+		},
+		{
+			"key": "gateway_http",
+			"value": "http://localhost:8283"
+		},
+		{
+			"key": "gateway_https",
+			"value": "https://localhost:8246"
+		},
+		{
+			"key": "disruption_mcp_context",
+			"value": "/cs-disruption-mcp/1.0.0/mcp"
+		},
+		{
+			"key": "passenger_mcp_context",
+			"value": "/cs-passenger-mcp/1.0.0/mcp"
+		},
+		{
+			"key": "consumer_key",
+			"value": "REPLACE_WITH_CONSUMER_KEY"
+		},
+		{
+			"key": "consumer_secret",
+			"value": "REPLACE_WITH_CONSUMER_SECRET"
+		},
+		{
+			"key": "access_token",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "1. Verify Seed Data",
+			"item": [
+				{
+					"name": "1.1 Get All Flights",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{disruption_host}}/disruption/flights",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"flights"
+							]
+						},
+						"description": "List all flights in the system. Should return 7 pre-seeded flights."
+					}
+				},
+				{
+					"name": "1.2 Get Flight FL001 (BA256 LHR→JFK)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{disruption_host}}/disruption/flights/FL001",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"flights",
+								"FL001"
+							]
+						},
+						"description": "Get details of flight BA256 (Boeing 777, 312 passengers, LHR→JFK). This is the flight we will delay."
+					}
+				},
+				{
+					"name": "1.3 Get All Crew Members",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{crew_host}}/crew/members",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"members"
+							]
+						},
+						"description": "List all crew. Note CRW006 (Thompson) has 12 duty hours — near the 14hr legal limit."
+					}
+				},
+				{
+					"name": "1.4 Get Crew Assignments for FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{crew_host}}/crew/assignments/FL001",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"assignments",
+								"FL001"
+							]
+						},
+						"description": "Crew assigned to flight FL001: Captain Wilson, FO Mitchell, Cabin Lead Chen."
+					}
+				},
+				{
+					"name": "1.5 Get Passengers on FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{passenger_host}}/passenger/bookings/FL001",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"bookings",
+								"FL001"
+							]
+						},
+						"description": "Passengers on FL001, sorted by loyalty tier. Includes Platinum (Harrington), Gold (Al-Rashid), Silver (Gonzalez), Standard (Smith)."
+					}
+				},
+				{
+					"name": "1.6 Get Available Crew at LHR",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{crew_host}}/crew/available?airport=LHR",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"available"
+							],
+							"query": [
+								{
+									"key": "airport",
+									"value": "LHR"
+								}
+							]
+						},
+						"description": "Find available crew at LHR for potential reassignment."
+					}
+				},
+				{
+					"name": "1.7 Get LHR Airport Resources",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{logistics_host}}/logistics/resources/LHR",
+							"host": [
+								"{{logistics_host}}"
+							],
+							"path": [
+								"logistics",
+								"resources",
+								"LHR"
+							]
+						},
+						"description": "Overview of LHR gates, catering, and ground handling resources."
+					}
+				},
+				{
+					"name": "1.8 Get Available Gates at LHR",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{logistics_host}}/logistics/gates/available/LHR",
+							"host": [
+								"{{logistics_host}}"
+							],
+							"path": [
+								"logistics",
+								"gates",
+								"available",
+								"LHR"
+							]
+						},
+						"description": "Available gates at LHR for potential gate changes."
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Trigger Disruption",
+			"item": [
+				{
+					"name": "2.1 Report Delay on FL001 (2 hours)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"delayMinutes\": 120,\n    \"reason\": \"Severe weather at London Heathrow — thunderstorm and reduced visibility\"\n}"
+						},
+						"url": {
+							"raw": "{{disruption_host}}/disruption/flights/FL001/delay",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"flights",
+								"FL001",
+								"delay"
+							]
+						},
+						"description": "Report a 2-hour delay on FL001 (BA256 LHR→JFK). This creates a HIGH severity disruption affecting 312 passengers."
+					}
+				},
+				{
+					"name": "2.2 Verify Active Disruptions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{disruption_host}}/disruption/delays",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"delays"
+							]
+						},
+						"description": "Verify the disruption was detected and is active."
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Individual Service Tests",
+			"item": [
+				{
+					"name": "3.1 Crew Compliance Check (Wilson — should pass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"crew_id\": \"CRW001\",\n    \"flight_id\": \"FL001\",\n    \"additional_hours\": 2.0\n}"
+						},
+						"url": {
+							"raw": "{{crew_host}}/crew/check-compliance",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"check-compliance"
+							]
+						},
+						"description": "Check if Captain Wilson (6.5 duty hours) can handle 2 more hours. Should be COMPLIANT (8.5/14)."
+					}
+				},
+				{
+					"name": "3.2 Crew Compliance Check (Thompson — should FAIL)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"crew_id\": \"CRW006\",\n    \"flight_id\": \"FL002\",\n    \"additional_hours\": 3.0\n}"
+						},
+						"url": {
+							"raw": "{{crew_host}}/crew/check-compliance",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"check-compliance"
+							]
+						},
+						"description": "Check if Captain Thompson (12.0 duty hours) can handle 3 more hours. Should be NON-COMPLIANT (15.0/14.0)."
+					}
+				},
+				{
+					"name": "3.3 Find Alternative Flights for FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{passenger_host}}/passenger/alternatives/FL001",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"alternatives",
+								"FL001"
+							]
+						},
+						"description": "Find alternative LHR→JFK flights. Should return FL006 (BA321)."
+					}
+				},
+				{
+					"name": "3.4 Compensation — Platinum Passenger (Daytime)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"passenger_id\": \"PAX001\",\n    \"flight_id\": \"FL001\",\n    \"delay_minutes\": 120,\n    \"current_hour\": 10\n}"
+						},
+						"url": {
+							"raw": "{{passenger_host}}/passenger/compensation",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"compensation"
+							]
+						},
+						"description": "Determine compensation for Platinum passenger Harrington during daytime. Should receive meal voucher ($50) + 10000 bonus miles."
+					}
+				},
+				{
+					"name": "3.5 Compensation — Platinum Passenger (Late Night)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"passenger_id\": \"PAX001\",\n    \"flight_id\": \"FL001\",\n    \"delay_minutes\": 120,\n    \"current_hour\": 23\n}"
+						},
+						"url": {
+							"raw": "{{passenger_host}}/passenger/compensation",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"compensation"
+							]
+						},
+						"description": "Determine compensation for Platinum passenger at 11 PM.\n\n🔑 KEY DEMO POINT: Traditional system would send a $10 voucher. The AI agent REASONS that shops are closed at 11 PM, so instead books a hotel ($350) + taxi ($75) + 10000 bonus miles."
+					}
+				},
+				{
+					"name": "3.6 Compensation — Standard Passenger (Late Night, 4hr delay)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"passenger_id\": \"PAX004\",\n    \"flight_id\": \"FL001\",\n    \"delay_minutes\": 240,\n    \"current_hour\": 23\n}"
+						},
+						"url": {
+							"raw": "{{passenger_host}}/passenger/compensation",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"compensation"
+							]
+						},
+						"description": "Standard passenger, 4-hour delay at 11 PM. Should trigger: hotel + taxi + 1000 miles + EU261 mandatory compensation (€600)."
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Full ADR Recovery (THE MAIN DEMO)",
+			"item": [
+				{
+					"name": "4.1 ⚡ TRIGGER AUTONOMOUS RECOVERY",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"flightId\": \"FL001\",\n    \"disruptionType\": \"DELAY\"\n}"
+						},
+						"url": {
+							"raw": "{{orchestrator_host}}/adr/recover",
+							"host": [
+								"{{orchestrator_host}}"
+							],
+							"path": [
+								"adr",
+								"recover"
+							]
+						},
+						"description": "⚡ THE MAIN DEMO ENDPOINT ⚡\n\nThis triggers the full Autonomous Disruption Recovery:\n\n1. Disruption Detection Service identifies the delay and affected passengers\n2. Crew Service checks duty hour compliance for all assigned crew\n3. Passenger Service rebooks passengers (VIPs first), sends notifications, and determines context-aware compensation\n4. Logistics Service reassigns gates, redirects catering, and creates ground handling tasks\n5. ADR Orchestrator produces a unified Recovery Plan with full negotiation log\n\nThe response includes the complete negotiation_log showing how services collaborated in milliseconds."
+					}
+				},
+				{
+					"name": "4.2 Get All Recovery Plans",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{orchestrator_host}}/adr/recovery-plans",
+							"host": [
+								"{{orchestrator_host}}"
+							],
+							"path": [
+								"adr",
+								"recovery-plans"
+							]
+						},
+						"description": "List all recovery plans generated by the ADR system."
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Verify Recovery Results",
+			"item": [
+				{
+					"name": "5.1 Verify FL001 Status (should be DELAYED)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{disruption_host}}/disruption/flights/FL001",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"flights",
+								"FL001"
+							]
+						},
+						"description": "Verify flight FL001 is now marked as DELAYED."
+					}
+				},
+				{
+					"name": "5.2 Verify Crew Assignments (check reassignments)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{crew_host}}/crew/assignments/FL001",
+							"host": [
+								"{{crew_host}}"
+							],
+							"path": [
+								"crew",
+								"assignments",
+								"FL001"
+							]
+						},
+						"description": "Check crew assignments after recovery — may include new crew if originals exceeded duty hours."
+					}
+				},
+				{
+					"name": "5.3 Verify Passenger Bookings on FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{passenger_host}}/passenger/bookings/FL001",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"bookings",
+								"FL001"
+							]
+						},
+						"description": "Check remaining passengers on FL001 after rebooking. Some may have been moved to alternative flights."
+					}
+				},
+				{
+					"name": "5.4 Verify LHR Resources After Recovery",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{logistics_host}}/logistics/resources/LHR",
+							"host": [
+								"{{logistics_host}}"
+							],
+							"path": [
+								"logistics",
+								"resources",
+								"LHR"
+							]
+						},
+						"description": "Check airport resources after recovery — gate changes, new ground handling tasks, etc."
+					}
+				},
+				{
+					"name": "5.5 Verify Catering Orders for FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{logistics_host}}/logistics/catering/FL001",
+							"host": [
+								"{{logistics_host}}"
+							],
+							"path": [
+								"logistics",
+								"catering",
+								"FL001"
+							]
+						},
+						"description": "Check if catering orders were redirected to the new gate."
+					}
+				},
+				{
+					"name": "5.6 Verify Ground Handling Tasks for FL001",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{logistics_host}}/logistics/ground-tasks/FL001",
+							"host": [
+								"{{logistics_host}}"
+							],
+							"path": [
+								"logistics",
+								"ground-tasks",
+								"FL001"
+							]
+						},
+						"description": "Check new ground handling tasks created during recovery (baggage transfers, gate changes)."
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Additional Scenarios",
+			"item": [
+				{
+					"name": "6.1 Report Delay on FL002 (BA123 LHR→CDG)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"delayMinutes\": 180,\n    \"reason\": \"Technical fault — hydraulic system inspection required\"\n}"
+						},
+						"url": {
+							"raw": "{{disruption_host}}/disruption/flights/FL002/delay",
+							"host": [
+								"{{disruption_host}}"
+							],
+							"path": [
+								"disruption",
+								"flights",
+								"FL002",
+								"delay"
+							]
+						},
+						"description": "Report a 3-hour delay on FL002 (BA123 LHR→CDG).\n\n🔑 INTERESTING: Captain Thompson (CRW006) has 12 duty hours — the Crew Agent will flag her as NON-COMPLIANT and find replacement Captain Rodriguez (CRW004, only 2 duty hours)."
+					}
+				},
+				{
+					"name": "6.2 ⚡ Recover FL002",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"flightId\": \"FL002\",\n    \"disruptionType\": \"DELAY\"\n}"
+						},
+						"url": {
+							"raw": "{{orchestrator_host}}/adr/recover",
+							"host": [
+								"{{orchestrator_host}}"
+							],
+							"path": [
+								"adr",
+								"recover"
+							]
+						},
+						"description": "Trigger recovery for FL002. Watch the negotiation log — the Crew Service will flag non-compliant crew and the ADR Orchestrator will find replacements."
+					}
+				},
+				{
+					"name": "6.3 Rebook Individual Passenger",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"passenger_id\": \"PAX005\",\n    \"original_flight_id\": \"FL002\",\n    \"new_flight_id\": \"FL003\"\n}"
+						},
+						"url": {
+							"raw": "{{passenger_host}}/passenger/rebook",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"rebook"
+							]
+						},
+						"description": "Manually rebook Platinum passenger Tanaka from FL002 to FL003 (BA125, same route). Note auto-upgrade to BUSINESS class due to Platinum tier."
+					}
+				},
+				{
+					"name": "6.4 Send Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"passenger_id\": \"PAX001\",\n    \"notification_type\": \"SMS\",\n    \"message\": \"Dear Elizabeth, your flight BA256 has been rebooked to BA321 departing at 15:00. Your new gate is D05. A hotel room and taxi have been arranged.\"\n}"
+						},
+						"url": {
+							"raw": "{{passenger_host}}/passenger/notify",
+							"host": [
+								"{{passenger_host}}"
+							],
+							"path": [
+								"passenger",
+								"notify"
+							]
+						},
+						"description": "Send a manual notification to a passenger."
+					}
+				}
+			]
+		},
+		{
+			"name": "7. MCP Auth (Get Access Token)",
+			"item": [
+				{
+					"name": "Get Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"    pm.test('Token obtained', function() { pm.expect(jsonData.access_token).to.be.a('string'); });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": "{{apim_host}}/oauth2/token",
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{consumer_key}}"
+								},
+								{
+									"key": "password",
+									"value": "{{consumer_secret}}"
+								}
+							]
+						},
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "client_credentials"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "8. MCP Protocol (Initialize & List Tools)",
+			"item": [
+				{
+					"name": "MCP Initialize",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-06-18\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"postman-test\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "MCP Tools List",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "9. MCP DisruptionDetection Tools (4 tools)",
+			"item": [
+				{
+					"name": "getFlights — List all flights",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 10,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getFlights\",\n    \"arguments\": {}\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getFlightById — Flight FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 11,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getFlightById\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getFlightSeats — Seats on FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 12,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getFlightSeats\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getActiveDisruptions — Active disruptions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 13,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getActiveDisruptions\",\n    \"arguments\": {}\n  }\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "10. MCP PassengerService Tools (10 tools)",
+			"item": [
+				{
+					"name": "getBookingsByFlight — Bookings on FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 20,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getBookingsByFlight\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getAllBookings — All bookings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 21,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getAllBookings\",\n    \"arguments\": {}\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getPassengerById — Passenger PAX001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 22,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getPassengerById\",\n    \"arguments\": {\n      \"passengerId\": \"PAX001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getPassengerHistory — History for PAX001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 23,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getPassengerHistory\",\n    \"arguments\": {\n      \"passengerId\": \"PAX001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getAlternativeFlights — Alternatives for FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 24,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getAlternativeFlights\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "getAlternativeFlightsDetailed — Detailed alternatives FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 25,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getAlternativeFlightsDetailed\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "evaluateRebook — Evaluate rebook PAX001 on FL001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 26,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"evaluateRebook\",\n    \"arguments\": {\n      \"passengerId\": \"PAX001\",\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "rebookPassenger — Rebook PAX001 to FL003",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 27,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"rebookPassenger\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"original_flight_id\": \"FL001\",\n      \"new_flight_id\": \"FL003\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "notifyPassenger — Notify PAX001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 28,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"notifyPassenger\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"notification_type\": \"rebooking\",\n      \"message\": \"You have been rebooked to FL003 departing at 14:00.\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "processCompensation — Compensate PAX001",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 29,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"processCompensation\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"flight_id\": \"FL001\",\n      \"delay_minutes\": 120,\n      \"current_hour\": 14\n    }\n  }\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "11. MCP Customer Service Scenario (E2E)",
+			"description": "End-to-end customer service workflow: customer reports delayed flight → agent investigates → rebbooks → compensates → notifies",
+			"item": [
+				{
+					"name": "Step 1: Check flight status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 100,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getFlightById\",\n    \"arguments\": {\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 2: Check disruptions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{disruption_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 101,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getActiveDisruptions\",\n    \"arguments\": {}\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 3: Look up passenger",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 102,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"getPassengerById\",\n    \"arguments\": {\n      \"passengerId\": \"PAX001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 4: Find alternatives",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 103,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"evaluateRebook\",\n    \"arguments\": {\n      \"passengerId\": \"PAX001\",\n      \"flightId\": \"FL001\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 5: Rebook passenger",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 104,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"rebookPassenger\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"original_flight_id\": \"FL001\",\n      \"new_flight_id\": \"FL003\"\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 6: Process compensation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 105,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"processCompensation\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"flight_id\": \"FL001\",\n      \"delay_minutes\": 120,\n      \"current_hour\": 14\n    }\n  }\n}"
+						}
+					}
+				},
+				{
+					"name": "Step 7: Notify passenger",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json, text/event-stream"
+							}
+						],
+						"url": "{{gateway_http}}{{passenger_mcp_context}}",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 106,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"notifyPassenger\",\n    \"arguments\": {\n      \"passenger_id\": \"PAX001\",\n      \"notification_type\": \"rebooking\",\n      \"message\": \"Dear passenger, you have been rebooked from FL001 to FL003. Compensation of $250 has been processed to your account. We apologize for the inconvenience.\"\n    }\n  }\n}"
+						}
+					}
+				}
+			]
+		}
+	]
+}

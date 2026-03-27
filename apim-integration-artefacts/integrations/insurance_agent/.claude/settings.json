@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openssl s_client -connect gw.wso2.com:443 -servername gw.wso2.com)",
+      "Bash(openssl x509:*)",
+      "Read(//Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/create_deployments/**)"
+    ]
+  }
+}

@@ -69,10 +69,10 @@ deployment:
     # -- Container image registry host name ramilu90/wso2is-amd64:7.2.0
 
     registry: "ramilu90"
-    # repository: "wso2is-arm"
-    # digest: "sha256:a02d671eb05b9d84f21a92b548265bb06a1f095de0bacc37ce966efc0b244094"
-    repository: "wso2is-amd64"
-    digest: "sha256:0bc356a838dc3f4eae1c00e633e11cceaffbd9d24b8d3cb35a3f07a27ba15a53"
+    repository: "wso2is-arm"
+    digest: "sha256:a02d671eb05b9d84f21a92b548265bb06a1f095de0bacc37ce966efc0b244094"
+    # repository: "wso2is-amd64"
+    # digest: "sha256:0bc356a838dc3f4eae1c00e633e11cceaffbd9d24b8d3cb35a3f07a27ba15a53"
     # -- Container image tag. Either "tag" or "digest" should defined
     tag: "7.2.0"
     # -- Refer to the Kubernetes documentation on updating images (Ref: https://kubernetes.io/docs/concepts/containers/images/#updating-images)

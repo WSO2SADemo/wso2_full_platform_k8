@@ -1,0 +1,10 @@
+[package]
+org = "amilaja"
+name = "nativecustomerserviceagent"
+version = "0.1.0"
+distribution = "2201.13.1"
+title = "NativeCustomerServiceAgent"
+
+[build-options]
+observabilityIncluded = true
+sticky = true

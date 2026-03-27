@@ -3,15 +3,23 @@ import { CFG } from '../config';
 import { authHeaders } from '../auth';
 import { apiFetch } from '../utils';
 import { ResponseBox } from './ResponseBox';
+import { QueueMonitor } from './QueueMonitor';
 
 const ROUTING_MAP = {
-  AFA: 'AFA → DNE Calculator (Add)',
+  AFA:     'AFA → DNE Calculator (Add)',
   Folksam: (amount) =>
     amount > 50000
       ? 'Folksam high-value → DNE Calculator (Multiply)'
       : 'Folksam standard → Oorsprong CountryInfo',
-  Alfa: 'Alfa → LearnWebServices (Hello)',
+  Alfa:    'Alfa → LearnWebServices (Hello)',
+  Skandia: 'Skandia → Unavailable backend (triggers error handling)',
 };
+
+const CBR_QUEUES = [
+  { name: 'contentbasedrouting.order-failure',    label: 'Order Failure',    colorClass: 'queue-count-error' },
+  { name: 'contentbasedrouting.order-replay',     label: 'Order Replay',     colorClass: 'queue-count-warn'  },
+  { name: 'contentbasedrouting.order-deadletter', label: 'Dead Letter',      colorClass: 'queue-count-warn'  },
+];
 
 function getRoute(sender, amount) {
   const r = ROUTING_MAP[sender];
@@ -107,6 +115,7 @@ export function ContentBasedRouting() {
               <option value="AFA">AFA</option>
               <option value="Folksam">Folksam</option>
               <option value="Alfa">Alfa</option>
+              <option value="Skandia">Skandia (unavailable)</option>
             </select>
           </div>
           <div className="field">
@@ -173,6 +182,12 @@ export function ContentBasedRouting() {
 
         {result && <ResponseBox status={result.status} body={result.body} />}
       </div>
+
+      <QueueMonitor
+        queues={CBR_QUEUES}
+        failureQueue="contentbasedrouting.order-failure"
+        replayQueue="contentbasedrouting.order-replay"
+      />
     </div>
   );
 }

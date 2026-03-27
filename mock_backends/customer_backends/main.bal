@@ -17,20 +17,34 @@ listener http:Listener fund10Listener = check new http:Listener(9100); // empty
 listener http:Listener fund11Listener = check new http:Listener(9101); // notification receiver (store-and-forward backend)
 
 // ─── Mock member database (shared across all funds) ───────────────────────────
-// A person may be registered in at most one fund; others return empty or error.
+// personId format: bare personnummer without country prefix (e.g. "199001011234")
 
 final map<MemberInfo> & readonly memberDatabase = {
-    "SE199001011234": {fund: "", personId: "SE199001011234", status: "ACTIVE", registeredSince: "2015-06-01", memberType: "FULL"},
-    "SE198505152345": {fund: "", personId: "SE198505152345", status: "ACTIVE", registeredSince: "2018-03-10", memberType: "PART_TIME"},
-    "SE197212203456": {fund: "", personId: "SE197212203456", status: "INACTIVE", registeredSince: "2010-01-15", memberType: "FULL"},
-    "SE200102044567": {fund: "", personId: "SE200102044567", status: "ACTIVE", registeredSince: "2022-09-01", memberType: "STUDENT"}
+    "199001011234": {fund: "", personId: "199001011234", status: "ACTIVE", registeredSince: "2015-06-01", memberType: "FULL"},
+    "198505152345": {fund: "", personId: "198505152345", status: "ACTIVE", registeredSince: "2018-03-10", memberType: "PART_TIME"},
+    "197212203456": {fund: "", personId: "197212203456", status: "INACTIVE", registeredSince: "2010-01-15", memberType: "FULL"},
+    "200102044567": {fund: "", personId: "200102044567", status: "ACTIVE", registeredSince: "2022-09-01", memberType: "STUDENT"}
+};
+
+// ─── Fund registration: which fund(s) each person is registered in ─────────────
+// Each person is registered in at most 1-2 funds for demo variety.
+// Empty array = not registered anywhere; use fund name strings matching the
+// fundName parameter passed to buildMemberInfo().
+
+final map<string[]> & readonly fundRegistrations = {
+    "199001011234": ["AEA", "Kommunal"],
+    "198505152345": ["Unionen"],
+    "197212203456": ["IF Metall"],
+    "200102044567": ["Akademikernas"]
 };
 
 // ─── Helper: build a valid MemberInfo for a specific fund ─────────────────────
+// Returns a result only if the person is registered in the given fund.
 
 function buildMemberInfo(string fundName, string personId) returns MemberInfo? {
     MemberInfo? base = memberDatabase[personId];
-    if base is MemberInfo {
+    string[]? registeredFunds = fundRegistrations[personId];
+    if base is MemberInfo && registeredFunds is string[] && registeredFunds.indexOf(fundName) != () {
         return {
             fund: fundName,
             personId: base.personId,
@@ -57,7 +71,7 @@ service /lookup on fund1Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "AEA"});
         return empty;
     }
 
@@ -81,7 +95,7 @@ service /lookup on fund2Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Unionen"});
         return empty;
     }
 }
@@ -101,7 +115,7 @@ service /lookup on fund3Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Akademikernas"});
         return empty;
     }
 }
@@ -121,7 +135,7 @@ service /lookup on fund4Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "IF Metall"});
         return empty;
     }
 }
@@ -141,7 +155,7 @@ service /lookup on fund5Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Kommunal"});
         return empty;
     }
 }
@@ -161,7 +175,7 @@ service /lookup on fund6Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Handels"});
         return empty;
     }
 }
@@ -181,7 +195,7 @@ service /lookup on fund7Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Vision"});
         return empty;
     }
 }
@@ -201,7 +215,7 @@ service /lookup on fund8Listener {
         }
         http:Response empty = new;
         empty.statusCode = 200;
-        empty.setJsonPayload({});
+        empty.setJsonPayload({fund: "Transport"});
         return empty;
     }
 }
@@ -232,8 +246,7 @@ service /lookup on fund10Listener {
     }
 
     resource function get .(string personId) returns json {
-        // Person not registered – return empty object (blank response)
-        return {};
+        return {fund: "Fastighets"};
     }
 }
 

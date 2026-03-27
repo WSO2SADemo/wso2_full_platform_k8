@@ -1,0 +1,140 @@
+openapi: 3.0.1
+info:
+  title: ADROrchestratorAPI
+  description: "Orchestrates autonomous disruption recovery across all agents for the ADR Flight Delay Demo."
+  version: 1.0.0
+servers:
+  - url: http://adr-orchestrator:9094/adr
+security:
+  - default: []
+paths:
+  /recover:
+    post:
+      summary: Trigger autonomous disruption recovery
+      operationId: triggerRecovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryRequest"
+      responses:
+        "200":
+          description: Recovery summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoverySummary"
+  /recovery-plans:
+    get:
+      summary: List all recovery plans
+      operationId: getRecoveryPlans
+      responses:
+        "200":
+          description: List of recovery plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecoveryPlan"
+  /recovery-plans/{id}:
+    get:
+      summary: Get recovery plan details
+      operationId: getRecoveryPlanById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recovery plan details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryPlan"
+        "404":
+          description: Recovery plan not found
+components:
+  schemas:
+    RecoveryRequest:
+      type: object
+      required:
+        - flightId
+        - disruptionType
+      properties:
+        flightId:
+          type: string
+          example: FL001
+        disruptionType:
+          type: string
+          example: DELAY
+    RecoverySummary:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        flight_id:
+          type: string
+        disruption_id:
+          type: string
+        status:
+          type: string
+        disruption:
+          type: object
+        crew:
+          type: object
+        passengers:
+          type: object
+        logistics:
+          type: object
+        negotiation_log:
+          type: array
+          items:
+            type: string
+        estimated_cost:
+          type: number
+        message:
+          type: string
+    RecoveryPlan:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        flight_id:
+          type: string
+        disruption_id:
+          type: string
+        status:
+          type: string
+        crew_actions:
+          type: string
+        passenger_actions:
+          type: string
+        logistics_actions:
+          type: string
+        estimated_cost:
+          type: number
+        created_at:
+          type: string
+        completed_at:
+          type: string
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://adr-orchestrator:9094/adr
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://adr-orchestrator:9094/adr

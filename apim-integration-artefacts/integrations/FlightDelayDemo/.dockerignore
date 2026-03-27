@@ -1,0 +1,6 @@
+**/target/
+**/Dependencies/
+**/.git
+**/.gitignore
+**/*.md
+**/postman_collection/

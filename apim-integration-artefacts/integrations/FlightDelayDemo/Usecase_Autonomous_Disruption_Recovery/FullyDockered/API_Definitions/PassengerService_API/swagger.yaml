@@ -1,0 +1,448 @@
+openapi: 3.0.1
+info:
+  title: PassengerServiceAPI
+  description: "Handles intelligent passenger rebooking, VIP-aware compensation, and proactive notifications for the ADR Flight Delay Demo."
+  version: 1.0.0
+servers:
+  - url: http://passenger-service:9092/passenger
+security:
+  - default: []
+paths:
+  /bookings/{flightId}:
+    get:
+      summary: Get bookings for a flight
+      operationId: getBookingsByFlight
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bookings with passenger details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingWithPassenger"
+  /all-bookings:
+    get:
+      summary: Get all bookings
+      operationId: getAllBookings
+      responses:
+        "200":
+          description: List of all bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingWithPassenger"
+  /{id}:
+    get:
+      summary: Get passenger details
+      operationId: getPassengerById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Passenger details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passenger"
+        "404":
+          description: Passenger not found
+  /history/{passengerId}:
+    get:
+      summary: Get passenger flight history
+      operationId: getPassengerHistory
+      parameters:
+        - name: passengerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of flight history entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PassengerFlightHistory"
+  /alternatives/{flightId}:
+    get:
+      summary: Get alternative flights for rebooking
+      operationId: getAlternativeFlights
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of alternative flights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlternativeFlight"
+  /alternatives-detailed/{flightId}:
+    get:
+      summary: Get detailed alternative flights with seat breakdown
+      operationId: getAlternativeFlightsDetailed
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Detailed alternative flights with per-class seat availability
+          content:
+            application/json:
+              schema:
+                type: object
+  /evaluate-rebook/{passengerId}/{flightId}:
+    get:
+      summary: Evaluate rebooking options for a passenger
+      operationId: evaluateRebook
+      parameters:
+        - name: passengerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rebooking evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RebookingEvaluation"
+  /rebook:
+    post:
+      summary: Rebook a passenger to a different flight
+      operationId: rebookPassenger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RebookRequest"
+      responses:
+        "200":
+          description: Rebooking result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RebookResult"
+  /notify:
+    post:
+      summary: Send notification to a passenger
+      operationId: notifyPassenger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotifyRequest"
+      responses:
+        "200":
+          description: Notification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotifyResult"
+  /compensation:
+    post:
+      summary: Process compensation for a passenger
+      operationId: processCompensation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompensationRequest"
+      responses:
+        "200":
+          description: Compensation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompensationResult"
+components:
+  schemas:
+    Passenger:
+      type: object
+      properties:
+        passenger_id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        loyalty_tier:
+          type: string
+        loyalty_points:
+          type: integer
+        special_needs:
+          type: string
+    BookingWithPassenger:
+      type: object
+      properties:
+        booking_id:
+          type: string
+        passenger_id:
+          type: string
+        flight_id:
+          type: string
+        seat_number:
+          type: string
+        booking_class:
+          type: string
+        status:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        loyalty_tier:
+          type: string
+        loyalty_points:
+          type: integer
+        special_needs:
+          type: string
+    RebookRequest:
+      type: object
+      required:
+        - passenger_id
+        - original_flight_id
+        - new_flight_id
+      properties:
+        passenger_id:
+          type: string
+        original_flight_id:
+          type: string
+        new_flight_id:
+          type: string
+        preferred_class:
+          type: string
+    RebookResult:
+      type: object
+      properties:
+        passenger_id:
+          type: string
+        passenger_name:
+          type: string
+        original_flight_id:
+          type: string
+        new_flight_id:
+          type: string
+        new_booking_id:
+          type: string
+        booking_class:
+          type: string
+        loyalty_tier:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        seat_confirmed:
+          type: boolean
+    NotifyRequest:
+      type: object
+      required:
+        - passenger_id
+        - notification_type
+        - message
+      properties:
+        passenger_id:
+          type: string
+        notification_type:
+          type: string
+        message:
+          type: string
+    NotifyResult:
+      type: object
+      properties:
+        notification_id:
+          type: string
+        passenger_id:
+          type: string
+        passenger_name:
+          type: string
+        notification_type:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+    CompensationRequest:
+      type: object
+      required:
+        - passenger_id
+        - flight_id
+        - delay_minutes
+        - current_hour
+      properties:
+        passenger_id:
+          type: string
+        flight_id:
+          type: string
+        delay_minutes:
+          type: integer
+        current_hour:
+          type: integer
+        no_alternatives_available:
+          type: boolean
+    CompensationResult:
+      type: object
+      properties:
+        passenger_id:
+          type: string
+        passenger_name:
+          type: string
+        loyalty_tier:
+          type: string
+        flight_id:
+          type: string
+        compensations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompensationItem"
+        reasoning:
+          type: string
+        total_value:
+          type: number
+        triggered_by_no_availability:
+          type: boolean
+    CompensationItem:
+      type: object
+      properties:
+        compensation_type:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        description:
+          type: string
+    AlternativeFlight:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        airline:
+          type: string
+        flight_number:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        scheduled_departure:
+          type: string
+        scheduled_arrival:
+          type: string
+        passenger_count:
+          type: integer
+        available_seats:
+          type: integer
+        status:
+          type: string
+    PassengerFlightHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        passenger_id:
+          type: string
+        flight_id:
+          type: string
+        booking_id:
+          type: string
+        action:
+          type: string
+        seat_class:
+          type: string
+        seat_number:
+          type: string
+        notes:
+          type: string
+        created_at:
+          type: string
+    RebookingEvaluation:
+      type: object
+      properties:
+        passenger_id:
+          type: string
+        passenger_name:
+          type: string
+        loyalty_tier:
+          type: string
+        original_flight_id:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/RebookOption"
+        recommendation:
+          type: string
+        compensation_needed:
+          type: boolean
+        compensation_reason:
+          type: string
+    RebookOption:
+      type: object
+      properties:
+        flight_id:
+          type: string
+        flight_number:
+          type: string
+        scheduled_departure:
+          type: string
+        recommended_class:
+          type: string
+        available_in_class:
+          type: integer
+        priority_score:
+          type: string
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://localhost:9446/oauth2/authorize
+          scopes: {}
+x-wso2-application-security:
+  security-types:
+    - oauth2
+  optional: false
+x-wso2-production-endpoints:
+  urls:
+    - http://passenger-service:9092/passenger
+x-wso2-sandbox-endpoints:
+  urls:
+    - http://passenger-service:9092/passenger

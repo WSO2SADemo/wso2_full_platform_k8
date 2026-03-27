@@ -1,0 +1,7 @@
+[container.image]
+name = "logistics-service"
+tag = "0.1.0"
+
+[[container.copy.files]]
+sourceFile = "../Config.toml"
+target = "./Config.toml"

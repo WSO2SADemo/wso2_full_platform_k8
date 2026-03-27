@@ -6,43 +6,123 @@ A Ballerina integration that implements a **3-step sequential service orchestrat
 
 ## Architecture
 
+### Happy Path
+
 ```
-POST /orders/process
-{ customerId, items: [{ productId, quantity }] }
+Caller
+  │
+  │  POST /orders/process  { customerId, items[] }
+  ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│               error_handling_integration  (port 9086)                │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐     │
+│  │           xlibb/pipeline HandlerChain                       │     │
+│  │           "customer-profile-pipeline"                       │     │
+│  │                                                             │     │
+│  │  ┌─────────────────────────────────────────────────────┐   │     │
+│  │  │ [Processor 1]  step1_getCustomerProfile             │   │     │
+│  │  │                                                     │   │     │
+│  │  │  GET /customer/profile/{customerId}  ────────────► Customer   │
+│  │  │                                                  Profile Svc  │
+│  │  │  ◄─────────────────────────────────────────────  (:9110)  │   │
+│  │  │  { name, tier, creditLimit, shippingAddress }           │   │     │
+│  │  └───────────────────────┬─────────────────────────────────┘   │     │
+│  │                          │  CustomerProfile + OrderRequest       │     │
+│  │                          ▼                                      │     │
+│  │  ┌─────────────────────────────────────────────────────┐   │     │
+│  │  │ [Processor 2]  mapTierToSegment  (value mapping)    │   │     │
+│  │  │                                                     │   │     │
+│  │  │   GOLD   ──────────────────────►  PREMIUM           │   │     │
+│  │  │   SILVER ──────────────────────►  STANDARD          │   │     │
+│  │  │   *      ──────────────────────►  BASIC             │   │     │
+│  │  │                                                     │   │     │
+│  │  │   (no network call – pure transformation)           │   │     │
+│  │  └───────────────────────┬─────────────────────────────┘   │     │
+│  │                          │  TransformedPricingRequest        │     │
+│  │                          │  { items, customerSegment,        │     │
+│  │                          │    creditLimit, profile }         │     │
+│  │                          ▼                                      │     │
+│  │  ┌─────────────────────────────────────────────────────┐   │     │
+│  │  │ [Processor 3]  step2_calculatePricing               │   │     │
+│  │  │                                                     │   │     │
+│  │  │  POST /pricing/calculate  ───────────────────────► Pricing   │
+│  │  │  { items, customerSegment, creditLimit }           Svc       │
+│  │  │                                                  (:9112)  │   │
+│  │  │  ◄───────────────────────────────────────────────          │   │
+│  │  │  { grandTotal, discountPct, paymentTerms, lineItems }      │   │
+│  │  └───────────────────────┬─────────────────────────────────┘   │     │
+│  │                          │  PurchasePipelineContext             │     │
+│  │                          │  { pricing, profile, correlationId } │     │
+│  │                          ▼                                      │     │
+│  │  ┌─────────────────────────────────────────────────────┐   │     │
+│  │  │ [Destination]  step3_doPurchase                     │   │     │
+│  │  │                retry: maxRetries=3, interval=30s    │   │     │
+│  │  │                                                     │   │     │
+│  │  │  POST /purchase/confirm  ────────────────────────► Purchase  │
+│  │  │  { lineItems, grandTotal, paymentTerms,           Svc        │
+│  │  │    customerId, customerTier }                    (:9113)  │   │
+│  │  │                                                             │   │
+│  │  │  ◄───────────────────────────────────────────────          │   │
+│  │  │  { purchaseId, status, deliveryDate, trackingRef }         │   │
+│  │  └─────────────────────────────────────────────────────┘   │     │
+│  └─────────────────────────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────────────┘
+  │
+  │  HTTP 200  { purchaseId, status, deliveryDate, trackingRef }
+  ▼
+Caller
+```
+
+### Failure & Replay Path
+
+When `step3_doPurchase` fails (Purchase Service unreachable or HTTP 4xx/5xx), the pipeline retries automatically. If all retries are exhausted, the original message is persisted to RabbitMQ for manual replay.
+
+```
+step3_doPurchase (Destination)
+Purchase Service (:9113) fails
          │
+         │  xlibb/pipeline retries up to 3×  (30 s intervals)
+         │  all retries exhausted
          ▼
-┌─────────────────────────────────────┐
-│  Step 1 – Customer Profile Service  │  GET /customer/profile/{customerId}
-│  port 9110                          │  → CustomerProfile { tier, creditLimit, ... }
-└────────────────────┬────────────────┘
-                     │  [Transform] tier (GOLD|SILVER|BRONZE)
-                     │             → customerSegment (PREMIUM|STANDARD|BASIC)
-                     ▼
-┌─────────────────────────────────────┐
-│  Step 2 – Pricing Service           │  POST /pricing/calculate
-│  port 9112                          │  → PricingResult { grandTotal, paymentTerms, lineItems, ... }
-└────────────────────┬────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────┐
-│  Step 3 – Purchase Service          │  POST /purchase/confirm
-│  port 9113                          │  → PurchaseConfirmation { purchaseId, deliveryDate, ... }
-└─────────────────────────────────────┘
-         │
-         ▼
-PurchaseConfirmation returned to caller
+┌──────────────────────────────┐
+│  RabbitMQ                    │
+│  errorhandling.order-failure │ ◄──── operator / demo UI inspects here
+└──────────────┬───────────────┘
+               │
+               │  "Move to Order Replay" button in demo UI
+               │  (or manual shovel via RabbitMQ Management API)
+               ▼
+┌──────────────────────────────┐
+│  RabbitMQ                    │
+│  errorhandling.order-replay  │
+└──────────────┬───────────────┘
+               │
+               │  replayListenerConfig picks up message
+               │  pipeline re-executes from Step 1
+               │
+       ┌───────┴──────────┐
+       │ success           │ still failing after 3× retries
+       ▼                   ▼
+HTTP 200              ┌──────────────────────────────┐
+to caller             │  RabbitMQ                    │
+(if sync)             │  errorhandling.order-        │
+                      │  deadletter                  │
+                      └──────────────────────────────┘
 ```
 
 ### Pipeline internals (`xlibb/pipeline`)
 
-| Role | Function | Description |
-|------|----------|-------------|
-| Processor | `step1_getCustomerProfile` | Calls Customer Profile Service, returns `PricingPipelineContext` |
-| Processor | `mapTierToSegment` | Value-maps `GOLD→PREMIUM`, `SILVER→STANDARD`, `BRONZE→BASIC` |
-| Processor | `step2_calculatePricing` | Calls Pricing Service, returns `PurchasePipelineContext` |
-| Destination | `step3_doPurchase` | Calls Purchase Service, returns `PurchaseConfirmation` |
+| Role | Function | Behaviour on error |
+|------|----------|--------------------|
+| Processor | `step1_getCustomerProfile` | Propagates error immediately — no retry |
+| Processor | `mapTierToSegment` | Propagates error immediately — no retry |
+| Processor | `step2_calculatePricing` | Propagates error immediately — no retry |
+| Destination | `step3_doPurchase` | Retried up to **3×** with **30 s** interval, then → failure queue |
 
-Failed executions are written to `errorhandling.order-failure` (RabbitMQ). After configured retries the message moves to `errorhandling.order-deadletter`.
+> **Processors fail fast.** Only the Destination step has retry semantics. If Steps 1–3 fail (e.g. Customer Profile Service down), the error is returned directly to the caller with HTTP 500.
+
+Failed Destination executions are written to `errorhandling.order-failure`. Messages moved to `errorhandling.order-replay` trigger a full pipeline re-run. Messages that exhaust retries on replay go to `errorhandling.order-deadletter`.
 
 ---
 

@@ -1,0 +1,76 @@
+# JWKS Proxy — nginx that proxies Envoy's HTTP request to IS JWKS over HTTPS (TLS skip internally)
+# Avoids the need to configure TLS certs in Envoy Gateway for the JWKS fetch.
+# Envoy → HTTP → jwks-proxy → HTTPS (skip verify) → IS /oauth2/jwks
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jwks-proxy-config
+  namespace: envoy-gateway-system
+data:
+  default.conf: |
+    server {
+      listen 80;
+      location /oauth2/jwks {
+        proxy_pass https://wso2is-identity-server.iam.svc.cluster.local:9443/oauth2/jwks;
+        proxy_ssl_verify off;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jwks-proxy
+  namespace: envoy-gateway-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jwks-proxy
+  template:
+    metadata:
+      labels:
+        app: jwks-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d/
+      volumes:
+        - name: config
+          configMap:
+            name: jwks-proxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jwks-proxy
+  namespace: envoy-gateway-system
+spec:
+  selector:
+    app: jwks-proxy
+  ports:
+    - port: 80
+      targetPort: 80
+---
+# SecurityPolicy — enforce JWT validation on all patient API routes
+# JWKS fetched via in-cluster HTTP proxy (no TLS complexity on Envoy side)
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: patient-apis-jwt-auth
+  namespace: envoy-gateway-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: patient-apis
+  jwt:
+    providers:
+      - name: wso2-is
+        issuer: "https://is.wso2.com/oauth2/token"
+        remoteJWKS:
+          uri: "http://jwks-proxy.envoy-gateway-system.svc.cluster.local/oauth2/jwks"
