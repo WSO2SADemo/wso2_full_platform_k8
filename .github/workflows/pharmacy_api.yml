@@ -38,7 +38,7 @@ jobs:
 
       - name: Login to APIM CP
         run: |
-          apictl login prod -u ${{ secrets.APIM_USERNAME }} -p ${{ secrets.APIM_PASSWORD }} --insecure
+          apictl login prod -u admin -p admin --insecure
 
       - name: Check if API Exists in APIM
         id: check_api
