@@ -29,6 +29,13 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Check connectivity
+        run: |
+          echo "Resolving cp.wso2.com..."
+          nslookup cp.wso2.com || true
+          echo "Pinging cp.wso2.com..."
+          curl -sk -o /dev/null -w "HTTP status: %{http_code}\n" https://cp.wso2.com/oauth2/token || echo "curl failed"
+
       - name: Configure Prod Environment
         run: |
           echo "⚙️ Configuring APIM environment..."
