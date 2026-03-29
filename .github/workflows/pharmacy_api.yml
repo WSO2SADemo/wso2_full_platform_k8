@@ -21,8 +21,8 @@ jobs:
 
       - name: Install apictl
         run: |
-          wget https://github.com/wso2/product-apim-tooling/releases/download/v4.6.0/apictl-4.6.0-linux-amd64.tar.gz
-          tar -xzf apictl-4.6.0-linux-amd64.tar.gz
+          wget https://github.com/wso2/product-apim-tooling/releases/download/v4.6.0/apictl-4.6.0-darwin-arm64.tar.gz
+          tar -xzf apictl-4.6.0-darwin-arm64.tar.gz
           chmod +x apictl/apictl
           mkdir -p $HOME/.local/bin
           mv apictl/apictl $HOME/.local/bin/apictl
