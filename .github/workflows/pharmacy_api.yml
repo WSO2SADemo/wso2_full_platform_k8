@@ -24,7 +24,10 @@ jobs:
           wget https://github.com/wso2/product-apim-tooling/releases/download/v4.6.0/apictl-4.6.0-linux-amd64.tar.gz
           tar -xzf apictl-4.6.0-linux-amd64.tar.gz
           chmod +x apictl/apictl
-          sudo mv apictl/apictl /usr/local/bin/
+          mkdir -p $HOME/.local/bin
+          mv apictl/apictl $HOME/.local/bin/apictl
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Configure Prod Environment
         run: |
