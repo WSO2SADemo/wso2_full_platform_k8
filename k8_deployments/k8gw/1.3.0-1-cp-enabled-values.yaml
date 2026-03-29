@@ -39,7 +39,7 @@ wso2:
       port: 9095
       # secretName: "idp-tls"
     idp:
-      issuer: "https://idp.am.wso2.com/token"
+      issuer: "https://is.wso2.com/oauth2/token"
       usernameClaim: "sub"
       organizationClaim: "organization"
       groupsClaim: "groups"
@@ -297,7 +297,7 @@ idp:
     validationTimeout: 250
   idpds:
     configs:
-      issuer: "https://idp.am.wso2.com/token"
+      issuer: "https://is.wso2.com/oauth2/token"
       keyId: "gateway_certificate_alias"
       hostname: "idp.am.wso2.com"
       loginPageURl: "https://idp.am.wso2.com:9095/authenticationEndpoint/login"

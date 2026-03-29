@@ -1,0 +1,666 @@
+openapi: 3.0.3
+info:
+  title: Medical Provider Services API
+  description: Pharmacy, doctors, hospitals, and insurance coverage. Runs on port 9205.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9205
+    description: Local mock backend
+
+tags:
+  - name: Pharmacy
+  - name: Doctors
+  - name: Hospitals
+  - name: Insurance
+
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────────
+
+  /pharmacy/health:
+    get:
+      tags: [Pharmacy]
+      summary: Health check
+      operationId: getProviderHealth
+      responses:
+        "200":
+          description: Service status message
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Medications ─────────────────────────────────────────────────────────────────
+
+  /pharmacy/medications:
+    get:
+      tags: [Pharmacy]
+      summary: List all medications
+      operationId: listMedications
+      responses:
+        "200":
+          description: Array of medications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medication"
+
+    post:
+      tags: [Pharmacy]
+      summary: Add a medication
+      operationId: createMedication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Medication"
+      responses:
+        "201":
+          description: Medication created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "409":
+          description: Medication already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pharmacy/medications/{medicationId}:
+    parameters:
+      - $ref: "#/components/parameters/medicationId"
+
+    get:
+      tags: [Pharmacy]
+      summary: Get a medication by ID
+      operationId: getMedication
+      responses:
+        "200":
+          description: Medication record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Pharmacy]
+      summary: Update a medication
+      operationId: updateMedication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Medication"
+      responses:
+        "200":
+          description: Updated medication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Pharmacy]
+      summary: Delete a medication
+      operationId: deleteMedication
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /pharmacy/dispense:
+    post:
+      tags: [Pharmacy]
+      summary: Dispense a prescription
+      operationId: dispensePrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispenseRequest"
+      responses:
+        "200":
+          description: Dispense confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispenseResponse"
+        "400":
+          description: Prescription not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Doctors ─────────────────────────────────────────────────────────────────────
+
+  /doctors:
+    get:
+      tags: [Doctors]
+      summary: List all doctors
+      operationId: listDoctors
+      responses:
+        "200":
+          description: Array of doctors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Doctor"
+
+    post:
+      tags: [Doctors]
+      summary: Add a doctor
+      operationId: createDoctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Doctor"
+      responses:
+        "201":
+          description: Doctor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+        "409":
+          description: Doctor already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /doctors/{doctorId}:
+    parameters:
+      - $ref: "#/components/parameters/doctorId"
+
+    get:
+      tags: [Doctors]
+      summary: Get a doctor by ID
+      operationId: getDoctor
+      responses:
+        "200":
+          description: Doctor record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Doctors]
+      summary: Update a doctor
+      operationId: updateDoctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Doctor"
+      responses:
+        "200":
+          description: Updated doctor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Doctors]
+      summary: Delete a doctor
+      operationId: deleteDoctor
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Hospitals ───────────────────────────────────────────────────────────────────
+
+  /doctors/hospitals:
+    get:
+      tags: [Hospitals]
+      summary: List all hospitals
+      operationId: listHospitals
+      responses:
+        "200":
+          description: Array of hospitals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hospital"
+
+    post:
+      tags: [Hospitals]
+      summary: Add a hospital
+      operationId: createHospital
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Hospital"
+      responses:
+        "201":
+          description: Hospital created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+        "409":
+          description: Hospital already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /doctors/hospitals/{hospitalId}:
+    parameters:
+      - $ref: "#/components/parameters/hospitalId"
+
+    get:
+      tags: [Hospitals]
+      summary: Get a hospital by ID
+      operationId: getHospital
+      responses:
+        "200":
+          description: Hospital record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Hospitals]
+      summary: Update a hospital
+      operationId: updateHospital
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Hospital"
+      responses:
+        "200":
+          description: Updated hospital
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Hospitals]
+      summary: Delete a hospital
+      operationId: deleteHospital
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Insurance ───────────────────────────────────────────────────────────────────
+
+  /insurance:
+    get:
+      tags: [Insurance]
+      summary: List all insurance coverages
+      operationId: listInsuranceCoverages
+      responses:
+        "200":
+          description: Array of coverage records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InsuranceCoverage"
+
+    post:
+      tags: [Insurance]
+      summary: Create insurance coverage
+      operationId: createInsuranceCoverage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsuranceCoverage"
+      responses:
+        "201":
+          description: Coverage created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsuranceCoverage"
+        "409":
+          description: Coverage for this patient already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /insurance/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+
+    get:
+      tags: [Insurance]
+      summary: Get insurance coverage by patient ID
+      operationId: getInsuranceCoverage
+      responses:
+        "200":
+          description: Coverage record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsuranceCoverage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Insurance]
+      summary: Update insurance coverage for a patient
+      operationId: updateInsuranceCoverage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsuranceCoverage"
+      responses:
+        "200":
+          description: Updated coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsuranceCoverage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Insurance]
+      summary: Delete insurance coverage for a patient
+      operationId: deleteInsuranceCoverage
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    patientId:
+      name: patientId
+      in: path
+      required: true
+      schema:
+        type: string
+    medicationId:
+      name: medicationId
+      in: path
+      required: true
+      schema:
+        type: string
+    doctorId:
+      name: doctorId
+      in: path
+      required: true
+      schema:
+        type: string
+    hospitalId:
+      name: hospitalId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    Medication:
+      type: object
+      required: [medicationId, name, genericName, category, form, strength, requiresPrescription, stockQuantity, manufacturer]
+      properties:
+        medicationId:
+          type: string
+          example: MED001
+        name:
+          type: string
+          example: Glucophage
+        genericName:
+          type: string
+          example: Metformin
+        category:
+          type: string
+          example: Antidiabetic
+        form:
+          type: string
+          enum: [TABLET, CAPSULE, LIQUID, INJECTION]
+        strength:
+          type: string
+          example: 500mg
+        requiresPrescription:
+          type: boolean
+          example: true
+        stockQuantity:
+          type: integer
+          example: 500
+        manufacturer:
+          type: string
+          example: Bristol-Myers Squibb
+
+    DispenseRequest:
+      type: object
+      required: [prescriptionId, patientId, pharmacyId]
+      properties:
+        prescriptionId:
+          type: string
+          example: RX001
+        patientId:
+          type: string
+          example: P001
+        pharmacyId:
+          type: string
+          example: PH001
+
+    DispenseResponse:
+      type: object
+      required: [success, dispenseId, prescriptionId, dispensedAt, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        dispenseId:
+          type: string
+          example: DSP-RX001-PH001
+        prescriptionId:
+          type: string
+          example: RX001
+        dispensedAt:
+          type: string
+          example: "2026-03-21T10:00:00"
+        message:
+          type: string
+          example: Prescription dispensed successfully
+
+    Doctor:
+      type: object
+      required: [doctorId, firstName, lastName, specialty, qualifications, hospitalId, hospitalName, acceptingPatients, availableDays]
+      properties:
+        doctorId:
+          type: string
+          example: D001
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Smith
+        specialty:
+          type: string
+          example: Cardiology
+        qualifications:
+          type: array
+          items:
+            type: string
+          example: [MBBS, MD]
+        hospitalId:
+          type: string
+          example: H001
+        hospitalName:
+          type: string
+          example: City General Hospital
+        acceptingPatients:
+          type: boolean
+          example: true
+        availableDays:
+          type: array
+          items:
+            type: string
+          example: [Monday, Wednesday, Friday]
+
+    Hospital:
+      type: object
+      required: [hospitalId, name, address, city, phone, specialties, bedCapacity, hasEmergency]
+      properties:
+        hospitalId:
+          type: string
+          example: H001
+        name:
+          type: string
+          example: City General Hospital
+        address:
+          type: string
+          example: 123 Main Street
+        city:
+          type: string
+          example: Colombo
+        phone:
+          type: string
+          example: "+94112345678"
+        specialties:
+          type: array
+          items:
+            type: string
+          example: [Cardiology, Neurology, Oncology]
+        bedCapacity:
+          type: integer
+          example: 500
+        hasEmergency:
+          type: boolean
+          example: true
+
+    InsuranceCoverage:
+      type: object
+      required: [coverageId, patientId, insurerId, insurerName, planName, validFrom, validTo, status, coveragePercent, annualDeductible, deductibleMet, coveredServices]
+      properties:
+        coverageId:
+          type: string
+          example: COV001
+        patientId:
+          type: string
+          example: P001
+        insurerId:
+          type: string
+          example: INS001
+        insurerName:
+          type: string
+          example: HealthShield Insurance
+        planName:
+          type: string
+          example: Gold Plan
+        validFrom:
+          type: string
+          example: "2026-01-01"
+        validTo:
+          type: string
+          example: "2026-12-31"
+        status:
+          type: string
+          enum: [ACTIVE, EXPIRED, SUSPENDED]
+        coveragePercent:
+          type: number
+          format: float
+          example: 80.0
+        annualDeductible:
+          type: number
+          format: float
+          example: 1000.00
+        deductibleMet:
+          type: number
+          format: float
+          example: 250.00
+        coveredServices:
+          type: array
+          items:
+            type: string
+          example: [GP visits, Specialist, Hospitalization, Pharmacy]
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: MEDICATION_NOT_FOUND
+        message:
+          type: string
+          example: Medication MED001 not found
+
+    DeleteResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Doctor D001 deleted

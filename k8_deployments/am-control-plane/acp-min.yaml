@@ -2,8 +2,8 @@ wso2:
   deployment:
     image:
       registry: docker.io
-      repository: "ramilu90/wso2acp-arm:4.6.0"
-      digest: "sha256:1965663a5b98ab41669edda720eaf63d42960a448911054169ea2c9c9235ba7b"
+      repository: "ramilu90/wso2acp-arm:4.6.0.20"
+      digest: "sha256:5d61a42ede04854c775daa2953ed490af476c7e8e9b118e59549c15ec2e11917"
       # repository: "ramilu90/wso2acp-amd64:4.6.0"
       # digest: "sha256:370ef654237afb56a330ef0ca15b1c94431dde0a6496729dfa32fe17f8b8875c"
     resources:
@@ -33,6 +33,7 @@ wso2:
       failureThreshold: 30
   apim:
     configurations:
+      gatewayType: "Regular,APK,AWS,Azure,Kong,Envoy"
       userStore:
         type: "database_unique_id"
       adminUsername: "admin"
@@ -98,7 +99,7 @@ wso2:
           serviceName: "kgw-wso2-apk-gateway-service.apim-kgw.svc.cluster.local"
           servicePort: 9095
           wsHostname: "websocket.wso2.com"
-          httpHostname: "kgw.wso2.com:9095"
+          httpHostname: "kgw.wso2.com"
           websubHostname: "websub.wso2.com"
 kubernetes:
   ingress:

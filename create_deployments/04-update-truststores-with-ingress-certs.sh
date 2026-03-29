@@ -114,17 +114,17 @@ kubectl create secret generic wso2is-keystore-secret \
   -n iam
 
 echo "================================================"
-echo "4d. Restarting IS and CP to pick up new truststores"
+echo "4d. RESTART IS and CP to pick up new truststores MANUALLY !!!!!!!!"
 echo "================================================"
 
-kubectl rollout restart deployment -n iam
-kubectl rollout restart deployment -n apim-cp
+# kubectl rollout restart deployment -n iam
+# kubectl rollout restart deployment -n apim-cp
 
-echo "Waiting for IS to be ready..."
-kubectl rollout status deployment/wso2is-identity-server -n iam --timeout=300s || true
+# echo "Waiting for IS to be ready..."
+# kubectl rollout status deployment/wso2is-identity-server -n iam --timeout=300s || true
 
-echo "Waiting for CP to be ready..."
-kubectl rollout status deployment -n apim-cp --timeout=300s || true
+# echo "Waiting for CP to be ready..."
+# kubectl rollout status deployment -n apim-cp --timeout=300s || true
 
-echo ""
-echo "Truststores updated. IS and CP restarted."
+# echo ""
+# echo "Truststores updated. IS and CP restarted."

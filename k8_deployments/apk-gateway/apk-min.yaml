@@ -1,3 +1,8 @@
+# ===============================================================
+# APK 1.3.0 Optimized Configuration (apk-min.yaml)
+# Fixes: Cert-Manager, IDP Trust, and Multi-Gateway Coexistence
+# ===============================================================
+
 wso2:
   apk:
     webhooks:
@@ -14,23 +19,21 @@ wso2:
       hostname: "kgw.wso2.com"
       port: 9095
     idp:
-      issuer: "https://cp.wso2.com:443/oauth2/token"
+      issuer: "https://is.wso2.com/oauth2/token"
       usernameClaim: "sub"
       organizationClaim: "organization"
       groupsClaim: "groups"
       consumerKeyClaim: "clientId"
-      organizationResolver: "controlPlane" # controlplane,none
-      # tls:
-      #   secretName: "wso2apk-idp-certificates"
-      #   fileName: "idp.crt"
+      organizationResolver: "controlPlane"
+      tls:
+        secretName: "wso2apk-idp-certificates"
+        fileName: "idp.crt"
       signing:
-        jwksEndpoint: "http://acp-wso2am-acp-service.apim-cp.svc.cluster.local:9763/oauth2/jwks"
-        # secretName: "wso2apk-idp-certificates"
-        # fileName: "idp.crt"
+        jwksEndpoint: "https://is.wso2.com/oauth2/jwks"
+        secretName: "wso2apk-idp-certificates"
+        fileName: "idp.crt"
     cp:
       enabledSubscription: true
-      # APK Gateway connects to APK Agent (not directly to Control Plane)
-      # Agent service in apim-kgw namespace
       host: "apim-apk-agent-service.apim-kgw.svc.cluster.local"
       skipSSLVerification: true
       persistence:
@@ -53,8 +56,10 @@ wso2:
           image: wso2/apk-adapter:1.3.0
           logging:
             level: "DEBUG"
-          configs:
-            enableGatewayClassController: false
+        configs:
+          enableGatewayClassController: false
+          apiNamespaces:
+            - "apim-kgw"
       commonController:
         deployment:
           replicas: 1
@@ -79,49 +84,15 @@ wso2:
               TOKEN_REVOCATION_ENABLED: "true"
               LOG_LEVEL: "DEBUG"
             configs:
-              # gRPC connection keepalive settings
               grpc:
                 keepAliveTime: 30s
                 keepAliveTimeout: 10s
                 permitWithoutStream: true
               apiKey:
                 enabled: false
-                issuer: "https://cp.wso2.com:443/oauth2/token"
+
 idp:
-  enabled: false
-  listener:
-    hostname: "mbcp.idp.wso2.com"
-  database:
-    driver: "org.h2.Driver"
-    url: "jdbc:h2:./repository/database/WSO2AM_DB;DB_CLOSE_ON_EXIT=FALSE"
-    host: "localhost"
-    port: 0
-    databaseName: "WSO2AM_DB"
-    username: "wso2carbon"
-    secretName: "apk-db-secret"
-    secretKey: "DB_PASSWORD"
-    validationQuery: "SELECT 1"
-    validationTimeout: 250
-  idpds:
-    configs:
-      issuer: "https://idp.wso2.com/token"
-      keyId: "gateway_certificate_alias"
-      hostname: "idp.wso2.com"
-      loginPageURl: "https://idp.wso2.com:9095/authenticationEndpoint/login"
-      loginErrorPageUrl: "https://idp.wso2.com:9095/authenticationEndpoint/error"
-      loginCallBackURl: "https://idp.wso2.com:9095/authenticationEndpoint/login-callback"
-    deployment:
-      replicas: 1
-      imagePullPolicy: Always
-      image: wso2/apk-idp-domain-service:1.3.0
-  idpui:
-    deployment:
-      replicas: 1
-      imagePullPolicy: Always
-      image: wso2/apk-idp-ui:1.3.0
-    configs:
-      idpLoginUrl: "https://idp.wso2.com:9095/commonauth/login"
-      idpAuthCallBackUrl: "https://idp.wso2.com:9095/oauth2/auth-callback"
+  enabled: false # External IS is being used
 
 gatewaySystem:
   enabled: true
@@ -138,9 +109,14 @@ certmanager:
   enableClusterIssuer: true
   enableRootCa: true
   rootCaSecretName: "apk-root-certificate"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+  containerSecurityContext:
+    runAsUser: 1001
 
 postgresql:
-  enabled: false
+  enabled: false 
 
 redis:
   enabled: true
@@ -148,7 +124,6 @@ redis:
   fullnameOverride: redis
   auth:
     enabled: false
-    usePasswordFiles: false
 
 global:
   security:

@@ -1,0 +1,258 @@
+openapi: 3.0.3
+info:
+  title: Medical Prescriptions API
+  description: |
+    Prescription management service.
+
+    **Backend authentication:** This API requires an API key to authenticate to the Choreo backend.
+    In Azure APIM, store the key as a Named Value (`choreo-api-key`, type: Secret) and inject it
+    via an inbound policy:
+
+    ```xml
+    <inbound>
+        <base />
+        <set-header name="API-Key" exists-action="override">
+            <value>{{choreo-api-key}}</value>
+        </set-header>
+    </inbound>
+    ```
+  version: 1.0.0
+
+servers:
+  - url: https://30294bae-a9ec-4387-b67a-746b5a62cc66-dev.e1-us-east-azure.choreoapis.dev/medicalbackend/medicalbackends/v1.0
+    description: Choreo backend
+
+security:
+  - ChoreoApiKey: []
+
+paths:
+
+  /prescriptions:
+    get:
+      tags: [Prescriptions]
+      summary: List all prescriptions
+      operationId: listPrescriptions
+      responses:
+        "200":
+          description: Array of prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+    post:
+      tags: [Prescriptions]
+      summary: Create a prescription
+      operationId: createPrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Prescription"
+      responses:
+        "201":
+          description: Prescription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "409":
+          description: Prescription already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /prescriptions/{prescriptionId}:
+    parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Prescriptions]
+      summary: Get a prescription by ID
+      operationId: getPrescription
+      responses:
+        "200":
+          description: Prescription record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Prescriptions]
+      summary: Update a prescription
+      operationId: updatePrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Prescription"
+      responses:
+        "200":
+          description: Updated prescription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Prescriptions]
+      summary: Delete a prescription
+      operationId: deletePrescription
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /prescriptions/patient/{patientId}:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Prescriptions]
+      summary: List prescriptions for a patient
+      operationId: listPrescriptionsByPatient
+      responses:
+        "200":
+          description: Array of prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/patient/{patientId}/active:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Prescriptions]
+      summary: List active prescriptions for a patient
+      operationId: listActivePrescriptionsByPatient
+      responses:
+        "200":
+          description: Array of active prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+components:
+  securitySchemes:
+    ChoreoApiKey:
+      type: apiKey
+      in: header
+      name: API-Key
+      description: >
+        Choreo backend API key. In Azure APIM, do NOT expose this to clients.
+        Store it as a Named Value (Secret) and inject via the inbound set-header policy.
+
+  schemas:
+    Prescription:
+      type: object
+      required: [prescriptionId, patientId, doctorId, doctorName, issuedDate, expiryDate, status, items]
+      properties:
+        prescriptionId:
+          type: string
+          example: RX001
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        doctorName:
+          type: string
+          example: Dr. John Smith
+        issuedDate:
+          type: string
+          example: "2026-03-01"
+        expiryDate:
+          type: string
+          example: "2026-06-01"
+        status:
+          type: string
+          enum: [ACTIVE, EXPIRED, DISPENSED]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrescriptionItem"
+
+    PrescriptionItem:
+      type: object
+      required: [medicationName, dosage, frequency, durationDays, instructions]
+      properties:
+        medicationName:
+          type: string
+          example: Metformin
+        dosage:
+          type: string
+          example: 500mg
+        frequency:
+          type: string
+          example: twice daily
+        durationDays:
+          type: integer
+          example: 30
+        instructions:
+          type: string
+          example: Take with food
+
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Prescription RX001 deleted
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: PRESCRIPTION_NOT_FOUND
+        message:
+          type: string
+          example: Prescription RX001 not found

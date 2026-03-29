@@ -1,0 +1,734 @@
+openapi: 3.0.3
+info:
+  title: Medical Patient Services API
+  description: Patient registry, appointments, prescriptions, and lab results. Runs on port 9201.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9201
+    description: Local mock backend
+
+tags:
+  - name: Patients
+  - name: Appointments
+  - name: Prescriptions
+  - name: Labs
+
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────────
+
+  /patients/health:
+    get:
+      tags: [Patients]
+      summary: Health check
+      operationId: getPatientHealth
+      responses:
+        "200":
+          description: Service status message
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Patients ────────────────────────────────────────────────────────────────────
+
+  /patients:
+    get:
+      tags: [Patients]
+      summary: List all patients
+      operationId: listPatients
+      responses:
+        "200":
+          description: Array of patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+
+    post:
+      tags: [Patients]
+      summary: Create a patient
+      operationId: createPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Patient"
+      responses:
+        "201":
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "409":
+          description: Patient already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /patients/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+
+    get:
+      tags: [Patients]
+      summary: Get a patient by ID
+      operationId: getPatient
+      responses:
+        "200":
+          description: Patient record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Patients]
+      summary: Update a patient
+      operationId: updatePatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Patient"
+      responses:
+        "200":
+          description: Updated patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Patients]
+      summary: Delete a patient
+      operationId: deletePatient
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Appointments ────────────────────────────────────────────────────────────────
+
+  /appointments:
+    get:
+      tags: [Appointments]
+      summary: List all appointments
+      operationId: listAppointments
+      responses:
+        "200":
+          description: Array of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+
+    post:
+      tags: [Appointments]
+      summary: Book an appointment
+      operationId: createAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentRequest"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "400":
+          description: Doctor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /appointments/{appointmentId}:
+    parameters:
+      - $ref: "#/components/parameters/appointmentId"
+
+    get:
+      tags: [Appointments]
+      summary: Get an appointment by ID
+      operationId: getAppointment
+      responses:
+        "200":
+          description: Appointment record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Appointments]
+      summary: Update an appointment
+      operationId: updateAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Appointment"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Appointments]
+      summary: Cancel an appointment
+      operationId: deleteAppointment
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /appointments/patient/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Appointments]
+      summary: List appointments for a patient
+      operationId: listAppointmentsByPatient
+      responses:
+        "200":
+          description: Array of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+
+  # ── Prescriptions ───────────────────────────────────────────────────────────────
+
+  /prescriptions:
+    get:
+      tags: [Prescriptions]
+      summary: List all prescriptions
+      operationId: listPrescriptions
+      responses:
+        "200":
+          description: Array of prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+    post:
+      tags: [Prescriptions]
+      summary: Create a prescription
+      operationId: createPrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Prescription"
+      responses:
+        "201":
+          description: Prescription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "409":
+          description: Prescription already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /prescriptions/{prescriptionId}:
+    parameters:
+      - $ref: "#/components/parameters/prescriptionId"
+
+    get:
+      tags: [Prescriptions]
+      summary: Get a prescription by ID
+      operationId: getPrescription
+      responses:
+        "200":
+          description: Prescription record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Prescriptions]
+      summary: Update a prescription
+      operationId: updatePrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Prescription"
+      responses:
+        "200":
+          description: Updated prescription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Prescriptions]
+      summary: Delete a prescription
+      operationId: deletePrescription
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /prescriptions/patient/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Prescriptions]
+      summary: List prescriptions for a patient
+      operationId: listPrescriptionsByPatient
+      responses:
+        "200":
+          description: Array of prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/patient/{patientId}/active:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Prescriptions]
+      summary: List active prescriptions for a patient
+      operationId: listActivePrescriptionsByPatient
+      responses:
+        "200":
+          description: Array of active prescriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prescription"
+
+  # ── Lab Results ─────────────────────────────────────────────────────────────────
+
+  /labs:
+    get:
+      tags: [Labs]
+      summary: List all lab results
+      operationId: listLabResults
+      responses:
+        "200":
+          description: Array of lab results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabResult"
+
+    post:
+      tags: [Labs]
+      summary: Create a lab result
+      operationId: createLabResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabResult"
+      responses:
+        "201":
+          description: Lab result created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabResult"
+        "409":
+          description: Lab result already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /labs/{resultId}:
+    parameters:
+      - name: resultId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Labs]
+      summary: Get a lab result by ID
+      operationId: getLabResult
+      responses:
+        "200":
+          description: Lab result record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Labs]
+      summary: Update a lab result
+      operationId: updateLabResult
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabResult"
+      responses:
+        "200":
+          description: Updated lab result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Labs]
+      summary: Delete a lab result
+      operationId: deleteLabResult
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /labs/patient/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Labs]
+      summary: List lab results for a patient
+      operationId: listLabResultsByPatient
+      responses:
+        "200":
+          description: Array of lab results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabResult"
+
+  /labs/patient/{patientId}/abnormal:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Labs]
+      summary: List abnormal lab results for a patient
+      operationId: listAbnormalLabResultsByPatient
+      responses:
+        "200":
+          description: Lab results containing HIGH, LOW, or CRITICAL flags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LabResult"
+
+components:
+  parameters:
+    patientId:
+      name: patientId
+      in: path
+      required: true
+      schema:
+        type: string
+    appointmentId:
+      name: appointmentId
+      in: path
+      required: true
+      schema:
+        type: string
+    prescriptionId:
+      name: prescriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    Patient:
+      type: object
+      required: [patientId, firstName, lastName, dateOfBirth, gender, bloodType, allergies, chronicConditions, primaryDoctorId, registeredSince]
+      properties:
+        patientId:
+          type: string
+          example: P001
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        dateOfBirth:
+          type: string
+          example: "1985-06-15"
+        gender:
+          type: string
+          example: Female
+        bloodType:
+          type: string
+          example: O+
+        allergies:
+          type: array
+          items:
+            type: string
+        chronicConditions:
+          type: array
+          items:
+            type: string
+        primaryDoctorId:
+          type: string
+          example: D001
+        registeredSince:
+          type: string
+          example: "2020-01-10"
+
+    Appointment:
+      type: object
+      required: [appointmentId, patientId, doctorId, doctorName, specialty, dateTime, status, location, notes]
+      properties:
+        appointmentId:
+          type: string
+          example: APT001
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        doctorName:
+          type: string
+          example: Dr. John Smith
+        specialty:
+          type: string
+          example: Cardiology
+        dateTime:
+          type: string
+          example: "2026-04-01T09:00:00"
+        status:
+          type: string
+          enum: [SCHEDULED, COMPLETED, CANCELLED]
+        location:
+          type: string
+          example: City General Hospital
+        notes:
+          type: string
+          example: Annual checkup
+
+    AppointmentRequest:
+      type: object
+      required: [patientId, doctorId, preferredDateTime, reason]
+      properties:
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        preferredDateTime:
+          type: string
+          example: "2026-04-01T09:00:00"
+        reason:
+          type: string
+          example: Annual checkup
+
+    Prescription:
+      type: object
+      required: [prescriptionId, patientId, doctorId, doctorName, issuedDate, expiryDate, status, items]
+      properties:
+        prescriptionId:
+          type: string
+          example: RX001
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        doctorName:
+          type: string
+          example: Dr. John Smith
+        issuedDate:
+          type: string
+          example: "2026-03-01"
+        expiryDate:
+          type: string
+          example: "2026-06-01"
+        status:
+          type: string
+          enum: [ACTIVE, EXPIRED, DISPENSED]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrescriptionItem"
+
+    PrescriptionItem:
+      type: object
+      required: [medicationName, dosage, frequency, durationDays, instructions]
+      properties:
+        medicationName:
+          type: string
+          example: Metformin
+        dosage:
+          type: string
+          example: 500mg
+        frequency:
+          type: string
+          example: twice daily
+        durationDays:
+          type: integer
+          example: 30
+        instructions:
+          type: string
+          example: Take with food
+
+    LabResult:
+      type: object
+      required: [resultId, patientId, orderedBy, testName, category, orderedDate, resultDate, status, results]
+      properties:
+        resultId:
+          type: string
+          example: LB001
+        patientId:
+          type: string
+          example: P001
+        orderedBy:
+          type: string
+          example: D001
+        testName:
+          type: string
+          example: Complete Blood Count
+        category:
+          type: string
+          enum: [BLOOD, URINE, IMAGING, PATHOLOGY]
+        orderedDate:
+          type: string
+          example: "2026-03-10"
+        resultDate:
+          type: string
+          example: "2026-03-11"
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, REVIEWED]
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabTestItem"
+
+    LabTestItem:
+      type: object
+      required: [parameterName, value, unit, referenceRange, flag]
+      properties:
+        parameterName:
+          type: string
+          example: Hemoglobin
+        value:
+          type: string
+          example: "13.5"
+        unit:
+          type: string
+          example: g/dL
+        referenceRange:
+          type: string
+          example: 12.0-16.0
+        flag:
+          type: string
+          enum: [NORMAL, HIGH, LOW, CRITICAL]
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: PATIENT_NOT_FOUND
+        message:
+          type: string
+          example: Patient P001 not found
+
+    DeleteResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Patient P001 deleted

@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Medical Appointments API
+  description: |
+    Appointment scheduling and management service.
+
+    **Backend authentication:** This API requires an API key to authenticate to the Choreo backend.
+    In Azure APIM, store the key as a Named Value (`choreo-api-key`, type: Secret) and inject it
+    via an inbound policy:
+
+    ```xml
+    <inbound>
+        <base />
+        <set-header name="API-Key" exists-action="override">
+            <value>{{choreo-api-key}}</value>
+        </set-header>
+    </inbound>
+    ```
+  version: 1.0.0
+
+servers:
+  - url: https://30294bae-a9ec-4387-b67a-746b5a62cc66-dev.e1-us-east-azure.choreoapis.dev/medicalbackend/medicalbackends/v1.0
+    description: Choreo backend
+
+security:
+  - ChoreoApiKey: []
+
+paths:
+
+  /appointments:
+    get:
+      tags: [Appointments]
+      summary: List all appointments
+      operationId: listAppointments
+      responses:
+        "200":
+          description: Array of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+
+    post:
+      tags: [Appointments]
+      summary: Book an appointment
+      operationId: createAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentRequest"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "400":
+          description: Doctor not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /appointments/{appointmentId}:
+    parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+
+    get:
+      tags: [Appointments]
+      summary: Get an appointment by ID
+      operationId: getAppointment
+      responses:
+        "200":
+          description: Appointment record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Appointments]
+      summary: Update an appointment
+      operationId: updateAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Appointment"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Appointments]
+      summary: Cancel an appointment
+      operationId: deleteAppointment
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /appointments/patient/{patientId}:
+    parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Appointments]
+      summary: List appointments for a patient
+      operationId: listAppointmentsByPatient
+      responses:
+        "200":
+          description: Array of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+
+components:
+  securitySchemes:
+    ChoreoApiKey:
+      type: apiKey
+      in: header
+      name: API-Key
+      description: >
+        Choreo backend API key. In Azure APIM, do NOT expose this to clients.
+        Store it as a Named Value (Secret) and inject via the inbound set-header policy.
+
+  schemas:
+    Appointment:
+      type: object
+      required: [appointmentId, patientId, doctorId, doctorName, specialty, dateTime, status, location, notes]
+      properties:
+        appointmentId:
+          type: string
+          example: APT001
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        doctorName:
+          type: string
+          example: Dr. John Smith
+        specialty:
+          type: string
+          example: Cardiology
+        dateTime:
+          type: string
+          example: "2026-04-01T09:00:00"
+        status:
+          type: string
+          enum: [SCHEDULED, COMPLETED, CANCELLED]
+        location:
+          type: string
+          example: City General Hospital
+        notes:
+          type: string
+          example: Annual checkup
+
+    AppointmentRequest:
+      type: object
+      required: [patientId, doctorId, preferredDateTime, reason]
+      properties:
+        patientId:
+          type: string
+          example: P001
+        doctorId:
+          type: string
+          example: D001
+        preferredDateTime:
+          type: string
+          example: "2026-04-01T09:00:00"
+        reason:
+          type: string
+          example: Annual checkup
+
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string

@@ -20,7 +20,7 @@ data:
             10.43.78.65 kibana.wso2.com
             10.43.78.65 rabbitmq.wso2.com
             10.43.78.65 kgw.wso2.com
-            10.43.239.19 envoygw.wso2.com
+            10.43.50.99 envoygw.wso2.com
             fallthrough
         }
         forward . 8.8.8.8 1.1.1.1 

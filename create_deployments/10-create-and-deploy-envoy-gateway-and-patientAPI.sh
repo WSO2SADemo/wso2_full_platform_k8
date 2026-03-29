@@ -2,7 +2,7 @@
 set -e
 
 # ========================================
-# STEP 10: Deploy Envoy Gateway + Patient APIs
+# STEP 10: Deploy Envoy Gateway + Patient APIs + APIM Common Agent
 #
 # Idempotent — safe to rerun. Each section
 # deletes existing resources before recreating.
@@ -15,11 +15,14 @@ set -e
 #   - HTTPRoute: /patients /appointments /prescriptions /labs
 #   - SecurityPolicy: JWT via WSO2 IS
 #   - CoreDNS update: envoygw.wso2.com → Envoy proxy ClusterIP
+#   - APIM Common Agent: discovers HTTPRoutes and syncs to APIM Publisher
 #
-# NOTE: After this script, add to /etc/hosts on your Mac:
-#   127.0.0.1  envoygw.wso2.com
-# Then port-forward:
-#   kubectl port-forward svc/<envoy-svc> 8443:443 -n envoy-gateway-system
+# NOTE: After this script, add envoygw.wso2.com to your /etc/hosts on your Mac
+#   (same IP as is.wso2.com, gw.wso2.com etc.)
+#
+# PREREQUISITE: Add EnvoyGateway environment in APIM Admin UI first:
+#   https://cp.wso2.com/admin/settings/environments
+#   Name: EG, Type: Envoy Gateway, Vhost: envoygw.wso2.com
 # ========================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -33,20 +36,78 @@ GW_HOST="envoygw.wso2.com"
 TLS_SECRET="envoygw-tls"
 IS_NS="iam"
 IS_SVC="wso2is-identity-server"
+ACP_NS="apim-cp"
+ACP_SVC="acp-wso2am-acp-service"
+AGENT_RELEASE="apim-eg-agent"
+AGENT_CHART_VERSION="1.0.0-beta"
 
 echo "================================================"
 echo "10. Deploy Envoy Gateway + Patient APIs"
 echo "================================================"
 
+# ─── Teardown: delete everything before recreating ────────────────────────────
+echo ""
+echo "--- Tearing down existing Envoy Gateway resources ---"
+
+# Uninstall APIM Common Agent first
+if helm status "$AGENT_RELEASE" -n "$EG_NS" &>/dev/null; then
+  echo "  Uninstalling Helm release '${AGENT_RELEASE}' in ${EG_NS}..."
+  helm uninstall "$AGENT_RELEASE" -n "$EG_NS" 2>/dev/null || true
+fi
+
+# Uninstall Envoy Gateway Helm release (removes the conflicting ConfigMap ownership)
+if helm status eg -n "$EG_NS" &>/dev/null; then
+  echo "  Uninstalling Helm release 'eg' in ${EG_NS}..."
+  helm uninstall eg -n "$EG_NS" 2>/dev/null || true
+fi
+
+# Patch finalizers off resources that block deletion when the controller is gone
+echo "  Removing finalizers from Gateway API resources..."
+kubectl patch gateway "$GW_NAME" -n "$EG_NS" \
+  --type=json -p='[{"op":"replace","path":"/metadata/finalizers","value":[]}]' 2>/dev/null || true
+kubectl patch gatewayclass "$GW_NAME" \
+  --type=json -p='[{"op":"replace","path":"/metadata/finalizers","value":[]}]' 2>/dev/null || true
+kubectl patch envoyproxy envoy-proxy-config -n "$EG_NS" \
+  --type=json -p='[{"op":"replace","path":"/metadata/finalizers","value":[]}]' 2>/dev/null || true
+
+# Delete all kubectl-applied custom resources (force, ignore if already gone)
+echo "  Deleting Gateway API resources..."
+kubectl delete -f "$EG_DIR/05-security-policy.yaml"        --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+kubectl delete -f "$EG_DIR/04-patient-apis-httproute.yaml" --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+kubectl delete -f "$EG_DIR/03-reference-grants.yaml"       --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+kubectl delete -f "$EG_DIR/02-gateway.yaml"                --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+kubectl delete -f "$EG_DIR/01-gatewayclass.yaml"           --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+kubectl delete -f "$EG_DIR/00-envoy-proxy-config.yaml"     --ignore-not-found=true --force --grace-period=0 2>/dev/null || true
+
+# Delete and recreate the namespace for a fully clean slate
+echo "  Deleting namespace ${EG_NS}..."
+kubectl delete namespace "$EG_NS" --ignore-not-found=true &
+DELETE_PID=$!
+
+# Wait up to 30s for graceful namespace termination
+for i in {1..30}; do
+  kubectl get namespace "$EG_NS" &>/dev/null || break
+  sleep 1
+done
+
+# If namespace is stuck in Terminating (finalizer issue), force-clear it
+if kubectl get namespace "$EG_NS" &>/dev/null; then
+  echo "  Namespace stuck — force-clearing namespace finalizers..."
+  kubectl get namespace "$EG_NS" -o json \
+    | python3 -c "import sys,json; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" \
+    | kubectl replace --raw "/api/v1/namespaces/${EG_NS}/finalize" -f - 2>/dev/null || true
+fi
+wait "$DELETE_PID" 2>/dev/null || true
+
 # ─── Step 1: Namespace ────────────────────────────────────────────────────────
 echo ""
-echo "--- Ensuring namespace ${EG_NS} exists ---"
-kubectl get namespace "$EG_NS" &>/dev/null || kubectl create namespace "$EG_NS"
+echo "--- Creating namespace ${EG_NS} ---"
+kubectl create namespace "$EG_NS"
 
-# ─── Step 2: Install / upgrade Envoy Gateway ──────────────────────────────────
+# ─── Step 2: Install Envoy Gateway ────────────────────────────────────────────
 echo ""
 echo "--- Installing Envoy Gateway ${EG_VERSION} ---"
-helm upgrade --install eg \
+helm install eg \
   oci://docker.io/envoyproxy/gateway-helm \
   --version "$EG_VERSION" \
   -n "$EG_NS"
@@ -183,11 +244,69 @@ else
   echo "  CoreDNS updated."
 fi
 
-# ─── Step 10: Verify ──────────────────────────────────────────────────────────
+# ─── Step 10: APIM Common Agent (EG API Discovery) ───────────────────────────
+# The agent watches HTTPRoutes in envoy-gateway-system and syncs them into
+# APIM Publisher as discovered APIs.
+echo ""
+echo "--- Installing APIM Common Agent (EG API Discovery) ---"
+
+# Add helm repo (idempotent)
+helm repo remove agent 2>/dev/null || true
+helm repo add agent https://github.com/wso2-extensions/apim-gw-connectors/releases/download/apim-k8s-common-gw-connector-${AGENT_CHART_VERSION}
+helm repo update agent
+
+# Create TLS secret for agent gRPC server — chart mounts subPath tls.crt/tls.key
+# Self-signed with CN matching the in-cluster service name (stable across restarts)
+kubectl delete secret common-agent-server-cert -n "$EG_NS" --ignore-not-found=true
+openssl req -x509 -newkey rsa:2048 \
+  -keyout /tmp/agent-tls.key \
+  -out    /tmp/agent-tls.crt \
+  -days 3650 -nodes \
+  -subj "/CN=apim-agent-service.${EG_NS}.svc" 2>/dev/null
+kubectl create secret tls common-agent-server-cert \
+  --cert=/tmp/agent-tls.crt \
+  --key=/tmp/agent-tls.key \
+  -n "$EG_NS"
+rm -f /tmp/agent-tls.crt /tmp/agent-tls.key
+
+# Install the agent
+# dataPlane.enabled=false: no APK data plane needed for EG discovery
+# certmanager.enabled=false: we provide the cert secret manually above
+helm install "$AGENT_RELEASE" agent/apim-k8s-common-gw-helm \
+  --version "$AGENT_CHART_VERSION" \
+  -n "$EG_NS" \
+  --set controlPlane.serviceURL="https://${ACP_SVC}.${ACP_NS}.svc.cluster.local:9443/" \
+  --set "controlPlane.eventListeningEndpoints=amqp://admin:admin@${ACP_SVC}.${ACP_NS}.svc.cluster.local:5672?retries='10'&connectdelay='30'" \
+  --set controlPlane.skipSSLVerification=true \
+  --set certmanager.enabled=false \
+  --set dataPlane.enabled=false \
+  --set dataPlane.namespace="$EG_NS"
+
+# Remove liveness/readiness probes — the health check script uses IPv4 (127.0.0.1)
+# but the gRPC server binds on IPv6 (:::18000), causing a permanent probe failure
+# and restart loop. EG discovery works correctly without the probes.
+kubectl patch deployment ${AGENT_RELEASE}-wso2-common-agent-deployment \
+  -n "$EG_NS" \
+  --type=json \
+  -p='[
+    {"op":"remove","path":"/spec/template/spec/containers/0/readinessProbe"},
+    {"op":"remove","path":"/spec/template/spec/containers/0/livenessProbe"}
+  ]' 2>/dev/null || true
+
+echo "Waiting for Common Agent to be ready..."
+kubectl rollout status deployment/${AGENT_RELEASE}-wso2-common-agent-deployment \
+  -n "$EG_NS" --timeout=120s || {
+  echo "  Agent not ready yet. Check: kubectl logs -l app=wso2-common-agent -n ${EG_NS}"
+}
+
+# ─── Step 12: Verify ──────────────────────────────────────────────────────────
 echo ""
 echo "================================================"
 echo "Verification"
 echo "================================================"
+echo ""
+echo "Pods:"
+kubectl get pods -n "$EG_NS"
 echo ""
 echo "Gateway:"
 kubectl get gateway -n "$EG_NS"
@@ -198,17 +317,9 @@ echo ""
 echo "SecurityPolicy:"
 kubectl get securitypolicy -n "$EG_NS"
 echo ""
-echo "BackendTLSPolicy:"
-kubectl get backendtlspolicy -n "$IS_NS"
-echo ""
 echo "Envoy proxy Service:"
 kubectl get svc -n "$EG_NS" \
   -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}"
-
-# Print port-forward command for local access
-EG_SVC=$(kubectl get svc -n "$EG_NS" \
-  -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
-  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "<envoy-svc>")
 
 echo ""
 echo "================================================"
@@ -222,4 +333,8 @@ echo "  curl -k https://${GW_HOST}:8443/patients       -H 'Authorization: Bearer
 echo "  curl -k https://${GW_HOST}:8443/appointments   -H 'Authorization: Bearer <token>'"
 echo "  curl -k https://${GW_HOST}:8443/prescriptions  -H 'Authorization: Bearer <token>'"
 echo "  curl -k https://${GW_HOST}:8443/labs           -H 'Authorization: Bearer <token>'"
+echo ""
+echo "API Discovery:"
+echo "  Check APIM Publisher for discovered APIs: https://cp.wso2.com/publisher"
+echo "  Agent logs: kubectl logs -l app=wso2-common-agent -n ${EG_NS} --tail=20"
 echo "================================================"

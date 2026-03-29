@@ -1,0 +1,562 @@
+openapi: 3.0.3
+info:
+  title: Pharmacy Services API
+  description: Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9202
+    description: Local mock backend
+
+tags:
+  - name: Pharmacies
+  - name: Medications
+  - name: Dispense
+
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────────
+
+  /pharmacy/health:
+    get:
+      tags: [Pharmacies]
+      summary: Health check
+      operationId: getPharmacyHealth
+      responses:
+        "200":
+          description: Service status message
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Pharmacies ──────────────────────────────────────────────────────────────────
+
+  /pharmacy/pharmacies:
+    get:
+      tags: [Pharmacies]
+      summary: List all pharmacies
+      operationId: listPharmacies
+      responses:
+        "200":
+          description: Array of pharmacies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pharmacy"
+
+    post:
+      tags: [Pharmacies]
+      summary: Create a pharmacy
+      operationId: createPharmacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pharmacy"
+      responses:
+        "201":
+          description: Pharmacy created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pharmacy"
+        "409":
+          description: Pharmacy already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pharmacy/pharmacies/{pharmacyId}:
+    parameters:
+      - $ref: "#/components/parameters/pharmacyId"
+
+    get:
+      tags: [Pharmacies]
+      summary: Get a pharmacy by ID
+      operationId: getPharmacy
+      responses:
+        "200":
+          description: Pharmacy record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pharmacy"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Pharmacies]
+      summary: Update a pharmacy
+      operationId: updatePharmacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pharmacy"
+      responses:
+        "200":
+          description: Updated pharmacy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pharmacy"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Pharmacies]
+      summary: Delete a pharmacy
+      operationId: deletePharmacy
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Medications ─────────────────────────────────────────────────────────────────
+
+  /pharmacy/medications:
+    get:
+      tags: [Medications]
+      summary: List all medications
+      operationId: listMedications
+      responses:
+        "200":
+          description: Array of medications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medication"
+
+    post:
+      tags: [Medications]
+      summary: Add a medication
+      operationId: createMedication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Medication"
+      responses:
+        "201":
+          description: Medication created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "409":
+          description: Medication already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pharmacy/medications/{medicationId}:
+    parameters:
+      - $ref: "#/components/parameters/medicationId"
+
+    get:
+      tags: [Medications]
+      summary: Get a medication by ID
+      operationId: getMedication
+      responses:
+        "200":
+          description: Medication record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Medications]
+      summary: Update a medication
+      operationId: updateMedication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Medication"
+      responses:
+        "200":
+          description: Updated medication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Medications]
+      summary: Delete a medication
+      operationId: deleteMedication
+      responses:
+        "200":
+          description: Deletion confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /pharmacy/medications/search:
+    get:
+      tags: [Medications]
+      summary: Search medications by name or category
+      operationId: searchMedications
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Name or generic name substring to search
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by medication category
+        - name: requiresPrescription
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by prescription requirement
+      responses:
+        "200":
+          description: Matching medications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medication"
+
+  # ── Dispense ────────────────────────────────────────────────────────────────────
+
+  /pharmacy/dispense:
+    post:
+      tags: [Dispense]
+      summary: Dispense a prescription
+      operationId: dispensePrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispenseRequest"
+      responses:
+        "200":
+          description: Dispense confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispenseResponse"
+        "400":
+          description: Prescription not found or already dispensed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Insufficient stock for one or more medications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /pharmacy/dispense/history:
+    get:
+      tags: [Dispense]
+      summary: List all dispense records
+      operationId: listDispenseHistory
+      responses:
+        "200":
+          description: Array of dispense records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DispenseRecord"
+
+  /pharmacy/dispense/history/{dispenseId}:
+    parameters:
+      - $ref: "#/components/parameters/dispenseId"
+
+    get:
+      tags: [Dispense]
+      summary: Get a dispense record by ID
+      operationId: getDispenseRecord
+      responses:
+        "200":
+          description: Dispense record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispenseRecord"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /pharmacy/dispense/patient/{patientId}:
+    parameters:
+      - $ref: "#/components/parameters/patientId"
+    get:
+      tags: [Dispense]
+      summary: List dispense history for a patient
+      operationId: listDispenseHistoryByPatient
+      responses:
+        "200":
+          description: Array of dispense records for the patient
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DispenseRecord"
+
+  /pharmacy/dispense/prescription/{prescriptionId}:
+    parameters:
+      - $ref: "#/components/parameters/prescriptionId"
+    get:
+      tags: [Dispense]
+      summary: Get dispense record for a prescription
+      operationId: getDispenseByPrescription
+      responses:
+        "200":
+          description: Dispense record for the prescription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispenseRecord"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    pharmacyId:
+      name: pharmacyId
+      in: path
+      required: true
+      schema:
+        type: string
+    medicationId:
+      name: medicationId
+      in: path
+      required: true
+      schema:
+        type: string
+    dispenseId:
+      name: dispenseId
+      in: path
+      required: true
+      schema:
+        type: string
+    patientId:
+      name: patientId
+      in: path
+      required: true
+      schema:
+        type: string
+    prescriptionId:
+      name: prescriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    Pharmacy:
+      type: object
+      required: [pharmacyId, name, address, city, phone, operatingHours, licenseNumber, isActive]
+      properties:
+        pharmacyId:
+          type: string
+          example: PH001
+        name:
+          type: string
+          example: City Central Pharmacy
+        address:
+          type: string
+          example: 45 Hospital Road
+        city:
+          type: string
+          example: Colombo
+        phone:
+          type: string
+          example: "+94112345679"
+        operatingHours:
+          type: string
+          example: "Mon-Sat 08:00-20:00"
+        licenseNumber:
+          type: string
+          example: LIC-PH-2024-001
+        isActive:
+          type: boolean
+          example: true
+
+    Medication:
+      type: object
+      required: [medicationId, name, genericName, category, form, strength, requiresPrescription, stockQuantity, manufacturer]
+      properties:
+        medicationId:
+          type: string
+          example: MED001
+        name:
+          type: string
+          example: Glucophage
+        genericName:
+          type: string
+          example: Metformin
+        category:
+          type: string
+          example: Antidiabetic
+        form:
+          type: string
+          enum: [TABLET, CAPSULE, LIQUID, INJECTION]
+        strength:
+          type: string
+          example: 500mg
+        requiresPrescription:
+          type: boolean
+          example: true
+        stockQuantity:
+          type: integer
+          example: 500
+        manufacturer:
+          type: string
+          example: Bristol-Myers Squibb
+
+    DispenseRequest:
+      type: object
+      required: [prescriptionId, patientId, pharmacyId]
+      properties:
+        prescriptionId:
+          type: string
+          example: RX001
+        patientId:
+          type: string
+          example: P001
+        pharmacyId:
+          type: string
+          example: PH001
+
+    DispenseResponse:
+      type: object
+      required: [success, dispenseId, prescriptionId, dispensedAt, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        dispenseId:
+          type: string
+          example: DSP-RX001-PH001
+        prescriptionId:
+          type: string
+          example: RX001
+        dispensedAt:
+          type: string
+          example: "2026-03-21T10:00:00"
+        message:
+          type: string
+          example: Prescription dispensed successfully
+
+    DispenseRecord:
+      type: object
+      required: [dispenseId, prescriptionId, patientId, pharmacyId, pharmacyName, dispensedAt, dispensedBy, items, totalCost]
+      properties:
+        dispenseId:
+          type: string
+          example: DSP-RX001-PH001
+        prescriptionId:
+          type: string
+          example: RX001
+        patientId:
+          type: string
+          example: P001
+        pharmacyId:
+          type: string
+          example: PH001
+        pharmacyName:
+          type: string
+          example: City Central Pharmacy
+        dispensedAt:
+          type: string
+          example: "2026-03-21T10:00:00"
+        dispensedBy:
+          type: string
+          example: Pharmacist Sarah Lee
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DispensedItem"
+        totalCost:
+          type: number
+          format: float
+          example: 45.50
+
+    DispensedItem:
+      type: object
+      required: [medicationId, medicationName, quantityDispensed, unitCost]
+      properties:
+        medicationId:
+          type: string
+          example: MED001
+        medicationName:
+          type: string
+          example: Glucophage 500mg
+        quantityDispensed:
+          type: integer
+          example: 60
+        unitCost:
+          type: number
+          format: float
+          example: 0.75
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: MEDICATION_NOT_FOUND
+        message:
+          type: string
+          example: Medication MED001 not found
+
+    DeleteResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Pharmacy PH001 deleted
