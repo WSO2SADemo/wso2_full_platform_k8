@@ -46,7 +46,16 @@
       "Bash(curl -sk -o /dev/null -w \"%{http_code}\" https://cp.wso2.com/oauth2/token)",
       "Bash(curl -sk -o /dev/null -w \"%{http_code}\" https://cp.wso2.com/api/am/devportal/v3/apis)",
       "Read(//Users/ramindu/wso2/libs/rfp-tool/docs-apim/**)",
-      "Bash(xargs -I{} git show {} --)"
+      "Bash(xargs -I{} git show {} --)",
+      "Bash(__NEW_LINE_d205d6fa80596e4b__ kubectl:*)",
+      "Bash(grep gateway-runtime:*)",
+      "Bash(curl -sk -X GET 'https://kgw.wso2.com:9095/medicalpatientservicesapi/1.0.0/patients' -H 'Authorization: Bearer eyJ4NXQiOiJPREUyTkRZNU56TTBOVEl6TkdNeE16SXdNREkzWW1FNVlqZzROemszT0dJd01qSTBZbVE0TVEiLCJraWQiOiJPREUyTkRZNU56TTBOVEl6TkdNeE16SXdNREkzWW1FNVlqZzROemszT0dJd01qSTBZbVE0TVEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ3UTBrN1Z1aHdLeGFPNVk2OGZUY2ZmRmQ5dThhIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbXSwiaXNzIjoiaHR0cHM6Ly9pcy53c28yLmNvbS9vYXV0aDIvdG9rZW4iLCJhenAiOiJ3UTBrN1Z1aHdLeGFPNVk2OGZUY2ZmRmQ5dThhIiwiZXhwIjoxNzQzMzE1OTA5LCJpYXQiOjE3NDMzMTIzMDksImp0aSI6ImJhYzIwMDM2LWYyZWYtNGNmZi04YjBhLTcwNDRkYzBiODllOSIsImNsaWVudF9pZCI6IndRMGs3VnVod0t4YU81WTY4ZlRjZmZGZDl1OGEifQ.abc')",
+      "Bash(curl -sk -X POST 'https://is.wso2.com/oauth2/token' -H 'Content-Type: application/x-www-form-urlencoded' -u 'wQ0k7VuhwKxaO5Y68fTcffFd9u8a:qHJy4bqtYkaw0R4K36oGm3z1CTwaJ5TsxMyLJZK49MIa' -d 'grant_type=client_credentials')",
+      "Bash(TOKEN=\"eyJ4NXQiOiJUWHMxaDJVXzBsSFUyZk1hbkpQUDBNNjQxMXMiLCJraWQiOiJOMk5pWVRZMU9UVmhPVE5oT1RFek9XSm1NamhpT1RFME5tWTBZekUyTlRVM01HSXhPRGd5T0RVNFpUQmlaR0V3TWpWaE9ERTRNamhqTm1ZeE1XSmxaUV9SUzI1NiIsInR5cCI6ImF0K2p3dCIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJ3UTBrN1Z1aHdLeGFPNVk2OGZUY2ZmRmQ5dThhIiwiYXV0IjoiQVBQTElDQVRJT04iLCJpc3MiOiJodHRwczpcL1wvaXMud3NvMi5jb21cL29hdXRoMlwvdG9rZW4iLCJjbGllbnRfaWQiOiJ3UTBrN1Z1aHdLeGFPNVk2OGZUY2ZmRmQ5dThhIiwiYXVkIjoid1EwazdWdWh3S3hhTzVZNjhmVGNmZkZkOXU4YSIsIm5iZiI6MTc3NDg0OTUzNSwiYXpwIjoid1EwazdWdWh3S3hhTzVZNjhmVGNmZkZkOXU4YSIsIm9yZ19pZCI6IjEwMDg0YThkLTExM2YtNDIxMS1hMGQ1LWVmZTM2YjA4MjIxMSIsImV4cCI6MTc3NDg1MzEzNSwib3JnX25hbWUiOiJTdXBlciIsImlhdCI6MTc3NDg0OTUzNSwianRpIjoiOTk1NjMyODYtNDQ2Yi00MDliLWFlYmMtZGQ2ODI4Mzc4NjhlIiwib3JnX2hhbmRsZSI6ImNhcmJvbi5zdXBlciJ9.ZLmBUzsIn6jdTAx4L4AZVP1mQPhPr3BDCmRtTOLG4KwU6-gj8uBmn5Nhi3zjaa8F_KYVlpng57_fcLVCfpNdquiqLsCaABFiQS8InK_v5gCC5QMBnlWwXctyFLY26YUMOQdg9X55ne190MICGfLix0Lk2696pD-lCQusItw9FmUAG5eP5M0A33gT6q4QBYWspdqHl0a2VjjPxx_CzbqJgZjapSAmgiRCYleHX7LP99Okk4m9LJCR4zF-lNZHbXCJnzipHUmuWDxf_7R0D1_Fa8S-8nI4l3Xf5NLQC3EQIDpIJQlfwMU9sLuRTvBm-SNCx-QI0nhyM6eKOYJBByuUsQ\")",
+      "Bash(curl -sk -X GET \"https://kgw.wso2.com:9095/medicalpatientservicesapi/1.0.0/patients\" -H \"Authorization: Bearer $TOKEN\")",
+      "Read(//Users/ramindu/wso2/general_demo/**)",
+      "Bash(find /Users/ramindu/wso2/general_demo -name *.md -path *federated*azure*)",
+      "Bash(find /Users/ramindu/wso2/general_demo -name *.md -path *azure*)"
     ]
   }
 }

@@ -3,25 +3,30 @@ import { TokenPanel, ResponsePanel } from '../components/TokenPanel';
 import config from '../config';
 
 const MODES = [
-  { value: 'all',       label: 'List All Appointments' },
-  { value: 'byId',      label: 'Get by Appointment ID' },
-  { value: 'byPatient', label: 'Get by Patient ID' },
+  { value: 'all',  label: 'List All Appointments' },
+  { value: 'byId', label: 'Get by Appointment ID' },
 ];
 
 const COLOR = '#0078d4';
 
 export default function AzureAPIMTab() {
+  const [authMode, setAuthMode] = useState('subscriptionKey'); // 'bearer' | 'subscriptionKey'
+
+  // Bearer token state
   const [azureToken, setAzureToken]     = useState(null);
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenError, setTokenError]     = useState(null);
 
-  const [mode, setMode]                     = useState('all');
-  const [appointmentId, setAppointmentId]   = useState('APT001');
-  const [patientId, setPatientId]           = useState('P001');
-  const [response, setResponse]             = useState(null);
-  const [status, setStatus]                 = useState(null);
-  const [apiLoading, setApiLoading]         = useState(false);
-  const [apiError, setApiError]             = useState(null);
+  // Subscription key state
+  const [subscriptionKey, setSubscriptionKey] = useState(config.azureSubscriptionKey || '');
+
+  // API call state
+  const [mode, setMode]                   = useState('all');
+  const [appointmentId, setAppointmentId] = useState('APT001');
+  const [response, setResponse]           = useState(null);
+  const [status, setStatus]               = useState(null);
+  const [apiLoading, setApiLoading]       = useState(false);
+  const [apiError, setApiError]           = useState(null);
 
   const fetchToken = async () => {
     setTokenLoading(true); setTokenError(null); setAzureToken(null);
@@ -46,20 +51,32 @@ export default function AzureAPIMTab() {
     }
   };
 
+  const AZURE_REAL_BASE = 'https://apimserviceramindus.azure-api.net/appointments';
+
   const getUrl = () => {
-    const base = `${config.azureBase}/appointments/appointments`;
-    if (mode === 'byId')      return `${base}/${appointmentId}`;
-    if (mode === 'byPatient') return `${base}/patient/${patientId}`;
+    const base = `${config.azureBase}/appointments`;
+    if (mode === 'byId') return `${base}/${appointmentId}`;
     return base;
   };
 
+  const getDisplayUrl = () => {
+    if (mode === 'byId') return `${AZURE_REAL_BASE}/${appointmentId}`;
+    return AZURE_REAL_BASE;
+  };
+
+  const isReadyToCall = authMode === 'subscriptionKey' ? !!subscriptionKey : !!azureToken;
+
   const callApi = async () => {
-    if (!azureToken) return;
+    if (!isReadyToCall) return;
     setApiLoading(true); setResponse(null); setStatus(null); setApiError(null);
     try {
-      const res = await fetch(getUrl(), {
-        headers: { 'accept': 'application/json', 'Authorization': `Bearer ${azureToken}` },
-      });
+      const headers = { 'accept': 'application/json' };
+      if (authMode === 'subscriptionKey') {
+        headers['Ocp-Apim-Subscription-Key'] = subscriptionKey;
+      } else {
+        headers['Authorization'] = `Bearer ${azureToken}`;
+      }
+      const res = await fetch(getUrl(), { headers });
       setStatus(res.status);
       const text = await res.text();
       try { setResponse(JSON.parse(text)); } catch { setResponse(text); }
@@ -70,7 +87,7 @@ export default function AzureAPIMTab() {
     }
   };
 
-  const tokenFlowSteps = [
+  const bearerFlowSteps = [
     { label: '1. App Credentials', done: true },
     { label: '2. POST /token',     done: !!azureToken || tokenLoading },
     { label: '3. Bearer Token',    done: !!azureToken },
@@ -78,18 +95,26 @@ export default function AzureAPIMTab() {
     { label: '5. Response',        done: status >= 200 && status < 300 },
   ];
 
+  const subKeyFlowSteps = [
+    { label: '1. Subscription Key', done: !!subscriptionKey },
+    { label: '2. APIM Call',        done: !!response || apiLoading },
+    { label: '3. Response',         done: status >= 200 && status < 300 },
+  ];
+
+  const flowSteps = authMode === 'subscriptionKey' ? subKeyFlowSteps : bearerFlowSteps;
+
   return (
     <div>
       <div className="gateway-header" style={{ background: `linear-gradient(135deg, ${COLOR}, #005a9e)` }}>
         <div style={{ fontSize: '2rem' }}>☁️</div>
         <div>
           <h2>Azure APIM — Appointments API</h2>
-          <p>Client Credentials Grant · Azure Entra ID · apimserviceramindus.azure-api.net</p>
+          <p>https://apimserviceramindus.azure-api.net/appointments</p>
         </div>
       </div>
 
       <div className="flow-steps">
-        {tokenFlowSteps.map((s, i) => (
+        {flowSteps.map((s, i) => (
           <React.Fragment key={i}>
             {i > 0 && <span className="flow-step arrow">→</span>}
             <span className={`flow-step ${s.done ? 'done' : ''}`}>{s.done ? '✓ ' : ''}{s.label}</span>
@@ -97,50 +122,114 @@ export default function AzureAPIMTab() {
         ))}
       </div>
 
-      {/* Step 1: Get token */}
+      {/* Auth mode selector */}
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <p className="section-title">Step 1 — Get Azure Token (Client Credentials)</p>
-        <div className="code-block" style={{ fontSize: '0.78rem', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
-          <span style={{ color: '#94a3b8' }}>POST </span>
-          <span style={{ color: '#86efac' }}>https://login.microsoftonline.com/{config.azureTenantId || '<tenant-id>'}/oauth2/v2.0/token</span>{'\n'}
-          <span style={{ color: '#94a3b8' }}>grant_type=</span><span style={{ color: '#fbbf24' }}>client_credentials</span>{'\n'}
-          <span style={{ color: '#94a3b8' }}>scope=</span><span style={{ color: '#86efac' }}>{config.azureScope || '<scope>'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button className="btn-primary" style={{ background: COLOR }} onClick={fetchToken} disabled={tokenLoading}>
-            {tokenLoading ? <span className="spinner" /> : 'Get Token'}
-          </button>
-          {azureToken  && <span className="badge success">✓ Token acquired</span>}
-          {tokenError  && <span className="badge error">✗ {tokenError}</span>}
+        <p className="section-title">Authentication Method</p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              type="radio" name="authMode" value="subscriptionKey"
+              checked={authMode === 'subscriptionKey'}
+              onChange={() => setAuthMode('subscriptionKey')}
+            />
+            <span>Subscription Key</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              type="radio" name="authMode" value="bearer"
+              checked={authMode === 'bearer'}
+              onChange={() => setAuthMode('bearer')}
+            />
+            <span>Bearer Token (OAuth2 Client Credentials)</span>
+          </label>
         </div>
       </div>
 
-      {/* Step 2: Call API */}
+      {/* Subscription Key auth */}
+      {authMode === 'subscriptionKey' && (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <p className="section-title">Subscription Key</p>
+          <div className="code-block" style={{ fontSize: '0.78rem', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+            <span style={{ color: '#94a3b8' }}>Ocp-Apim-Subscription-Key: </span>
+            <span style={{ color: '#fbbf24' }}>{subscriptionKey || '<enter key below>'}</span>
+          </div>
+          <div className="input-row">
+            <input
+              type="text"
+              value={subscriptionKey}
+              onChange={e => setSubscriptionKey(e.target.value)}
+              placeholder="Enter subscription key"
+              style={{ flex: 1, fontFamily: 'monospace' }}
+            />
+            {subscriptionKey && <span className="badge success">✓ Key ready</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Bearer token auth */}
+      {authMode === 'bearer' && (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <p className="section-title">Step 1 — Get Azure Token (Client Credentials)</p>
+          <div className="code-block" style={{ fontSize: '0.78rem', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+            <span style={{ color: '#94a3b8' }}>POST </span>
+            <span style={{ color: '#86efac' }}>https://login.microsoftonline.com/{config.azureTenantId || '<tenant-id>'}/oauth2/v2.0/token</span>{'\n'}
+            <span style={{ color: '#94a3b8' }}>grant_type=</span><span style={{ color: '#fbbf24' }}>client_credentials</span>{'\n'}
+            <span style={{ color: '#94a3b8' }}>scope=</span><span style={{ color: '#86efac' }}>{config.azureScope || '<scope>'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button className="btn-primary" style={{ background: COLOR }} onClick={fetchToken} disabled={tokenLoading}>
+              {tokenLoading ? <span className="spinner" /> : 'Get Token'}
+            </button>
+            {azureToken && <span className="badge success">✓ Token acquired</span>}
+            {tokenError && <span className="badge error">✗ {tokenError}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Call API */}
       <div className="card">
-        <p className="section-title">Step 2 — Call Appointments API via Azure APIM</p>
+        <p className="section-title">{authMode === 'bearer' ? 'Step 2 — ' : ''}Call Appointments API via Azure APIM</p>
         <div className="input-row">
           <select value={mode} onChange={e => setMode(e.target.value)}>
             {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
           {mode === 'byId' && (
-            <input type="text" value={appointmentId} onChange={e => setAppointmentId(e.target.value)} placeholder="APT001" />
+            <input
+              type="text"
+              value={appointmentId}
+              onChange={e => setAppointmentId(e.target.value)}
+              placeholder="APT001"
+            />
           )}
-          {mode === 'byPatient' && (
-            <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} placeholder="P001" />
-          )}
-          <button className="btn-primary" style={{ background: COLOR, minWidth: '120px' }} onClick={callApi} disabled={!azureToken || apiLoading}>
+          <button
+            className="btn-primary"
+            style={{ background: COLOR, minWidth: '120px' }}
+            onClick={callApi}
+            disabled={!isReadyToCall || apiLoading}
+          >
             {apiLoading ? <span className="spinner" /> : 'Call API'}
           </button>
         </div>
         <div className="code-block" style={{ fontSize: '0.78rem', padding: '0.75rem 1rem' }}>
-          <span style={{ color: '#94a3b8' }}>GET </span><span style={{ color: '#86efac' }}>{getUrl()}</span>{'\n'}
-          <span style={{ color: '#94a3b8' }}>Authorization: </span><span style={{ color: '#fbbf24' }}>Bearer </span>
-          <span style={{ color: '#e2e8f0' }}>{azureToken ? azureToken.slice(0, 40) + '…' : '<fetch token first>'}</span>
+          <span style={{ color: '#94a3b8' }}>GET </span><span style={{ color: '#86efac' }}>{getDisplayUrl()}</span>{'\n'}
+          {authMode === 'subscriptionKey' ? (
+            <>
+              <span style={{ color: '#94a3b8' }}>Ocp-Apim-Subscription-Key: </span>
+              <span style={{ color: '#fbbf24' }}>{subscriptionKey ? subscriptionKey.slice(0, 8) + '…' : '<enter key above>'}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: '#94a3b8' }}>Authorization: </span><span style={{ color: '#fbbf24' }}>Bearer </span>
+              <span style={{ color: '#e2e8f0' }}>{azureToken ? azureToken.slice(0, 40) + '…' : '<fetch token first>'}</span>
+            </>
+          )}
         </div>
         {apiError && <span className="badge error" style={{ marginTop: '0.75rem', display: 'inline-flex' }}>✗ {apiError}</span>}
       </div>
 
-      <TokenPanel token={azureToken} label="Azure Token (Client Credentials — no user context)" />
+      {authMode === 'bearer' && (
+        <TokenPanel token={azureToken} label="Azure Token (Client Credentials — no user context)" />
+      )}
       <ResponsePanel response={response} status={status} label="Appointments API Response (Azure APIM)" />
     </div>
   );

@@ -1,0 +1,7 @@
+type: deployment_environments
+version: v4.6.0
+data:
+ -
+   displayOnDevportal: true
+   deploymentEnvironment: Default
+   deploymentVhost: gw.wso2.com

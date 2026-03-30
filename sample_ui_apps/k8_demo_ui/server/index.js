@@ -14,15 +14,12 @@ app.use(cors({ origin: 'http://localhost:3001' }));
 app.use(express.json());
 
 // ── Config ─────────────────────────────────────────────────────────────────────
-const APICTL      = process.env.APICTL_PATH               || '/Users/ramindu/wso2/apictl/apictl';
-const WORK_DIR    = process.env.APICTL_WORK_DIR            || path.join(__dirname); // script dir = server/
-const ENVIRONMENT = process.env.APICTL_ENV                 || 'Production';
-const DEVOPS_USER = process.env.APICTL_DEVOPS_USER         || 'Pereira';
-const DEVOPS_PASS = process.env.APICTL_DEVOPS_PASS         || 'admin';
-const ADMIN_USER  = process.env.APICTL_ADMIN_USER          || 'admin';
-const ADMIN_PASS  = process.env.APICTL_ADMIN_PASS          || 'admin';
-// apictl exports to ~/.wso2apictl/exported/apis/<env>/
-const APICTL_EXPORT_BASE = path.join(os.homedir(), '.wso2apictl', 'exported', 'apis');
+const APICTL          = process.env.APICTL_PATH       || '/Users/ramindu/wso2/apictl/apictl';
+const WORK_DIR        = process.env.APICTL_WORK_DIR   || path.join(__dirname); // script dir = server/
+const ENVIRONMENT     = process.env.APICTL_ENV        || 'Production';
+const ADMIN_USER      = process.env.APICTL_ADMIN_USER || 'admin';
+const ADMIN_PASS      = process.env.APICTL_ADMIN_PASS || 'admin';
+const AZURE_APIS_DIR  = process.env.AZURE_APIS_DIR    || '/Users/ramindu/Desktop/AzureAPis';
 
 // ── DevPortal proxy config ─────────────────────────────────────────────────────
 const APIM_BASE     = process.env.APIM_BASE     || 'https://cp.wso2.com';
@@ -152,6 +149,29 @@ app.all('/api/devportal/*', async (req, res) => {
   }
 });
 
+// ── GET /api/migrate/apis — list ZIPs/folders in AZURE_APIS_DIR ───────────────
+app.get('/api/migrate/apis', (_req, res) => {
+  try {
+    if (!fs.existsSync(AZURE_APIS_DIR)) {
+      return res.json({ apis: [], error: `Directory not found: ${AZURE_APIS_DIR}` });
+    }
+    const entries = fs.readdirSync(AZURE_APIS_DIR).filter(e => {
+      const full = path.join(AZURE_APIS_DIR, e);
+      return e.endsWith('.zip') || fs.statSync(full).isDirectory();
+    });
+    const apis = entries.map(e => {
+      const base = e.replace(/\.zip$/i, '');
+      const m = base.match(/^(.+)[_-](\d+\.\d+\.\d+)$/);
+      return m
+        ? { name: m[1], version: m[2], file: e }
+        : { name: base, version: '', file: e };
+    });
+    res.json({ apis });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/migrate ──────────────────────────────────────────────────────────
 app.post('/api/migrate', (req, res) => {
   const { apiName, version, step } = req.body;
@@ -171,35 +191,17 @@ app.post('/api/migrate', (req, res) => {
     }
   };
 
-  // ── Step 1: Login (DevOps user) ──────────────────────────────────────────────
-  if (step === 'login' || step === 'all') {
-    const ok = doStep('Login (DevOps user)', () =>
-      run(`"${APICTL}" login ${ENVIRONMENT} -u ${DEVOPS_USER} -p "${DEVOPS_PASS}" -k`)
-    );
-    if (!ok && step === 'all') return res.json({ success: false, steps });
-  }
-
-  // ── Step 2: Export API ───────────────────────────────────────────────────────
-  if (step === 'export' || step === 'all') {
-    const ok = doStep('Export API', () =>
-      run(`"${APICTL}" export api -n ${apiName} -v ${version} -r ${DEVOPS_USER} -e ${ENVIRONMENT} --format JSON -k`)
-    );
-    if (!ok && step === 'all') return res.json({ success: false, steps });
-  }
-
-  // ── Step 3: Extract & patch api.json + copy deployment yaml ─────────────────
+  // ── Step 1: Extract & patch api.json + copy deployment yaml ─────────────────
   if (step === 'prepare' || step === 'all') {
     const ok = doStep('Extract & patch api.json', () => {
-      const exportDir = path.join(APICTL_EXPORT_BASE, ENVIRONMENT);
-
       const zipCandidates = [
-        path.join(exportDir, `${apiName}_${version}.zip`),
-        path.join(exportDir, `${apiName}-${version}.zip`),
+        path.join(AZURE_APIS_DIR, `${apiName}_${version}.zip`),
+        path.join(AZURE_APIS_DIR, `${apiName}-${version}.zip`),
       ];
 
       const zipSrc = zipCandidates.find(f => fs.existsSync(f));
       if (!zipSrc) throw new Error(
-        `Export ZIP not found. Looked in:\n  ${zipCandidates.join('\n  ')}`
+        `ZIP not found in ${AZURE_APIS_DIR}. Looked for:\n  ${zipCandidates.map(p => path.basename(p)).join('\n  ')}`
       );
 
       // Clean up old extract
@@ -226,14 +228,14 @@ app.post('/api/migrate', (req, res) => {
       const deployYaml = path.join(__dirname, 'deployment_environments.yaml');
       if (fs.existsSync(deployYaml)) {
         fs.copyFileSync(deployYaml, path.join(extractedDir, 'deployment_environments.yaml'));
-        return `api.json patched (.data fields updated) + deployment_environments.yaml copied\nExtracted: ${extractedDir}`;
+        return `api.json patched + deployment_environments.yaml copied\nSource: ${zipSrc}\nExtracted: ${extractedDir}`;
       }
-      return `api.json patched (.data fields updated)\nExtracted: ${extractedDir}`;
+      return `api.json patched\nSource: ${zipSrc}\nExtracted: ${extractedDir}`;
     });
     if (!ok && step === 'all') return res.json({ success: false, steps });
   }
 
-  // ── Step 4: Delete existing API (admin) ─────────────────────────────────────
+  // ── Step 2: Delete existing API (admin) ─────────────────────────────────────
   if (step === 'delete' || step === 'all') {
     const ok = doStep('Login (admin) & Delete existing API', () => {
       run(`"${APICTL}" login ${ENVIRONMENT} -u ${ADMIN_USER} -p "${ADMIN_PASS}" -k`);
@@ -242,9 +244,10 @@ app.post('/api/migrate', (req, res) => {
     if (!ok && step === 'all') return res.json({ success: false, steps });
   }
 
-  // ── Step 5: Import ───────────────────────────────────────────────────────────
+  // ── Step 3: Import ───────────────────────────────────────────────────────────
   if (step === 'import' || step === 'all') {
     doStep('Import updated API', () => {
+      run(`"${APICTL}" login ${ENVIRONMENT} -u ${ADMIN_USER} -p "${ADMIN_PASS}" -k`);
       const extractedDir = findApiDir(apiName, version);
       if (!extractedDir) throw new Error('Cannot find extracted API directory — run prepare step first');
       return run(`"${APICTL}" import api -f "${extractedDir}" -e ${ENVIRONMENT} --update -k --preserve-provider=false --verbose`);

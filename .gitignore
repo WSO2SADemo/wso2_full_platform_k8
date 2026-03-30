@@ -119,3 +119,5 @@ coverage/
 *.jar
 *.zip
 *secret*.yaml
+
+azure_to_wso2_migration/PrescriptionsAPI-1.0.0/*

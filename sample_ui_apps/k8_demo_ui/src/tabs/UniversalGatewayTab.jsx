@@ -35,7 +35,7 @@ export default function UniversalGatewayTab() {
   const realBase = import.meta.env.VITE_UNIVERSAL_BASE || 'https://gw.wso2.com';
 
   const apiPath = (base) => {
-    const root = `${base}/medicalprescriptionsapi/1.0.0`;
+    const root = `${base}/unigwmedicalprescriptionsapi/1.0.0`;
     if (mode === 'byId')          return `${root}/prescriptions/${prescriptionId}`;
     if (mode === 'byPatient')     return `${root}/prescriptions/patient/${patientId}`;
     if (mode === 'activePatient') return `${root}/prescriptions/patient/${patientId}/active`;

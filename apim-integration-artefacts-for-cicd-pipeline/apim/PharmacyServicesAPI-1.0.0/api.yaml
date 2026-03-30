@@ -73,9 +73,9 @@ data:
   endpointConfig:
     endpoint_type: http
     sandbox_endpoints:
-      url: http://medical-provider-services.ballerina.svc.cluster.local:92022
+      url: http://medical-provider-services.ballerina.svc.cluster.local:92023
     production_endpoints:
-      url: http://medical-provider-services.ballerina.svc.cluster.local:92022
+      url: http://medical-provider-services.ballerina.svc.cluster.local:92023
   endpointImplementationType: ENDPOINT
   subtypeConfiguration:
     subtype: DEFAULT

@@ -12,10 +12,13 @@ const config = {
   azureBase:     '/proxy/azure',
 
   // Azure APIM Client Credentials
-  azureTenantId:     import.meta.env.VITE_AZURE_TENANT_ID     || '',
-  azureClientId:     import.meta.env.VITE_AZURE_CLIENT_ID     || '',
-  azureClientSecret: import.meta.env.VITE_AZURE_CLIENT_SECRET || '',
-  azureScope:        import.meta.env.VITE_AZURE_SCOPE         || '',
+  azureTenantId:       import.meta.env.VITE_AZURE_TENANT_ID       || '',
+  azureClientId:       import.meta.env.VITE_AZURE_CLIENT_ID       || '',
+  azureClientSecret:   import.meta.env.VITE_AZURE_CLIENT_SECRET   || '',
+  azureScope:          import.meta.env.VITE_AZURE_SCOPE           || '',
+
+  // Azure APIM Subscription Key
+  azureSubscriptionKey: import.meta.env.VITE_AZURE_SUBSCRIPTION_KEY || '',
 };
 
 export default config;
