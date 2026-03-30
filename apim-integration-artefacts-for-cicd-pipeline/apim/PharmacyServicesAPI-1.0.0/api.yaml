@@ -82,8 +82,8 @@ data:
   scopes:
    -
     scope:
-      name: restricted
-      displayName: restricted
+      name: restricted2
+      displayName: restricted2
       description: ""
       bindings: []
     shared: false
