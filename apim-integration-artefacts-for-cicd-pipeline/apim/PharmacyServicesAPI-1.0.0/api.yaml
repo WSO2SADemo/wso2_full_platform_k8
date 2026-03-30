@@ -82,8 +82,8 @@ data:
   scopes:
    -
     scope:
-      name: restricted2
-      displayName: restricted2
+      name: restricted2123
+      displayName: restricted2123
       description: ""
       bindings: []
     shared: false
@@ -119,7 +119,7 @@ data:
     authType: Application & Application User
     throttlingPolicy: Unlimited
     scopes:
-     - restricted
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -144,7 +144,7 @@ data:
     authType: Application & Application User
     throttlingPolicy: Unlimited
     scopes:
-     - restricted
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -157,7 +157,7 @@ data:
     authType: Application & Application User
     throttlingPolicy: Unlimited
     scopes:
-     - restricted
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -182,7 +182,7 @@ data:
     authType: Application & Application User
     throttlingPolicy: Unlimited
     scopes:
-     - restricted
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
