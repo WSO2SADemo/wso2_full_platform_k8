@@ -10,6 +10,8 @@ export default function CustomerDashboard() {
 
   const [hasPremiumCoverage, setHasPremiumCoverage] = useState(false);
   const [accessToken, setAccessToken] = useState(null);
+  const [oboToken, setOboToken] = useState(null);
+  const [agentToken, setAgentToken] = useState(null);
   const [username, setUsername] = useState(null);
   const [policyData, setPolicyData] = useState(null);
   const [claimsData, setClaimsData] = useState(null);
@@ -108,8 +110,8 @@ export default function CustomerDashboard() {
   }[status] || { bg: '#f1f5f9', color: '#475569' });
 
   return (
-    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', padding: '2rem' }}>
-      <TokenInfoPanel accessToken={accessToken} />
+    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', padding: '2rem 2rem 2rem 0' }}>
+      <TokenInfoPanel accessToken={accessToken} oboToken={oboToken} agentToken={agentToken} />
       <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* Header */}
@@ -226,7 +228,7 @@ export default function CustomerDashboard() {
 
       {/* AI Chat Agent */}
       <ChatAgent accessToken={accessToken} hasPremiumCoverage={hasPremiumCoverage} username={username} />
-      <OBOChatAgent accessToken={accessToken} username={username} />
+      <OBOChatAgent accessToken={accessToken} username={username} onOboToken={setOboToken} onAgentToken={setAgentToken} />
 
       {/* Premium Section */}
       {hasPremiumCoverage ? (

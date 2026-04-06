@@ -36,20 +36,25 @@ function ClaimRow({ label, value }) {
 
 const KEY_CLAIMS = ['sub', 'username', 'scope', 'iss', 'iat', 'exp', 'act', 'client_id'];
 
-export default function TokenInfoPanel({ accessToken }) {
-  const [copied, setCopied] = useState(false);
-  const [decodedOpen, setDecodedOpen] = useState(false);
+export default function TokenInfoPanel({ accessToken, oboToken, agentToken }) {
+  const [copied, setCopied] = useState(null);
+  const [decodedOpen, setDecodedOpen] = useState({});
 
-  const decoded = useMemo(() => accessToken ? decodeJwt(accessToken) : null, [accessToken]);
+  const decodedAccess = useMemo(() => accessToken ? decodeJwt(accessToken) : null, [accessToken]);
+  const decodedAgent = useMemo(() => agentToken ? decodeJwt(agentToken) : null, [agentToken]);
+  const decodedObo = useMemo(() => oboToken ? decodeJwt(oboToken) : null, [oboToken]);
 
-  const copy = (text) => {
+  const copy = (text, key) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
   };
+
+  const toggleDecoded = (key) => setDecodedOpen(o => ({ ...o, [key]: !o[key] }));
 
   const sections = [
     {
+      key: 'direct',
       icon: '🔗',
       title: 'Direct API Calls',
       subtitle: 'Policy & Claims data',
@@ -57,30 +62,35 @@ export default function TokenInfoPanel({ accessToken }) {
       tokenLabel: 'User Access Token',
       tokenValue: accessToken,
       tokenDesc: null,
+      decoded: decodedAccess,
       color: '#0d6e6e',
       bg: '#f0f7f7',
       border: '#c8e0e0',
     },
     {
+      key: 'agent',
       icon: '🤖',
       title: 'Normal Agent',
       subtitle: 'MCP tool calls via GW',
       url: `${config.chatApiBase}/chat`,
       tokenLabel: 'Agent Credential Token',
-      tokenValue: null,
+      tokenValue: agentToken,
       tokenDesc: 'IS client credentials · Backend',
+      decoded: decodedAgent,
       color: '#0ea5e9',
       bg: '#f0f9ff',
       border: '#bae6fd',
     },
     {
+      key: 'obo',
       icon: '🔐',
       title: 'OBO Agent',
       subtitle: 'Delegated submitClaim calls',
       url: `${config.oboChatApiBase}/obo_chat`,
       tokenLabel: 'OBO Delegated Token',
-      tokenValue: null,
+      tokenValue: oboToken,
       tokenDesc: 'IS token exchange · User-consented',
+      decoded: decodedObo,
       color: '#7c3aed',
       bg: '#faf5ff',
       border: '#ddd6fe',
@@ -108,8 +118,8 @@ export default function TokenInfoPanel({ accessToken }) {
         🔍 Token Inspector
       </div>
 
-      {sections.map((s, i) => (
-        <div key={i} style={{
+      {sections.map((s) => (
+        <div key={s.key} style={{
           background: s.bg,
           border: `1px solid ${s.border}`,
           borderRadius: '10px',
@@ -151,20 +161,20 @@ export default function TokenInfoPanel({ accessToken }) {
                     {truncate(s.tokenValue) || '—'}
                   </div>
                   <button
-                    onClick={() => copy(s.tokenValue)}
+                    onClick={() => copy(s.tokenValue, s.key)}
                     style={{
                       flexShrink: 0, background: s.color, color: '#fff', border: 'none',
                       borderRadius: '5px', padding: '5px 10px', cursor: 'pointer',
                       fontSize: '0.72rem', fontWeight: 600, marginTop: '2px'
                     }}
                   >
-                    {copied ? '✓' : 'Copy'}
+                    {copied === s.key ? '✓' : 'Copy'}
                   </button>
                 </div>
 
                 {/* Decoded JWT toggle */}
                 <button
-                  onClick={() => setDecodedOpen(o => !o)}
+                  onClick={() => toggleDecoded(s.key)}
                   style={{
                     width: '100%', background: 'transparent', border: `1px solid ${s.border}`,
                     borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
@@ -173,28 +183,28 @@ export default function TokenInfoPanel({ accessToken }) {
                   }}
                 >
                   <span>Decoded Claims</span>
-                  <span>{decodedOpen ? '▲' : '▼'}</span>
+                  <span>{decodedOpen[s.key] ? '▲' : '▼'}</span>
                 </button>
 
-                {decodedOpen && decoded && (
+                {decodedOpen[s.key] && s.decoded && (
                   <div style={{
                     marginTop: '8px', background: '#1e293b', borderRadius: '8px',
                     padding: '12px 14px',
                   }}>
-                    {KEY_CLAIMS.filter(k => decoded[k] !== undefined).map(k => (
+                    {KEY_CLAIMS.filter(k => s.decoded[k] !== undefined).map(k => (
                       <ClaimRow key={k} label={k} value={
                         k === 'iat' || k === 'exp'
-                          ? `${decoded[k]} (${new Date(decoded[k] * 1000).toLocaleTimeString()})`
-                          : typeof decoded[k] === 'object'
-                            ? JSON.stringify(decoded[k])
-                            : decoded[k]
+                          ? `${s.decoded[k]} (${new Date(s.decoded[k] * 1000).toLocaleTimeString()})`
+                          : typeof s.decoded[k] === 'object'
+                            ? JSON.stringify(s.decoded[k])
+                            : s.decoded[k]
                       } />
                     ))}
-                    {Object.keys(decoded)
+                    {Object.keys(s.decoded)
                       .filter(k => !KEY_CLAIMS.includes(k))
                       .map(k => (
                         <ClaimRow key={k} label={k} value={
-                          typeof decoded[k] === 'object' ? JSON.stringify(decoded[k]) : decoded[k]
+                          typeof s.decoded[k] === 'object' ? JSON.stringify(s.decoded[k]) : s.decoded[k]
                         } />
                       ))
                     }

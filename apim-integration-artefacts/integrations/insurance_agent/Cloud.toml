@@ -1,7 +1,7 @@
 [container.image]
 repository="ramilu90" # Docker hub repository name.
 name="insurance_agent" # container name
-tag="1.0.17"
+tag="1.0.21"
 
 # ── Secrets (injected as env vars, read via os:getEnv defaults in config.bal) ──
 

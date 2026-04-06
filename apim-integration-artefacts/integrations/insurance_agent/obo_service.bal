@@ -92,6 +92,8 @@ type OBOChatResponse record {|
     string message;
     string? consent_url = ();
     string? session_id = ();
+    string? obo_token = ();
+    string? agent_token = ();
 |};
 
 // ── OBO Chat Service ────────────────────────────────────────────────────────
@@ -187,6 +189,8 @@ service /insurance_obo on insurance_agentListener {
         lock {
             consentNeeded = oboConsentRequired;
         }
+        string? currentAgentToken = cachedAgentToken;
+
         if consentNeeded {
             string|error consentUrl = generateOBOAuthUrl(sessionId);
             if consentUrl is string {
@@ -194,13 +198,18 @@ service /insurance_obo on insurance_agentListener {
                 return {
                     message: "I need your authorization to submit claims on your behalf. Please click the authorization link, then resend your request.",
                     consent_url: consentUrl,
-                    session_id: sessionId
+                    session_id: sessionId,
+                    agent_token: currentAgentToken
                 };
             }
             log:printError("Insurance OBO Service: failed to generate consent URL", <error>consentUrl);
         }
 
-        return {message: result, session_id: sessionId};
+        string? activeOboToken = ();
+        lock {
+            activeOboToken = currentOBOToken;
+        }
+        return {message: result, session_id: sessionId, obo_token: activeOboToken, agent_token: currentAgentToken};
     }
 
     // GET /insurance_obo/obo_callback

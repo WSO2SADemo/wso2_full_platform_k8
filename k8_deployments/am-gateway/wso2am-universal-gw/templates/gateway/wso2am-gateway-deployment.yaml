@@ -79,8 +79,18 @@ spec:
         - name: MOESIF_KEY_ENV_VAR
           valueFrom:
             secretKeyRef:
-              name: apim-secrets    
-              key: MOESIF_API_KEY 
+              name: apim-secrets
+              key: MOESIF_API_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: apim-secrets
+              key: OPENAI_API_KEY
+        - name: ZILLIZ_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: apim-secrets
+              key: ZILLIZ_TOKEN
         - name: PROFILE_NAME
           value: gateway-worker
         - name: NODE_IP

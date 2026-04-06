@@ -33,6 +33,6 @@ final mistral:ModelProvider mistralModelprovider = check new (mistralAccessToken
     secureSocket = {cert: {path: truststorePath, password: truststorePassword}, verifyHostName: false}
 );
 final pinecone:VectorStore pineconeVectorstore = check new (string `${pineconeURL}`, string `${pineConeKey}`);
-final ai:Wso2EmbeddingProvider aiWso2embeddingprovider = check new (serviceUrl = wso2ProviderConfigServiceUrl, accessToken = wso2ProviderConfigAccessToken);
+
 final ai:VectorKnowledgeBase aiVectorknowledgebase = new (pineconeVectorstore, openaiEmbeddingprovider);
 final openai:EmbeddingProvider openaiEmbeddingprovider = check new (string `${openAIKey}`, "text-embedding-3-small");

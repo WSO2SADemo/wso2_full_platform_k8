@@ -55,7 +55,13 @@
       "Bash(curl -sk -X GET \"https://kgw.wso2.com:9095/medicalpatientservicesapi/1.0.0/patients\" -H \"Authorization: Bearer $TOKEN\")",
       "Read(//Users/ramindu/wso2/general_demo/**)",
       "Bash(find /Users/ramindu/wso2/general_demo -name *.md -path *federated*azure*)",
-      "Bash(find /Users/ramindu/wso2/general_demo -name *.md -path *azure*)"
+      "Bash(find /Users/ramindu/wso2/general_demo -name *.md -path *azure*)",
+      "Bash(find /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/sample_ui_apps/insurance/insurance-customer-portal -type f -name *token* -o -name *inspector*)",
+      "Bash(chmod +x /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/sample_ui_apps/ai_ui_app_insurance/setup.sh)",
+      "Bash(grep -n \"config\\\\.endpoints\\\\.\" /Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/sample_ui_apps/ai_ui_app_insurance/src/features/*.jsx)",
+      "Bash(BASE=/Users/ramindu/wso2/general_demo/demo_resources/k8-artefacts-apim-bi-elk/sample_ui_apps/ai_ui_app_insurance/src/features)",
+      "Bash(__NEW_LINE_1df94a00de27dbde__ sed:*)",
+      "Bash(sed -i '' 's/\\\\[.Endpoint., GW_URL\\\\]/[\"\"Endpoint\"\", config.endpoints.semanticCache]/g' \"$BASE/SemanticCaching.jsx\")"
     ]
   }
 }

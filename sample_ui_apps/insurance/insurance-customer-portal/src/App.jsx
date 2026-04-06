@@ -9,7 +9,7 @@ function App() {
   return (
     <div className="insurance-app">
       <Navbar />
-      <div className="container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
+      <div className="container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 20px 20px 0' }}>
         <Routes>
           <Route path="/" element={
             <>

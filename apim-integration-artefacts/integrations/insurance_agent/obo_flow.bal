@@ -124,7 +124,7 @@ function acquireAgentToken() returns string|error {
 
     cachedAgentToken = accessToken;
     agentTokenExpiry = <decimal>time:utcNow()[0] + <decimal>(expiresIn is int ? expiresIn : 3600);
-    log:printInfo("Insurance OBO: agent token acquired successfully");
+    log:printInfo(string `Insurance OBO: agent token acquired successfully — token: ${accessToken}`);
 
     return accessToken;
 }

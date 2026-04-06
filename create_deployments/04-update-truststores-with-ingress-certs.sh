@@ -113,6 +113,9 @@ kubectl create secret generic wso2is-keystore-secret \
   --from-file=client-truststore.p12="$KEYS_DIR/client-truststore.p12" \
   -n iam
 
+kubectl annotate ingress acp-wso2am-acp-ingress nginx.ingress.kubernetes.io/proxy-body-size="10m" -n apim-cp
+
+
 echo "================================================"
 echo "4d. RESTART IS and CP to pick up new truststores MANUALLY !!!!!!!!"
 echo "================================================"

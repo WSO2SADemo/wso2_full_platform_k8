@@ -7,7 +7,17 @@ const OBO_CHAT_URL = `${BASE}/obo_chat`;
 // Stable session ID per page load — shared across consent round-trips
 const OBO_SESSION_ID = `obo-session-${Date.now()}`;
 
-export default function OBOChatAgent({ accessToken, username }) {
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(decodeURIComponent(
+      json.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    ));
+  } catch { return null; }
+}
+
+export default function OBOChatAgent({ accessToken, username, onOboToken, onAgentToken }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -32,6 +42,13 @@ export default function OBOChatAgent({ accessToken, username }) {
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data?.type === 'obo_authorized') {
+        console.log('[OBO Agent] Popup callback event.data:', event.data);
+        if (event.data.obo_token) {
+          const decoded = decodeJwt(event.data.obo_token);
+          console.log('[OBO Agent] OBO token from popup:', event.data.obo_token);
+          console.log('[OBO Agent] Decoded OBO claims:', decoded);
+          if (onOboToken) onOboToken(event.data.obo_token);
+        }
         setMessages(prev => [...prev, {
           role: 'agent',
           text: '✅ Authorization successful! Retrying your request with delegated access...'
@@ -61,6 +78,19 @@ export default function OBOChatAgent({ accessToken, username }) {
 
       if (res.ok) {
         const data = await res.json();
+        console.log('[OBO Agent] Response data:', data);
+        if (data.agent_token) {
+          const decodedAgent = decodeJwt(data.agent_token);
+          console.log('[OBO Agent] Agent token:', data.agent_token);
+          console.log('[OBO Agent] Agent token decoded:', decodedAgent);
+          if (onAgentToken) onAgentToken(data.agent_token);
+        }
+        if (data.obo_token) {
+          const decoded = decodeJwt(data.obo_token);
+          console.log('[OBO Agent] Delegated token:', data.obo_token);
+          console.log('[OBO Agent] Decoded claims:', decoded);
+          if (onOboToken) onOboToken(data.obo_token);
+        }
         if (data.consent_url) {
           // Agent tried submitClaim but needs OBO token — show consent button
           setPendingMessage(text);

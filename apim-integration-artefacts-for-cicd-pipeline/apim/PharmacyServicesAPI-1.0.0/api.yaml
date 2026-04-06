@@ -79,14 +79,7 @@ data:
   endpointImplementationType: ENDPOINT
   subtypeConfiguration:
     subtype: DEFAULT
-  scopes:
-   -
-    scope:
-      name: restricted2123
-      displayName: restricted2123
-      description: ""
-      bindings: []
-    shared: false
+  scopes: []
   operations:
    -
     id: ""
@@ -118,8 +111,7 @@ data:
     verb: POST
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes:
-     - restricted2123
+    scopes: []
     usedProductIds: []
     operationPolicies:
       request: []
@@ -143,8 +135,7 @@ data:
     verb: PUT
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes:
-     - restricted2123
+    scopes: []
     usedProductIds: []
     operationPolicies:
       request: []
@@ -156,8 +147,7 @@ data:
     verb: DELETE
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes:
-     - restricted2123
+    scopes: []
     usedProductIds: []
     operationPolicies:
       request: []
@@ -181,8 +171,7 @@ data:
     verb: POST
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes:
-     - restricted2123
+    scopes: []
     usedProductIds: []
     operationPolicies:
       request: []

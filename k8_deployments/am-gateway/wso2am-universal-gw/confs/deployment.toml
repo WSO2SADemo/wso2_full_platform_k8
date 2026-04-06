@@ -110,6 +110,19 @@ endpoint = {{ .Values.wso2.apim.configurations.ai.endpoint | quote }}
 enable = false
 {{- end }}
 
+[apim.ai.embedding_provider]
+type = "openai"
+[apim.ai.embedding_provider.properties]
+apikey = "$env{OPENAI_API_KEY}"
+embedding_endpoint = "https://api.openai.com/v1/embeddings"
+embedding_model = "text-embedding-ada-002"
+
+[apim.ai.vector_db_provider]
+type = "zilliz"
+[apim.ai.vector_db_provider.properties]
+uri = "https://in03-06f9d7fb0f65e8b.serverless.aws-eu-central-1.cloud.zilliz.com"
+token = "$env{ZILLIZ_TOKEN}"
+
 [transport.http]
 properties.port = 9763
 properties.proxyPort = 80
