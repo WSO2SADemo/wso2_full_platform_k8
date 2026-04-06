@@ -4,7 +4,7 @@ data:
   id: 5b7830f5-4ceb-4b64-8243-126245c88af2
   name: PharmacyServicesAPI
   displayName: PharmacyServicesAPI
-  description: "Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202 in the integration layer"
+  description: "Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202 runs on wso2 integrator"
   context: /pharmacyservicesapi
   version: 1.0.0
   provider: admin

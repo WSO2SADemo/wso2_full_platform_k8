@@ -36,6 +36,10 @@ jobs:
           echo "Pinging cp.wso2.com..."
           curl -sk -o /dev/null -w "HTTP status: %{http_code}\n" https://cp.wso2.com/oauth2/token || echo "curl failed"
 
+      - name: Configure apictl Timeout
+        run: |
+          apictl set --http-request-timeout 120000
+
       - name: Configure Prod Environment
         run: |
           echo "⚙️ Configuring APIM environment..."
