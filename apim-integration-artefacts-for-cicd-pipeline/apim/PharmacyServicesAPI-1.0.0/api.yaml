@@ -2,10 +2,10 @@ type: api
 version: v4.6.0
 data:
   id: 5b7830f5-4ceb-4b64-8243-126245c88af2
-  name: PharmacyServicesAPI
-  displayName: PharmacyServicesAPI
+  name: PharmacyServiceAPI
+  displayName: PharmacyServiceAPI
   description: "Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202."
-  context: /pharmacyservicesapi
+  context: /PharmacyServiceAPI
   version: 1.0.0
   provider: admin
   lifeCycleStatus: CREATED

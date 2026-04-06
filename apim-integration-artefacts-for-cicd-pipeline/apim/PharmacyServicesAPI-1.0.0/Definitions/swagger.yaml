@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: PharmacyServicesAPI
+  title: PharmacyServiceAPI
   description: "Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202."
   version: 1.0.0
 servers:
@@ -807,7 +807,7 @@ x-wso2-sandbox-endpoints:
   urls:
    - http://medical-provider-services.ballerina.svc.cluster.local:9202
   type: http
-x-wso2-basePath: /pharmacyservicesapi/1.0.0
+x-wso2-basePath: /PharmacyServiceAPI/1.0.0
 x-wso2-transports:
  - http
  - https
