@@ -91,7 +91,7 @@ paths:
       security:
        -
         default:
-         - restricted
+         - restricted2123
       x-auth-type: Application & Application User
       x-throttling-tier: Unlimited
       x-wso2-application-security:
@@ -145,7 +145,7 @@ paths:
       security:
        -
         default:
-         - restricted
+         - restricted2123
       x-auth-type: Application & Application User
       x-throttling-tier: Unlimited
       x-wso2-application-security:
@@ -169,7 +169,7 @@ paths:
       security:
        -
         default:
-         - restricted
+         - restricted2123
       x-auth-type: Application & Application User
       x-throttling-tier: Unlimited
       x-wso2-application-security:
@@ -230,7 +230,7 @@ paths:
       security:
        -
         default:
-         - restricted
+         - restricted2123
       x-auth-type: Application & Application User
       x-throttling-tier: Unlimited
       x-wso2-application-security:
@@ -777,9 +777,9 @@ components:
         implicit:
           authorizationUrl: https://test.com
           scopes:
-            restricted: ""
+            restricted2123: ""
           x-scopes-bindings:
-            restricted: ""
+            restricted2123: ""
 x-wso2-api-key-header: ApiKey
 x-wso2-auth-header: Authorization
 x-wso2-cors:

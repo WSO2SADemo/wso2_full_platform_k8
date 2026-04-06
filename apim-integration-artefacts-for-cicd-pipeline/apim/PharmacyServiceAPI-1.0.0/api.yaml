@@ -2,10 +2,10 @@ type: api
 version: v4.6.0
 data:
   id: 5b7830f5-4ceb-4b64-8243-126245c88af2
-  name: PharmacyServiceAPI
-  displayName: PharmacyServiceAPI
+  name: PharmacyServicesAPI
+  displayName: PharmacyServicesAPI
   description: "Pharmacy management, medication inventory, prescription dispensing, and dispense history. Runs on port 9202."
-  context: /PharmacyServiceAPI
+  context: /pharmacyservicesapi
   version: 1.0.0
   provider: admin
   lifeCycleStatus: CREATED
@@ -79,7 +79,14 @@ data:
   endpointImplementationType: ENDPOINT
   subtypeConfiguration:
     subtype: DEFAULT
-  scopes: []
+  scopes:
+   -
+    scope:
+      name: restricted2123
+      displayName: restricted2123
+      description: ""
+      bindings: []
+    shared: false
   operations:
    -
     id: ""
@@ -111,7 +118,8 @@ data:
     verb: POST
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes: []
+    scopes:
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -135,7 +143,8 @@ data:
     verb: PUT
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes: []
+    scopes:
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -147,7 +156,8 @@ data:
     verb: DELETE
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes: []
+    scopes:
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -171,7 +181,8 @@ data:
     verb: POST
     authType: Application & Application User
     throttlingPolicy: Unlimited
-    scopes: []
+    scopes:
+     - restricted2123
     usedProductIds: []
     operationPolicies:
       request: []
@@ -298,3 +309,4 @@ data:
   asyncTransportProtocols: []
   egress: false
   organizationId: carbon.super
+  
